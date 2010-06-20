@@ -1,0 +1,29 @@
+
+module HashTblProc: sig
+
+  val ('a, 'b) t
+
+  val find: 'a -> ('a, 'b) t -> 'b
+
+end = struct
+end
+
+module HashTblController:sig
+end = struct
+
+  let find t msg res = 
+    match msg with
+    | Merge (x,y) -> 
+	let merger = get_merger t in
+	let w1, w2, w3 = token merger in
+	send sub1 (Find (x, w1)) ;
+	send sub2 (Find (y, w2)) ;
+	send w3 (Receiver res) 
+end
+
+module Merger: sig
+
+end = struct
+
+  let merge t l1 l2 res = send res (List.merge l1 l2)
+end

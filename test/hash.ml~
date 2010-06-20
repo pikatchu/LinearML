@@ -1,0 +1,81 @@
+
+module HashTableService:sig
+
+  type msg('a,'b,'c) = 
+    | Add('a,'b)
+    | Del('a)
+    | Get(service('c,'b),'c,'a)
+
+  type t('a,'b,'c) = service(msg('a,'b,'c))
+  
+  val create: (int,int) -> t('a,'b)
+
+end = struct
+
+  let handler(ht,msg) = 
+    match msg with
+    | Add(x,y) -> HashTable.add(ht,x,y)
+    | Del(x) -> HashTable.remove(ht,x)
+    | Get(res,next,x) -> 
+	ht, v = HashTable.get x ;
+	send(res,next,v) ;
+	ht
+
+  let create(size,bsize) = 
+    ht = HashTable.create(size) ;
+    service(bsize,handler,ht)
+end
+
+module HashTableServiceTest: sig
+
+  val main: array(string) -> int
+end = struct
+
+  module Ht = HashTableService
+
+  let receiver(v) =
+
+  let main(_) = 
+    hts = Ht.create(1024,1024) ;
+    send(hts, Add(2,3)) ;
+    send(hts, Get(2),next,env)
+
+end
+
+
+module HashTable: sig
+
+  type ('a, 'b) t = {
+      hash: ('a -> int) ;
+      table: 'b shared array ;
+    }
+
+  val find: ('a,'b) t -> 'a -> 'b shared
+
+end = struct
+
+  let find t x = 
+    let idx = t.hash x % Array.size t.table in
+    Array.get_shared t.table idx
+end
+
+module HashTableController: sig
+  module HTA = HashTableActor
+
+  type ('a, 'b) t = ('a, 'b) HTA.t array
+  
+  val make: unit -> ('a, 'b) t
+
+end = struct
+
+  let handler t msg self up = 
+    match msg with
+    | Find (x, res) -> send t[index x] (Find (x, up))
+    | Merge (x, y, res) -> 
+	send t[index x] (Find (x, self)) ;
+	send t[index y] (Find_2 (y, self, up)) 
+    | 
+	
+    
+
+end

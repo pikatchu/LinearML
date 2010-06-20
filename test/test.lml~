@@ -1,0 +1,17 @@
+
+module Test:sig
+
+  type t = int32 * int32
+  val fac: int32 -> int32
+
+end = struct
+  module B = Bob
+
+  let fac n = 
+    if n <= 0 
+    then 1 
+    else n * fac (n-1)
+
+end
+
+module Bob: sig end = struct end

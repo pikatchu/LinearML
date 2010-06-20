@@ -1,0 +1,22 @@
+
+module Rlist: sig
+
+  type t('a) =
+    | Empty
+    | Cons('a, Heap.ptr(t('a)))
+
+  val rev: Heap.t(t('a)) -> Heap.ptr(t('a)) -> Heap.ptr(t('a))
+
+end = struct
+
+  let make() = Empty
+
+  let rec rev(r,acc,l) = 
+    match Heap.get(r, l) with
+    | None -> Error(r)
+    | Some(Empty) -> r, acc
+    | Some(Cons(x,rl)) -> 
+	let r, acc = Heap.add(r, Cons(x, acc)) in
+	rev(r,acc,rl)
+	
+end

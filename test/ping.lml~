@@ -1,0 +1,9 @@
+
+module Ping: sig
+end = struct
+
+  let handler msg = 0
+
+  let socket msg res = 
+    
+end

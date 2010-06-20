@@ -1,0 +1,28 @@
+pos.cmo: 
+pos.cmx: 
+ident.cmo: ident.cmi 
+ident.cmx: ident.cmi 
+utils.cmo: ident.cmi 
+utils.cmx: ident.cmx 
+error.cmo: utils.cmx pos.cmx 
+error.cmx: utils.cmx pos.cmx 
+ast.cmo: utils.cmx pos.cmx 
+ast.cmx: utils.cmx pos.cmx 
+lexer.cmo: pos.cmx parser.cmi 
+lexer.cmx: pos.cmx parser.cmx 
+parser.cmo: pos.cmx ast.cmx parser.cmi 
+parser.cmx: pos.cmx ast.cmx parser.cmi 
+nast.cmo: utils.cmx pos.cmx ident.cmi 
+nast.cmx: utils.cmx pos.cmx ident.cmx 
+naming.cmo: utils.cmx pos.cmx nast.cmx ident.cmi error.cmx ast.cmx 
+naming.cmx: utils.cmx pos.cmx nast.cmx ident.cmx error.cmx ast.cmx 
+tast.cmo: utils.cmx 
+tast.cmx: utils.cmx 
+typing.cmo: utils.cmx ast.cmx 
+typing.cmx: utils.cmx ast.cmx 
+llast.cmo: 
+llast.cmx: 
+emit.cmo: /home/pika/godi/lib/llvm.cmi llast.cmx 
+emit.cmx: /home/pika/godi/lib/llvm.cmi llast.cmx 
+main.cmo: typing.cmx pos.cmx parser.cmi naming.cmx lexer.cmx error.cmx 
+main.cmx: typing.cmx pos.cmx parser.cmx naming.cmx lexer.cmx error.cmx 

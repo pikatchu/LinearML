@@ -1,0 +1,36 @@
+
+module M: sig
+
+  type t =
+    | Leaf
+    | Node (t, int, t)
+
+  val sum: read_only(t) -> int
+
+end = struct
+
+  let rec sum(t) = 
+    match t with
+    | Leaf -> 0
+    | Node (t1, n, t2) -> 
+	sum(t1) + n + sum(t2)
+
+  let rec get_ll(t) =
+    match t with
+    | Node(Node(t,_,_)) -> Some(t)
+    | _ -> None
+
+  let ro_sum(t,()) = sum(t,())
+
+  let main () =
+    let t1 = shared(t) in
+    let t1 = clone(t1) in
+    let x = sum(inspect(t1)) in
+    let y = sum(inspect(t2)) in
+    free(t) ;
+    free(t1) ;
+    free(t2) ;
+    print(x) ;
+    exit(0)    
+end
+

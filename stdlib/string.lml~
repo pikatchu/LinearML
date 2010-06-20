@@ -1,0 +1,27 @@
+
+module String: sig
+
+  val trim: string -> string
+  
+end = struct
+
+  let trim(s) = 
+    i = 0 ;
+    while s[i] = ' ' do
+      i = i + 1 ;
+    done ;
+    j = length(s) - 1 ;
+    while s[j] = ' ' do
+      j = j - 1 
+    done ;
+    res = make(s,j-i+1) ;
+    k = 0 ;
+    for l = i to j do
+      res[k] = s[l] ;
+      k = k + 1 
+    done ;
+    free(s) ;
+    res
+
+
+end

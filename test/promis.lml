@@ -1,0 +1,27 @@
+
+
+module M: sig
+end = struct
+
+  let controler st msg = 
+    match msg with
+    | Find (x, repl) -> send (x, repl) st.finder
+    | Merge (x, y) ->
+	let l1 = send x st.finder in
+	let l2 = send y st.finder in
+	st, send Merge when (l1, l2) st.merger 
+	
+  let controller st = object
+
+    method find x = 
+      st.finder#find x
+
+    method merger x y = 
+      let l1 = st.finder#find x in
+      let l2 = st.finder#find y in
+      st.merger#merge l1 l2
+  end
+	
+	
+
+end

@@ -1,0 +1,20 @@
+
+module String: sig
+
+  type string = array(char) 
+
+  val trim: string -> string
+  
+end = struct
+
+  let rec find(s,n,step) = 
+    match s[n] with
+    | ' ' -> find_first(s, n+step)
+    | _ -> s, n
+
+  let trim(s) = 
+    s, first = find(s,0,1) ;
+    s, last = find(s, String.length(s)-1,-1) ;
+    sub(s,first,last-first+1)
+    
+end

@@ -1,0 +1,17 @@
+
+
+module M: sig
+end = struct
+
+  let controler st msg = 
+    match msg with
+    | Find (x, repl) -> send (x, repl) st.finder
+    | Merge (x,y) ->
+	let r1, w1 = Promis.make() in
+	let r2, w2 = Promis.make() in
+	send (Find (x, w1)) st.finder ;
+	send (Find (x, w2)) st.finder ;
+	send (Merger (r1, r2)) st.merger when (r1, r2)
+	
+
+end

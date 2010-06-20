@@ -1,0 +1,22 @@
+
+module ObsArray: sig
+
+  type abstract t(elt) = {
+      size: int32 ;
+      elts: __array(elt) ;
+    }
+  
+  val length: t(a) -> int32
+  val get: obs(t(a)), int32 -> obs(a)
+  val set: t(a), int32, a -> t
+  val make: int32 -> t
+
+end = struct
+
+  let length(t) = t.size
+  let get(t, x) = t.elts.x
+
+  let set(t, x, v) = 
+    t, elts = t#elts ;
+    { t with elts = __set(elts,x) }
+end

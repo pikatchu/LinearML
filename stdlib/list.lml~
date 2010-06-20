@@ -1,0 +1,85 @@
+(* *)
+
+module List: sig
+
+  val length: obs(list('a)) -> int32
+  val rev: list('a) -> list('a)
+
+end = struct
+
+  let rec length_(acc,l) =
+    match l with
+    | Empty -> acc
+    | Cons (_, rl) -> length_(acc+1,rl)
+
+  let length(l) = length_(0,visit(l))
+
+  let nth_ (l, n) = 
+    match l with
+    | Empty -> None
+    | Cons(x,rl) -> 
+	if n = 0 then (free(rl) ; Some(x))
+	else nth_(rl,n-1)
+
+  let nth(l,n) = 
+    if n < 0 
+    then None 
+    else nth_(l,n)
+
+  let rec rev_ (acc, l) = 
+    match l with
+    | Empty -> acc
+    | Cons(x,rl) -> rev_ (Cons(x, acc), rl)
+
+  let rev l = rev_ (Empty, l)
+  let rev_int32 = rev
+
+  let rec append(l1,l2) =
+    match l1 with
+    | Empty -> l2
+    | Cons(x,rl) -> Cons(x, append(rl,l2))
+
+  let rec rev_append(l1, l2) = 
+    match l1 with
+    | Empty -> l2
+    | Cons(x,rl) -> rev_append(l1, Cons(x,l2))
+
+  let rec flatten(l) =
+    match l with
+    | Empty -> Empty
+    | Cons(x,rl) -> append(x,rl)
+
+  let rec map(f,l) =
+    match l with
+    | Empty -> Empty
+    | Cons(x,rl) -> Cons(f(x), map(rl))
+
+  let rec rev_map_(f,acc,l) =
+    match l with
+    | Empty -> acc
+    | Cons(x,rl) -> rev_map_(f,Cons(f(x), acc), rl)
+
+  let rec rev_map(f,l) = rev_map_(f, Empty, l)
+
+  let rec iter(f,l) = 
+    match l with
+    | Empty -> ()
+    | Cons(x,rl) -> f(x) ; iter(f,rl)
+
+  let rec fold_left(f,l,acc) = 
+    match l with
+    | Empty -> acc
+    | Cons(x,rl) -> fold_left(f,rl,f(x,acc))
+
+  let rec fold_right(f,l,acc) = 
+    match l with
+    | Empty -> acc
+    | Cons(x,rl) -> f(x,fold_right(f,rl,acc))
+
+  let rec map2(f,l1,l2) = 
+    match l1, l2 with
+    | Empty, l
+    | l, Empty -> l, Empty
+    | Cons(x1, rl1), Cons(x2, rl2) -> Cons(f(x1,x2), map2(f,rl1,rl2))
+
+end

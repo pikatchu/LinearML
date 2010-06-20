@@ -1,0 +1,12 @@
+
+
+module Actor: sig
+
+
+end = struct
+
+  let make f st ty =
+    let r, w = Fifo.make ty in
+    
+
+end

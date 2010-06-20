@@ -1,0 +1,18 @@
+
+
+module String: sig
+
+  type t = array(char)
+
+  val length: t -> int
+  val concat: (t, t) -> t
+
+end = struct
+
+  let length(t) = t.size
+
+  let concat(t1,t2) = 
+    let res = Array.make (t1.size + t2.size) ' ' in
+
+
+end

@@ -1,0 +1,17 @@
+
+module SyncCall: sig
+
+
+end = struct
+
+  let handler(f,_,msg) = 
+    match msg with
+    | Call(res_channel,v) ->
+	let res = f(v) in
+	send(res_channel,v)
+
+  let make(f) = 
+    let srv = Service.make(f) in
+    
+
+end

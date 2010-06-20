@@ -1,0 +1,38 @@
+
+module SharedList: sig
+
+  type 'a t = 
+    | Empty
+    | Cons ('a shared, 'a t)
+  
+end = struct
+
+  let rec rev acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> rev (clone x :: acc) rl
+
+end
+
+module SharedList: sig
+
+  type private 'a chunk = {
+      current: int ;
+      content: 'a array ;
+    }
+
+  type abstract region = {
+      minor: 'a array ;
+      major: 'a chunk list ;
+    }
+
+  type abstract 'a t = 
+    | Empty
+    | Cons ('a, int)
+	
+end = struct
+
+  let alloc r x y = 
+    match 
+
+end

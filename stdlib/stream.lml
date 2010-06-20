@@ -1,0 +1,26 @@
+module Stream: sig
+
+  type abstract t('acc,'a) = {
+      f: ('acc -> 'acc, 'a) ;
+      acc: 'acc ;
+    }
+
+  type next('a,'b) = 'a -> 'a,'b 
+  val from: next('acc,'a), 'acc -> t('acc,'a)
+
+end = struct
+
+  let from(f, acc) = { f ; acc }
+
+  let pop_list(l) = 
+    match l with
+    | List.Empty -> List.Empty, None
+    | List.Cons(hd,tl) -> tl, Some(hd)
+	
+  let of_list(l) = { f = pop_list ; acc = l }
+
+  let next(t) = 
+    t, acc = t#acc ;
+    { t with acc = t.f(acc) } ;
+    
+end
