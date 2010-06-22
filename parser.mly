@@ -16,6 +16,20 @@ let lapply pos x = function
   | [] -> failwith "Syntax error TODO"
   | t :: rl -> tapply (Pos.btw pos (fst t), Tapply (t, x)) rl
 
+let rec simpl_arg e = function
+  | [] -> e
+  | `Id x :: rl -> 
+      let p = btw e x in
+      simpl_arg (p, Efield (e, x)) rl
+  | `Path (x1, x2) :: rl -> 
+      let p = btw e x2 in
+      simpl_arg (p, Eefield (e, x1, x2)) rl
+
+let rec cstr_arg id = function
+  | `Null -> fst id, Ecstr id
+  | `Cstr x -> btw id x, Eecstr (id, x)
+  | `Id f -> btw id f, Eextern (id, f)
+
 %}
 
 %token AND
@@ -87,7 +101,8 @@ let lapply pos x = function
 %left EQ LT LTE GT GTE
 %left PLUS MINUS 
 %left STAR
-%left apply_
+%left apply_ DOT
+%nonassoc module_dot
 %left unary_minus
 
 
@@ -216,9 +231,9 @@ pat_:
 | INT { fst $1, Pint (snd $1) }
 | UNDERSCORE { $1, Pany }
 | CSTR { fst $1, Pcstr $1 }
-| CSTR LP pat RP  { Pos.btw (fst $1) $4, Pvariant ($1, $3) }
-| CSTR DOT CSTR { btw $1 $3, Ppath_cstr ($1, $3) }
-| CSTR DOT CSTR LP pat RP { Pos.btw (fst $1) $4, Ppath_variant ($1, $3, $5) }
+| CSTR pat_ { Pos.btw (fst $1) (fst $2), Pvariant ($1, $2) }
+| CSTR DOT CSTR { btw $1 $3, Pecstr ($1, $3) }
+| CSTR DOT CSTR pat_ { btw $1 $4, Pevariant ($1, $3, $4) }
 | LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
 | LP pat RP { $2 }
 
@@ -249,20 +264,28 @@ field_l:
 | field SC field_l { $1 :: $3 }
 
 simpl_expr: 
-| ID { fst $1, Eid $1 }
+| ID dot_id { simpl_arg (fst $1, Eid $1) $2 }
+| CSTR dot_cstr { cstr_arg $1 $2 }
 | LP RP { Pos.btw $1 $2, Eunit }
 | TRUE { $1, Ebool true }
 | FALSE { $1, Ebool false }
 | INT { fst $1, Eint (snd $1) }
 | FLOAT { fst $1, Efloat (snd $1) }
-| CSTR { fst $1, Ecstr $1 }
 | STRING { fst $1, Estring $1 }
 | CHAR { fst $1, Echar $1 }
-| LCB field_l RCB { Pos.btw $1 $3, Erecord $2 }
-| simpl_expr LB expr RB { btw $1 $3, Ederef ($1, $3) }
-| simpl_expr DOT ID { btw $1 $3, Epath ($1, $3) }
-| LP expr RP { $2 }
-| BEGIN expr END { $2 }
+| LCB field_l RCB dot_id { simpl_arg (Pos.btw $1 $3, Erecord $2) $4 }
+| LP expr RP dot_id { simpl_arg $2 $4 }
+| BEGIN expr END dot_id { simpl_arg $2 $4 }
+
+dot_cstr:
+| { `Null }
+| DOT CSTR { `Cstr $2 }
+| DOT ID { `Id $2 }
+
+dot_id:
+| { [] }
+| DOT ID dot_id { `Id $2 :: $3 }
+| DOT CSTR DOT ID dot_id { `Path($2, $4) :: $5 }
 
 simpl_expr_l:
 | { [] }

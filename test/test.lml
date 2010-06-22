@@ -14,23 +14,20 @@ module Test:sig
   val fac: int32 -> int32
 
 end = struct
-  module B = Bo
 
-  let rec fac n = 
+  let rec fac (Cons n) = 
     if n <= 0
-    then 1 
+    then 0
     else n * fac (n-1)
-
 
 end
 
 module Bo: sig end = struct 
-
   module L = Test
 
-  let rec rev acc l = 
-    match l with
-    | L.Empty -> acc
-    | L.Cons (x, rl) -> rev (L.Cons (x, acc)) rl
+  let rec f x = 
+    match x with
+    | Test.Cons e 
+    | Test.Cons e -> e
     
 end

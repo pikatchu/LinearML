@@ -47,6 +47,8 @@ and pat_ =
   | Pstring of string
   | Pcstr of id 
   | Pvariant of id * pat
+  | Pecstr of id * id
+  | Pevariant of id * id * pat
   | Precord of pat_field list
   | Pbar of pat * pat
   | Ptuple of pat list
@@ -76,12 +78,14 @@ and expr_ =
   | Euminus of expr
   | Etuple of expr list
   | Ecstr of id
+  | Eecstr of id * id
+  | Eefield of expr * id * id
+  | Eextern of id * id
   | Echar of pstring
   | Estring of pstring
   | Erecord of (id * expr) list 
   | Ederef of expr * expr 
-  | Eextern of id * id 
-  | Efield of expr * id
+  | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 

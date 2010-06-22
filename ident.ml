@@ -16,3 +16,5 @@ let make x =
   res
 
 let compare x y = x - y
+
+let to_string x = string_of_int x

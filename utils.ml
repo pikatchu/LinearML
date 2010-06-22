@@ -19,3 +19,4 @@ let rec uniq cmp = function
 
 let uniq cmp l = uniq cmp (List.sort cmp l)
 
+let union t1 t2 = SMap.fold SMap.add t1 t2
