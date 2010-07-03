@@ -1,32 +1,40 @@
 open Utils
 
-type id = string
+type id = Pos.t * Ident.t
 type pstring = string
 
 type program = module_ list
 
 and module_ = {
-    md_name: id ;
-    md_tenv: type_expr SMap.t ;
-    md_decls: type_expr SMap.t ;
-    md_defs: def SMap.t ;
+    md_id: id ;
+    md_decls: (id * type_expr) list ;
+    md_defs: def list ;
   }
 
-and type_expr = 
-  | Tvar of id
+and type_expr = Pos.t * type_expr_
+and type_expr_ = 
+  | Tunit
+  | Tbool
+  | Tint32
+  | Tfloat
+  | Tvar of id 
+  | Tinst_var of id
   | Tid of id
   | Tapply of type_expr * type_expr list
   | Ttuple of type_expr list
   | Tpath of id * id
   | Tfun of type_expr * type_expr
-  | Talgebric of id list * (id * type_expr option) list
-  | Trecord of id list * (id * type_expr) list
-  | Talias of id list * type_expr
+  | Talgebric of (id * type_expr option) list
+  | Trecord of (id * type_expr) list
+  | Tabbrev of type_expr
+  | Tabs of id list * type_expr
+  | Tinst_abs of id list * type_expr
+  | Tlocal of id
 
 and def = 
   | Dmodule of id * id
   | Dlet of id * pat list * expr
-  | Dletrec of id * pat list * expr
+  | Dletrec of (id * pat list * expr) list
   | Dalias of id * id
 
 and pat = type_expr * pat_
@@ -41,11 +49,11 @@ and pat_ =
   | Pstring of string
   | Pcstr of id 
   | Pvariant of id * pat
-  | Pprod of pat * pat
-  | Pstruct of pat_field list
+  | Pecstr of id * id
+  | Pevariant of id * id * pat
+  | Precord of pat_field list
   | Pbar of pat * pat
   | Ptuple of pat list
-  | Pderef of id * pat
 
 and pat_field = 
   | PFany
@@ -71,16 +79,16 @@ and expr_ =
   | Euminus of expr
   | Etuple of expr list
   | Ecstr of id
+  | Eecstr of id * id
+  | Eefield of expr * id * id
+  | Eextern of id * id
   | Echar of pstring
   | Estring of pstring
-  | Estruct of (id * expr) list 
-  | Eblock of expr list
-  | Etyped of expr * type_expr
+  | Erecord of (id * expr) list 
   | Ederef of expr * expr 
-  | Epath of expr * id 
+  | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
-  | Eletrec of pat * expr * expr
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list

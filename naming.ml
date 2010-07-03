@@ -245,7 +245,7 @@ and type_expr_ genv sig_ env x =
   let k = type_expr genv sig_ env in
   match x with
   | Tvar x -> Nast.Tvar (Env.tvar env x)
-  | Tid x -> Nast.Tid (Env.type_ env x)
+  | Tid x -> tid env x
   | Tapply (ty, tyl) -> Nast.Tapply (k ty, List.map k tyl)
   | Ttuple tyl -> Nast.Ttuple (List.map k tyl)
   | Tpath (id1, id2) -> 
@@ -258,6 +258,14 @@ and type_expr_ genv sig_ env x =
   | Trecord l -> Nast.Trecord (List.map (tfield genv sig_ env) l)
   | Tabbrev ty -> Nast.Tabbrev (k ty)
 
+and tid env (p, x) = tid_ env p x
+and tid_ env p = function
+  | "unit" -> Nast.Tunit
+  | "bool" -> Nast.Tbool
+  | "int32" -> Nast.Tint32
+  | "float" -> Nast.Tfloat
+  | x -> Nast.Tid (Env.type_ env (p, x))
+
 and tvariant genv sig_ env (id, ty) = 
   let ty = match ty with 
   | None -> None
@@ -269,7 +277,7 @@ and tfield genv sig_ env (id, ty) =
   
 and def sig_ (genv, env, acc) = function
   | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
-  | Dlet (id,pl,e) -> 
+  | Dlet (id, pl, e) -> 
       let env, pl = lfold (pat genv sig_) env pl in
       let e = expr genv sig_ env e in
       let env = bind_val sig_ env id in

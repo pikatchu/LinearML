@@ -36,8 +36,9 @@ let _ =
   let module_l = ref [] in
   for i = 1 to last_arg do
     let new_module = parse Sys.argv.(i) in
-    ignore (Naming.program new_module) ;
-    ignore (Typing.program new_module) ;
+    let nast = Naming.program new_module in
+    let tast = Typing.program nast in
+    ignore tast ;
     module_l := new_module :: !module_l 
   done ;
   !module_l

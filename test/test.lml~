@@ -1,0 +1,13 @@
+
+module Test:sig
+
+  val fac: int32 -> int32
+
+end = struct
+
+  let fac n = 
+    if n <= 0
+    then 1
+    else n * (n-1)
+
+end

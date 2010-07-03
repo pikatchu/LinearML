@@ -37,3 +37,4 @@ let string t =
   Printf.sprintf "File \"%s\", line %d, characters %d-%d:" 
     t.pos_file line start end_
   
+let compare = compare

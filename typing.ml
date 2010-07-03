@@ -1,352 +1,467 @@
 open Utils
-open Ast
+open Nast
 
-let program _ = ()
-      
-(*type env = { 
-    tenv: etype_expr IMap.t ;
-    venv: etype_expr IMap.t ;
-    fenv: etype_expr IMap.t ;
-    cenv: etype_expr IMap.t ;
-    ptenv: bool IMap.t ;
+type env = {
+    types: Tast.type_expr IMap.t ;
+    defs: (Nast.pat list * Nast.expr) IMap.t ;
   }
 
-let primitive_types = [
-  "int8" ; "int16" ; "int32" ; "int64" ;
-  "bool" ; "float" ; "double" ;
-]
-
-let empty = 
-  let add env x = IMap.add x true env in
-  let ptenv = List.fold_left add IMap.empty primitive_types in
-  { tenv = IMap.empty ;
-    venv = IMap.empty ;
-    fenv = IMap.empty ;
-    cenv = IMap.empty ;
-    ptenv = ptenv ;
-  }
-*)
-
-(*module ExpandedType = struct
-
-  type ty =
-    | ETvar of id
-    | ETtuple of ty list
-    | ETfun of ty * ty
-    | ETalgebric of id
-    | ETrecord of id
-    | ETexternal of id * id
-    | ETabstract of id * ty list
-
-  and tid = id * int
+module Expand = struct
+  open Tast
+  module PSet = Set.Make(Pos)
 
   type env = {
-      decl: Ast.decl IMap.t ;
-      aenv: ty option IMap.t IMap.t ;
-      renv: ty IMap.t IMap.t ;
-      tenv: ty IMap.t ;
+      types: Tast.type_expr IMap.t ;
+      apath: PSet.t ;
+      mpath: Tast.id list * ISet.t ;
     }
 
-  let empty decl = {
-    decl = decl ;
-    aenv = IMap.empty ;
-    renv = IMap.empty ;
-    tenv = IMap.empty ;
-  }
+  let mem_path x (_, s) = 
+    ISet.mem x s
 
-  let rec module_ decl_l = 
-    let decls = List.fold_left add_decl IMap.empty decl_l in
-    let env = empty decls in
-    List.fold_left expand_decl env decl_l
+  let path x (l,s) = 
+    let l = x :: l in
+    let s = ISet.add (snd x) s in
+    l, s
+    
+  let module_path env md_id = 
+    if ISet.mem (snd md_id) (snd env.mpath)
+    then failwith "Cyclic module path" ;
+    { env with mpath = path md_id env.mpath }
 
-  and add_decl env ty = 
+  let abbrev_path env p = 
+    Printf.printf "here\n" ;
+    if PSet.mem p env.apath
+    then failwith "Cyclic abbrev path" ;
+    { env with apath = PSet.add p env.apath }
+
+  let rec is_abbrev env = function
+    | Tabbrev _ -> true
+    | Tabs (_, ty) 
+    | Tinst_abs (_, ty) -> is_abbrev env (snd ty)
+    | Tid (_, x) -> is_abbrev env (snd (IMap.find x env.types))
+    | _ -> false
+
+  let rec program types = 
+    let env = { 
+      types = types ;
+      apath = PSet.empty ;
+      mpath = [], ISet.empty ;
+    } in
+    IMap.fold (def env) types IMap.empty
+
+  and def env id ty acc = 
+    let pos = fst ty in
+    let acc, _ = type_expr env acc (pos, Tid (pos, id)) in
+    acc
+
+  and type_expr env acc (p, ty) = 
     match ty with
-    | Dalgebric ((id, _), _) 
-    | Drecord ((id, _), _)
-    | Dtype ((id, _), _) -> IMap.add id ty env
-    | Dval _ -> env
-
-  and expand_decl env = function
-    | Dval _ -> env
-    | d -> let env, _ = decl [] env d in env
-
-  and decl path env = function
-    | Dalgebric ((id, _), _) when IMap.mem id env.aenv -> 
-	env, ETalgebric id
-
-    | Dalgebric ((id, argl), vtl) ->
-	let env, vtm = List.fold_left (variant path) (env, IMap.empty) vtl in
-	let env = { env with aenv = IMap.add id vtm env.aenv } in
-	env, ETalgebric id
-
-    | Drecord ((id, _), _) when IMap.mem id env.renv -> 
-	env, ETrecord id
-
-    | Drecord ((id, argl), fdl) ->
-	let env, ftm = List.fold_left (field path) (env, IMap.empty) fdl in
-	let env = { env with renv = IMap.add id ftm env.renv } in
-	env, ETrecord id
-	    
-    | Dtype ((id, argl), ty) -> 
-	if List.mem id path 
-	then failwith "cyclic type" ;
-	type_expr (id :: path) env ty
-
-    | Dval _ -> assert false
-
-  and variant path (env, acc) (id, arg) = 
-    if IMap.mem id acc
-    then failwith "Multiple variants" ;
-    let env, arg = 
-      match arg with 
-      | None -> env, None
-      | Some arg -> 
-	  let env, arg = type_expr path env arg in
-	  env, Some arg in
-    env, IMap.add id arg acc
-
-  and field path (env, acc) (fid, ty) = 
-    if IMap.mem fid acc
-    then failwith "Multiple fields" ;
-    let env, ty = type_expr path env ty in
-    env, IMap.add fid ty acc
-
-  and type_expr path env (_, x) = type_expr_ path env x
-  and type_expr_ path env = function
-    | Tvar id -> env, ETvar id
-    | Tid id -> decl path env (IMap.find id env.decl)
-    | Tapply _ -> (*of type_expr * type_expr list *) failwith "TODO"
+    | Tabbrev ty -> 
+	let env = abbrev_path env p in
+	type_expr env acc ty
+    | Tpath (md_id, x) -> 
+	let env = module_path env md_id in
+	type_expr env acc (p, (Tid x))
+    | _ -> 
+	let acc, ty = type_expr_ env p acc ty in
+	acc, (p, ty)
+      
+  and type_expr_ env p acc = function
+    | Tunit | Tbool | Tint32
+    | Tfloat | Tvar _ | Tlocal _
+    | Tinst_var _ as x -> acc, x
+    | Tpath _ | Tabbrev _ -> assert false
+    | Tid (_, x) when IMap.mem x acc -> 
+	acc, snd (IMap.find x acc)
+    | Tid (_, x) as tid -> 
+	let ty = IMap.find x env.types in
+	if is_abbrev env (snd ty)
+	then
+	  let acc, ty = type_expr env acc ty in
+	  let acc = IMap.add x ty acc in
+	  acc, snd ty
+	else acc, tid
+    | Tapply (ty, tyl) -> 
+	let acc, ty = type_expr env acc ty in
+	let acc, tyl = lfold (type_expr env) acc tyl in
+	acc, Tapply(ty, tyl)
     | Ttuple tyl -> 
-	let env, tyl = List.fold_right (type_expr_acc path) tyl (env, []) in
-	env, ETtuple tyl
-
-    | Tpath (id1, id2) -> env, ETexternal (id1, id2)
+	let acc, tyl = lfold (type_expr env) acc tyl in
+	acc, Ttuple tyl
     | Tfun (ty1, ty2) -> 
-	let env, ty1 = type_expr path env ty1 in
-	let env, ty2 = type_expr path env ty2 in
-	env, ETfun (ty1, ty2)
+	let acc, ty1 = type_expr env acc ty1 in
+	let acc, ty2 = type_expr env acc ty2 in
+	acc, Tfun (ty1, ty2)
+    | Talgebric vl -> 
+	let env = { env with apath = PSet.empty } in
+	let acc, vl = lfold (variant env) acc vl in
+	acc, Talgebric vl
+    | Trecord fl -> 
+	let acc, fl = lfold (field env) acc fl in
+	acc, Trecord fl 
+    | Tabs (idl, ty) -> 
+	let acc, ty = type_expr env acc ty in
+	acc, Tabs (idl, ty)
+    | Tinst_abs (idl, ty) -> 
+	let acc, ty = type_expr env acc ty in
+	acc, Tabs (idl, ty)
 
-  and type_expr_acc path ty (env, acc) = 
-    let env, ty = type_expr path env ty in
-    env, ty :: acc
+  and variant env acc (x,tyo) = 
+    match tyo with
+    | None -> acc, (x, None)
+    | Some ty ->
+	let acc, ty = type_expr env acc ty in
+	acc, (x, Some ty)
 
-end *)
-(*
+  and field env acc (x, y) = 
+    let acc, ty = type_expr env acc y in
+    acc, (x, ty)
+end
 
-let rec decl env (genv, acc) (pos, x) = decl_ env (genv, acc) pos x
-and decl_ env (genv, acc) pos = function
-  | Dalgebric ((x, args), vl) -> 
-      let genv, acc, vl = List.fold_left (variant env) (genv, acc, []) vl in
-      let ty = pos, ETalgebric vl in
-      let ty = match args with
-      | [] -> ty 
-      | l -> pos, ETlamb (ty, l) in
-      genv, IMap.add (snd x) ty acc, ty
+module Type = struct
+  open Tast
 
-  | Drecord ((x, args), fdl) -> 
-      let genv, acc, vl = List.fold_left (field env) (genv, acc, []) fdl in
-      let ty = pos, ETrecord vl in
-      let ty = match args with
-      | [] -> ty 
-      | l -> pos, ETlamb (ty, l) in
-      genv, IMap.add (snd x) ty acc, ty
 
-  | Dtype ((x, args), ty) -> 
-      let genv, acc, ty = type_expr env (genv, acc) ty in
-      let ty = match args with [] -> ty | l -> fst ty, ETlamb(ty, l) in
-      genv, acc, ty
-  | Dval _ -> assert false
+  let rec unify env ((p1, left) as ty1) ((p2, right) as ty2) = 
+    match left, right with
+    | Tvar _, ty | ty, Tvar _ -> p1, ty
+    | Tunit, Tunit
+    | Tbool, Tbool
+    | Tint32, Tint32
+    | Tfloat, Tfloat -> ty1
+    | Tinst_var id1, Tinst_var id2 when snd id1 = snd id2 -> ty1
 
-and type_expr env (genv, acc) (pos, x) = type_expr_ env (genv, acc) pos x
-and type_expr_ env (genv, acc) pos = function
-  | Tvar x -> genv, acc, (pos, ETvar (x, 0))
-  | Tid (pos, x) -> 
-      (try genv, acc, IMap.find x acc with Not_found ->
-	let ty = 
-	  try IMap.find x env
-	  with Not_found -> Error.unbound_name pos x in
-	decl env (genv, acc) ty)
+    | Tid (_, x), _ -> 
+	let _, x_ty = IMap.find x env.types in
+	unify env (p1, x_ty) ty2
 
-  | Tapply (ty, tyl) -> 
-      let genv, acc, ty = type_expr env (genv, acc) ty in
-      let genv, acc, tyl = List.fold_right (type_expr_acc env) tyl (genv, acc, []) in
-      ignore (genv, acc, ty, tyl) ;
-      failwith "TODO" 
+    | _, Tid (_, x) -> 
+	let _, x_ty = IMap.find x env.types in
+	unify env ty1 (p2, x_ty)
 
-  | Ttuple tyl ->
-      let genv, acc, tyl = List.fold_right (type_expr_acc env) tyl (genv, acc, []) in
-      genv, acc, (pos, ETtuple (List.flatten tyl))
+    | Tabbrev (_, ty), _ -> unify env (p1, ty) ty2
+    | _, Tabbrev (_, ty) -> unify env ty1 (p2, ty)
 
-  | Tpath ((pos1, x1), x2) -> 
-      let sub, sub_acc = try IMap.find x1 genv with _ -> failwith "unbound module" in
-      let sub_acc = type_expr sub (genv, sub_acc) (fst x2, (Tid x2)) in
-      IMap.add x1 (sub, sub_acc) genv, acc, ty
+    | Ttuple tyl1, Ttuple tyl2 -> p1, Ttuple (unify_tuple env tyl1 tyl2)
 
-  | Tfun (ty1, ty2) -> 
-      let genv, acc, ty1 = type_expr env (genv, acc) ty1 in
-      let genv, acc, ty2 = type_expr env (genv, acc) ty2 in
-      genv, acc, (ETfun (ty1, ty2))
+(*    | Tapply (Tid x, tyl), ty 
+    | ty, Tapply (Tid x, tyl) ->
+	(match IMap.find x env.types with
+	| Tabs (idl, body) ->
+	    let env = assoc env idl tyl in
+	    unify env body ty
+	| _ -> failwith "TODO typing.ml Tapply expected abs") *)
 
-and variant env (genv, acc1, acc2) (id, ty) = 
-  let acc1, ty = type_expr env (genv, acc1) ty in
-  genv, acc1, (id, ty) :: acc2
+(*    | Tapply (Tpath (x,y), tyl),  ->
+    | Tapply _ -> assert false    
+	
+    | Tpath of id * id
+    | Tfun of type_expr * type_expr
+    | Talgebric of (id * type_expr option) list
+    | Trecord of (id * type_expr) list *)
 
-and field env (genv, acc1, acc2) (id, ty) = 
-  let acc1, ty = type_expr env (genv, acc1) ty in
-  genv, acc1, (id, ty) :: acc2
+  and unify_tuple env tyl1 tyl2 = 
+    match tyl1, tyl2 with
+    | [], [] -> []
+    | [], _
+    | _, [] -> failwith "Arity mismatch"
+    | (_, Ttuple l1) :: rl1, l2 -> unify_tuple env (l1 @ rl1) l2
+    | l1, (_, Ttuple l2) :: rl2 -> unify_tuple env l1 (l2 @ rl2)
+    | ty1 :: rl1, ty2 :: rl2 -> 
+	unify env ty1 ty2 :: unify_tuple env rl1 rl2
 
-and type_expr_acc env ty (genv, acc, l) = 
-  let genv, acc, ty = type_expr env (genv,acc) ty in
-  genv, acc, ty :: l
+  let unify env ty1 ty2 = snd (unify env ty1 ty2)
 
-*)
-(*
-let id (_, x) = x
-let pstring (_, x) = x
+
+  let rec instantiate env (p, ty) = p, instantiate_ env ty
+  and instantiate_ env = function
+    | Tunit -> Tunit
+    | Tbool -> Tbool
+    | Tint32 -> Tint32
+    | Tfloat -> Tfloat
+    | Tvar x -> Tinst_var x 
+    | Tabs (x, y) -> Tinst_abs (x, y)
+    | Tinst_var _ -> assert false
+    | Tinst_abs _ -> assert false
+    | Tid x -> Tid x
+    | Tapply (ty, tyl) -> 
+	Tapply (instantiate env ty, (List.map (instantiate env) tyl))
+    | Ttuple tyl -> Ttuple (List.map (instantiate env) tyl)
+    | Tpath (id1, id2) -> Tpath (id1, id2)
+    | Tfun (ty1, ty2) -> Tfun (instantiate env ty1, instantiate env ty2)
+    | Talgebric vl -> Talgebric (List.map (instantiate_variant env) vl)
+    | Trecord fl -> Trecord (List.map (instantiate_field env) fl)
+    | Tabbrev ty -> Tabbrev (instantiate env ty)
+    | Tlocal _ as x -> x
+
+  and instantiate_variant env (id, ty_opt) =
+    match ty_opt with
+    | None -> id, None
+    | Some ty -> id, Some (instantiate env ty)
+
+  and instantiate_field env (id, ty) = id, instantiate env ty
+
+  let instantiate ty = instantiate IMap.empty ty
+
+  let rec type_expr env (p, ty) = p, type_expr_ env ty
+  and type_expr_ env = function
+    | Nast.Tunit -> Tunit
+    | Nast.Tbool -> Tbool
+    | Nast.Tint32 -> Tint32
+    | Nast.Tfloat -> Tfloat
+    | Nast.Tvar x -> Tvar x
+    | Nast.Tid x -> Tid x
+    | Nast.Tfun (ty1, ty2) -> 
+	Tfun (type_expr env ty1, type_expr env ty2)
+    | Nast.Tapply (ty, tyl) -> 
+	Tast.Tapply (type_expr env ty, List.map (type_expr env) tyl)
+    | Nast.Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
+    | Nast.Tpath (id1, id2) -> Tpath (id1, id2) 
+    | Nast.Talgebric vl -> Talgebric (List.map (variant env) vl)
+    | Nast.Trecord fdl -> Trecord (List.map (field env) fdl)
+    | Nast.Tabbrev ty -> Tabbrev (type_expr env ty)
+
+  and variant env (id, ty_opt) = 
+    match ty_opt with
+    | None -> id, None
+    | Some ty -> id, Some (type_expr env ty)
+
+  and field env (id, ty) = id, type_expr env ty
+
+  let rec make mdl = 
+    List.fold_left module_ IMap.empty mdl
+
+  and module_ env md =
+    List.fold_left decl env md.Nast.md_decls
+      
+  and decl env = function
+    | Nast.Dtype l -> List.fold_left type_def env l 
+    | Nast.Dval ((p, id), ty) -> IMap.add id (type_expr env ty) env
+	  
+  and type_def env (((p, x), idl), ty) =
+    match idl with
+    | [] -> IMap.add x (type_expr env ty) env
+    | l -> IMap.add x (p, Tast.Tabs (l, type_expr env ty)) env
+
+  let find x env = IMap.find x env.types
+  let add x ty env = { env with types = IMap.add x ty env.types }
+
+end
 
 let rec program mdl = 
-  let genv = List.fold_left module_header IMap.empty mdl in
-  let mdl = List.map (module_ genv) mdl in
-  mdl
+  let types = Type.make mdl in
+  let expanded_types = Expand.program types in
+  if true then assert false ;
+  ignore expanded_types ;
+  List.map (module_ types) mdl
 
-and module_header genv md = 
-  let env = List.fold_left decl_header empty md.md_decls in
-  add md.md_name env genv
+and module_ types md = 
+  let env = { types = types ; defs = IMap.empty } in
+  let decls = List.fold_left (decl env) [] md.md_decls in
+  let defs = List.fold_left def_expr IMap.empty md.md_defs in
+  let env = { types = types ; defs = defs } in
+  let _, def_l = lfold def env md.md_defs in
+  {
+    Tast.md_id = md.md_id ;
+    Tast.md_decls = decls ;
+    Tast.md_defs = def_l ;
+  }
 
-and decl_header env = function
-  | Dalgebric ((x,_), vtl) as t -> 
-      let env = List.fold_left (variant_type_header x) env vtl in
-      { env with tenv = add x t env.tenv }
-  | Drecord ((x,_), ftl) as t ->
-      let env = List.fold_left (field_type_header x) env ftl in
-      { env with tenv = add x t env.tenv }
-  | Dtype (x, _) as t -> 
-      { env with tenv = add (fst x) t env.tenv }
-  | Dval (id, ty) -> 
-      { env with venv = add id ty env.venv }
+and def_expr acc = function
+  | Dmodule _ -> acc
+  | Dlet (x, y, z) -> let_expr acc (x, y, z)
+  | Dletrec l -> List.fold_left let_expr acc l
+  | Dalias ((_, x1), (_, x2)) -> IMap.add x1 (IMap.find x2 acc) acc
 
-and field_type_header tid env (id, _) = 
-  { env with fenv = add id tid env.fenv }
+and let_expr acc (x, idl, e) = 
+  IMap.add (snd x) (idl, e) acc
 
-and variant_type_header tid env (id, _) = 
-  { env with cenv = add id tid env.cenv }
+and decl env acc = function
+  | Dtype tdl -> List.fold_left (type_def env) acc tdl
+  | Dval (x, ty) -> (x, Type.type_expr env ty) :: acc
 
-and module_ genv md = 
-  let _, env = find md.md_name genv in
-  List.iter (decl genv env) md.md_decls ;
-  let genv, defs, al = List.fold_left def (genv, IMap.empty, []) md.md_defs in
-  let alias acc (x,y) = 
-    let _, def = find y defs in
-    add x def acc in
-  let defs = List.fold_left alias defs al in
-  IMap.fold (func genv env defs) env.venv []
+and type_def env acc ((x, argl), ty) = 
+  let ty = Type.type_expr env ty in
+  match argl with
+  | [] -> (x, ty) :: acc
+  | l -> (x, (fst x, Tast.Tabs (l, ty))) :: acc
 
-and decl genv env = function
-  | Dalgebric ((_,argl), vtl) -> 
-      check_no_repetition argl ;
-      List.iter (variant_type genv env) vtl
-  | Drecord ((_,argl), ftl) -> 
-      check_no_repetition argl ;
-      List.iter (field_type genv env) ftl 
-  | Dtype ((_, argl), ty) -> 
-      check_no_repetition argl ;
-      type_expr genv env ty
-  | Dval (_, ty) -> type_expr genv env ty
-
-and variant_type genv env (_, ty) = 
-  match ty with
-  | None -> ()
-  | Some ty -> type_expr genv env ty
-
-and field_type genv env (_, ty) = type_expr genv env ty
-
-and type_expr genv env (pos, ty) = type_expr_ genv env pos ty
-and type_expr_ genv env pos = function
-  | Tvar x -> Tast.Tvar x
-  | Tid (_, x) when IMap.mem x env.ptenv -> ()
-  | Tid id -> ignore (find id env.tenv)
-  | Tapply (ty, tyl) -> 
-      check_type_arity genv env pos ty tyl ;
-      List.iter (type_expr genv env) tyl
-  | Ttuple ty_l -> List.iter (type_expr genv env) ty_l
-  | Tpath (id1, id2) -> ignore (find_path id1 id2 genv)
-  | Tfun (ty1, ty2) -> 
-      type_expr genv env ty1 ;
-      type_expr genv env ty2 
-
-
-and def (genv, acc1, acc2) = function
-  | Dmodule (id1, id2) ->
-      let _, md = find id2 genv in
-      add id1 md genv, acc1, acc2
-  | Dlet (x, pl, e)
-  | Dletrec (x, pl, e) -> genv, add x (pl, e) acc1, acc2
-  | Dalias (x, y) -> genv, acc1, (x, y) :: acc2
-
-and func genv env defs id (pos, ty) acc = 
-  let _, (argl, e) = IMap.find id defs in
-  let targ, te = func_type env pos ty in
-  let targl = tuple_type env targ in
-  let tenv = List.fold_left2 pat env.venv argl targl in
-  ignore tenv ;
-  []
+and def env = function
+  | Dlet (f, pl, e) -> 
+      let _, fun_ty = Type.find (snd f) env in
+      begin match fun_ty with
+      | Tast.Tfun (args_ty, ret_ty) -> 
+	  let args = match pl with [x] -> x | l -> fst f, Ptuple l in
+	  let env, (args_ty,_ as args) = pat env args_ty args in
+	  let (ret_ty,_ as e) = expr env ret_ty e in
+	  let env = Type.add (snd f) (fst f, (Tast.Tfun (args_ty, ret_ty))) env in
+	  
+	  env, Tast.Dlet (f, [args], e)
+      | _ -> failwith "Expected a function"
+      end
+  | _ -> failwith "TODO def"
+(*  | Dalias of id * id
+  | Dmodule (id * id) *)
   
-and pat env (pos, p) ty = pat_ env pos p ty
-and pat_ env pos p ty =
-  let ty = expand_type env ty in
-  ignore ty
-  match p, ty with
-  | Pany, _ -> env 
-  | Punit
-  | Pid of id
-  | Pchar of string
+and pat_tuple env l1 l2 = 
+  match l1, l2 with
+  | [], [] -> env, []
+  | [], _
+  | _, [] -> failwith "wrong arity"
+  | l1, (_, Ptuple l) :: rl -> pat_tuple env l1 (l @ rl)
+  | (_, Tast.Ttuple l) :: rl, l2 -> pat_tuple env (l @ rl) l2
+  | x1 :: rl1, x2 :: rl2 ->
+      let env, x = pat env x1 x2 in
+      let env, rl = pat_tuple env rl1 rl2 in
+      env, x :: rl
+
+and pat env ty (pos, x) = pat_ env ty pos x
+and pat_ env ty pos x = 
+  match x, ty with
+  | Pany, _ -> env, (ty, Tast.Pany)
+  | Punit, _ -> failwith "TODO pat unit"
+  | Pid x, ty -> 
+      Type.add (snd x) ty env, (ty, Tast.Pid x)
+  | Ptuple pl, _ -> 
+      let env, pl = pat_tuple env [ty] pl in
+      let tyl = List.map fst pl in
+      env, ((pos, Tast.Ttuple tyl), Tast.Ptuple pl)
+  | _ -> failwith "TODO pat"
+
+(*  | Pchar of string
   | Pint of string
   | Pbool of bool
   | Pfloat of string
   | Pstring of string
   | Pcstr of id 
   | Pvariant of id * pat
-  | Pprod of pat * pat
-  | Pstruct of pat_field list
+  | Pecstr of id * id
+  | Pevariant of id * id * pat
+  | Precord of pat_field list
   | Pbar of pat * pat
-  | Ptuple of pat list
-  | Pderef of id * pat
+ *)
 
-and pat_field = Pos.t * pat_field_
+
+(*and pat_field = Pos.t * pat_field_
 and pat_field_ = 
   | PFany
   | PFid of id 
-  | PField of id * pat
+  | PField of id * pat *)
 
-and expr = Pos.t * expr_
-and expr_ = 
-  | Eunit
-  | Ebool of bool
-  | Eid of id
-  | Eint of string
-  | Efloat of string
-  | Eeq of expr * expr
-  | Elt of expr * expr
-  | Elte of expr * expr
-  | Egt of expr * expr
-  | Egte of expr * expr
-  | Eplus of expr * expr
-  | Eminus of expr * expr
-  | Estar of expr * expr
-  | Eseq of expr * expr
-  | Euminus of expr
-  | Etuple of expr list
+
+and expr env ty (p, e) = 
+  let ty, e = expr_ env ty p e in
+  (p, ty), e
+
+and expr_ env ty p e = 
+  match snd ty, e with
+  | Tast.Tunit, Eunit -> Tast.Tunit, Tast.Eunit
+  | Tast.Tbool, Ebool b -> Tast.Tbool, Tast.Ebool b
+  | _, Eid x-> 
+      let ty2 = Type.find (snd x) env in
+      Type.unify env ty ty2, Tast.Eid x
+  | Tast.Tint32, Eint s -> Tast.Tint32, Tast.Eint s
+  | Tast.Tfloat, Efloat s -> Tast.Tfloat, Tast.Efloat s
+  | Tast.Tbool, Eeq (e1, e2) -> comp env (fun x y -> Tast.Eeq (x,y)) e1 e2
+  | Tast.Tbool, Elt (e1, e2) -> comp env (fun x y -> Tast.Elt (x,y)) e1 e2
+  | Tast.Tbool, Elte (e1, e2) -> comp env (fun x y -> Tast.Elte (x,y)) e1 e2
+  | Tast.Tbool, Egt (e1, e2) -> comp env (fun x y -> Tast.Egt (x,y)) e1 e2
+  | Tast.Tbool, Egte (e1, e2) -> comp env (fun x y -> Tast.Egte (x,y)) e1 e2
+  | _, (Eeq _ | Elt _ | Elte _ | Egt _ | Egte _) -> failwith "Bad type for comp"
+  | _, Eplus (e1, e2) -> arith env ty (fun x y -> Tast.Eplus (x,y)) e1 e2
+  | _, Eminus (e1, e2) -> arith env ty (fun x y -> Tast.Eminus (x,y)) e1 e2
+  | _, Estar (e1, e2) -> arith env ty (fun x y -> Tast.Estar (x,y)) e1 e2
+
+  | _, Eif (e1, e2, e3) -> 
+      let e1 = expr env (fst e1, Tast.Tbool) e1 in
+      let e2 = expr env ty e2 in
+      let e3 = expr env ty e3 in
+      snd ty, Tast.Eif (e1, e2, e3)
+
+  | _, Eseq (e1, e2) -> 
+      let e1 = expr env (fst e1, Tast.Tunit) e1 in
+      let e2 = expr env ty e2 in
+      snd ty, Tast.Eseq (e1, e2)
+
+  | _, Euminus e -> snd ty, Tast.Euminus (expr env ty e)
+  | Tast.Ttuple tyl, Etuple el -> snd ty, Tast.Etuple (expr_tuple env tyl el)
+
+  | Tast.Tlocal _, Eapply (f, el) -> 
+      Printf.printf "TODO properly Eapply typing.ml" ;
+      raise Exit
+
+  | _ -> failwith "TODO rest of expr"
+
+and expr_tuple env tyl el = 
+  match tyl, el with
+  | [], [] -> []
+  | [], _ | _, [] -> failwith "arity mismatch expr_tuple"
+  | (_, Tast.Ttuple l) :: rl , el -> expr_tuple env (l @ rl) el
+  | tyl, (_, Etuple l) :: rl -> expr_tuple env tyl (l @ rl)
+  | x1 :: rl1, x2 :: rl2 -> expr env x1 x2 :: expr_tuple env rl1 rl2
+
+
+(*      
   | Ecstr of id
+  | Eecstr of id * id
+  | Eefield of expr * id * id
+  | Eextern of id * id
   | Echar of pstring
   | Estring of pstring
-  | Estruct of (id * expr) list 
-  | Etyped of expr * type_expr
+  | Erecord of (id * expr) list 
   | Ederef of expr * expr 
-  | Epath of expr * id 
+  | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
-  | Eletrec of pat * expr * expr
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
+
 *)
+
+and comp env f e1 e2 = 
+  let (ty, _) as e1 = expr_type env e1 in
+  let e2 = expr env ty e2 in
+  Tast.Tbool, f e1 e2
+
+and arith env rty f e1 e2 = 
+  let e1 = expr env rty e1 in
+  let e2 = expr env rty e2 in
+  assert (snd rty = Tast.Tint32) ;
+  snd rty, f e1 e2
+ 
+and expr_type env (p, e) = 
+  let ty, e = expr_type_ env p e in
+  (p,ty), e
+
+and expr_type_ env p e = 
+  match e with
+  | Eunit -> Tast.Tunit, Tast.Eunit
+  | Ebool b -> Tast.Tbool, Tast.Ebool b
+  | Eid x -> 
+      let _, ty = Type.find (snd x) env in
+      ty, Tast.Eid x
+  | Eint s -> Tast.Tint32, Tast.Eint s
+  | Efloat s -> Tast.Tfloat, Tast.Efloat s
+  | Eeq (e1, e2) -> comp env (fun x y -> Tast.Eeq (x,y)) e1 e2
+  | Elt (e1, e2) -> comp env (fun x y -> Tast.Elt (x,y)) e1 e2
+  | Elte (e1, e2) -> comp env (fun x y -> Tast.Elte (x,y)) e1 e2
+  | Egt (e1, e2) -> comp env (fun x y -> Tast.Egt (x,y)) e1 e2
+  | Egte (e1, e2) -> comp env (fun x y -> Tast.Egte (x,y)) e1 e2
+  | Eplus (e1, e2) -> arith_type env (fun x y -> Tast.Eplus (x,y)) e1 e2
+  | Eminus (e1, e2) -> arith_type env (fun x y -> Tast.Eminus (x,y)) e1 e2
+  | Estar (e1, e2) -> arith_type env (fun x y -> Tast.Estar (x,y)) e1 e2
+  | Eif (e1, e2, e3) -> 
+      let e1 = expr env (fst e1, Tast.Tbool) e1 in
+      let (ty, _) as e2 = expr_type env e2 in
+      let e3 = expr env ty e3 in
+      snd ty, Tast.Eif (e1, e2, e3)
+  | _ -> failwith "TODO rest of expr_type"
+
+and arith_type env f e1 e2 = 
+  let (ty, _) as e1 = expr_type env e1 in
+  let e2 = expr env ty e2 in
+  assert (snd ty = Tast.Tint32) ;
+  snd ty, f e1 e2
+
