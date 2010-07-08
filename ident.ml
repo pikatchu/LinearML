@@ -17,4 +17,6 @@ let make x =
 
 let compare x y = x - y
 
-let to_string x = string_of_int x
+let to_string x = 
+  try (snd (IMap.find x !trace))
+  with Not_found -> "v"^string_of_int x

@@ -38,6 +38,7 @@ OBJECTS_ML = \
         parser.ml\
 	nast.ml\
 	naming.ml\
+	nastCheck.ml\
 	tast.ml\
 	typing.ml\
 	llast.ml\

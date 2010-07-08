@@ -55,4 +55,16 @@ let undefined_sig p v =
   pos p ;
   err ("Value "^v^" has no definition") ;
   exit 9
+
+let through (p, _) = pos p 
     
+let cyclic_abbrev pl =
+  match pl with
+  | [] -> assert false
+  | (p, id) :: rl -> 
+      let id = Ident.to_string id in
+      pos p ;
+      err ("The type abbreviation "^id^" is cyclic\n") ;
+      err ("Through this path:") ;
+      List.iter through rl ;
+      exit 10
