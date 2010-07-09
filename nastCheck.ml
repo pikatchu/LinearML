@@ -1,138 +1,170 @@
 open Utils
 open Nast
 
+(*****************************************************************************)
+(*   Module that mimics a topological sort  *)
+(*   Except that when a cycle is encountered in raises an error  *)
+(*   Given a set of type_expr, it checks that no definition in the set is  *)
+(*   cyclic. The functions fid, fpath and ferror are past as parameters, to *)
+(*   let the caller decide what to do with identifiers or paths. *)
+
+module CheckTypeCycle: sig
+
+  type status
+  type fpath = (status -> id -> status) -> status -> id -> id -> status
+  type fid = (status -> id -> status) -> status -> id -> status
+  type ferror = id list -> status
+
+  val decls: fpath -> fid -> ferror -> type_expr IMap.t -> unit
+
+end = struct
+
+  type color = 
+    | Black
+    | White 
+    | Gray
+
+  type status = color IMap.t
+  type fpath = (status -> id -> status) -> status -> id -> id -> status
+  type fid = (status -> id -> status) -> status -> id -> status
+  type ferror = id list -> status
+
+  type env = {
+      decls: type_expr IMap.t ;
+      fpath: fpath ;
+      fid: fid ;
+      ferror: ferror ;
+    }
+
+  let get_status t (_, x) = 
+    try IMap.find x t 
+    with Not_found -> White
+
+  let rec get_cycle x acc = function
+    | [] -> assert false
+    | (_, y) as hd :: _ when y = x -> hd :: acc
+    | id :: rl -> get_cycle x (id :: acc) rl
+
+  let get_cycle t id = get_cycle (snd id) [id] t
+
+  let rec decls fpath fid ferror t = 
+    let env = { decls = t ; fpath = fpath ; fid = fid ; ferror = ferror } in
+    ignore (IMap.fold (decl env []) t IMap.empty)
+
+  and decl env path id (p, _) status = 
+    tid env [] status (p, id)
+	
+  and type_expr env path status (_, ty) = 
+    type_expr_ env path status ty
+
+  and type_expr_ env path status = function
+    | Tunit | Tbool
+    | Tint32 | Tfloat | Tvar _ -> status
+    | Tpath (x, y) -> env.fpath (tid env path) status x y
+    | Tid x -> env.fid (tid env path) status x
+    | Tapply (ty, tyl) -> 
+	let status = type_expr env path status ty in
+	List.fold_left (type_expr env path) status tyl
+
+    | Ttuple tyl -> 
+	List.fold_left (type_expr env path) status tyl
+
+    | Tfun (ty1, ty2) -> 
+	let status = type_expr env path status ty1 in
+	type_expr env path status ty2
+
+    | Talgebric vl -> List.fold_left (variant env path) status vl
+    | Trecord fl -> List.fold_left (field env path) status fl 
+    | Tabbrev ty -> type_expr env path status ty
+
+  and variant env path status (_, ty_opt) =
+    match ty_opt with
+    | None -> status
+    | Some x -> type_expr env path status x
+
+  and field env path status (_, ty) = 
+    type_expr env path status ty
+
+  and tid env path status ((_, x) as id) =
+    match get_status status id with
+    | _ when not (IMap.mem x env.decls) -> status
+    | Black -> status
+    | Gray -> env.ferror (get_cycle path id)
+    | White -> new_tid env path status id
+
+  and new_tid env path status ((_, x) as id) = 
+    let status = IMap.add x Gray status in
+    let path = id :: path in
+    let p, _ as ty = IMap.find x env.decls in
+    let path = (p, x) :: path in
+    let status = type_expr env path status ty in
+    IMap.add x Black status
+
+
+end
+
+(*****************************************************************************)
+(*     For each module: put all the type abbreviations in a set, check that *)
+(*     there are no cycles. *)
+
 module Abbrev: sig
 
   val check: Nast.program -> unit
 
 end = struct
 
-  let rec program mdl = 
+  let fpath _ status _ _ = status
+  let fid k status id = k status id
+
+  let rec check mdl = 
     List.iter module_ mdl
 
   and module_ md = 
-    let env = List.fold_left decl IMap.empty md.md_decls in
-    IMap.iter (check_decl env) env
+    let decls = List.fold_left decl IMap.empty md.md_decls in
+    CheckTypeCycle.decls fpath fid (Error.cycle "type abbreviation") decls
 
-  and decl env = function
-    | Dtype tyl -> List.fold_left type_def env tyl
-    | Dval _ -> env
+  and decl decls = function
+    | Dtype tyl -> List.fold_left type_def decls tyl
+    | Dval _ -> decls
 
-  and type_def env ((x,_), ty) = 
+  and type_def decls ((x,_), ty) = 
     let pos, id = x in
     match ty with
-    | _, Tabbrev ty -> IMap.add id (pos, snd ty) env
-    | _ -> env
-
-  and check_decl env id (p, ty) = 
-    abbrev env IMap.empty [] (p, id)
-	
-  and type_expr env set path (_, ty) = type_expr_ env set path ty
-  and type_expr_ env set path ty = 
-    let k = type_expr env set path in
-    let kl = List.iter k in
-    match ty with
-    | Tunit | Tbool
-    | Tint32 | Tfloat | Tvar _ 
-    | Tpath _ -> ()
-    | Tid x -> tid env set path x
-    | Tapply (ty, tyl) -> k ty ; kl tyl
-    | Ttuple tyl -> kl tyl
-    | Tfun (ty1, ty2) -> k ty1 ; k ty2
-    | Talgebric vl -> List.iter (variant k) vl
-    | Trecord fl -> kl (List.map snd fl)
-    | Tabbrev ty -> k ty
-
-  and variant k (_, ty_opt) =
-    match ty_opt with
-    | None -> ()
-    | Some x -> k x
-
-  and tid env set path ((_, x) as id) = 
-    if IMap.mem x set 
-    then Error.cyclic_abbrev (List.rev path)
-    else if IMap.mem x env
-    then abbrev env set path id
-    else ()
-
-  and abbrev env set path ((p, x) as id) = 
-    let set = IMap.add x p set in
-    let path = id :: path in
-    let p, _ as ty = IMap.find x env in
-    let path = (p, x) :: path in
-    type_expr env set path ty
-
-  let check = program
-
+    | _, Tabbrev ty -> IMap.add id (pos, snd ty) decls
+    | _ -> decls
 end
 
-module ModuleTypeDep: sig
-  
-  val program: Nast.program -> (Pos.t * id list IMap.t) IMap.t
+(*****************************************************************************)
+(*     Puts all the type definitions of every module in a set. *)
+(*     Then checks that there are no cyclic type definition through modules. *)
+
+module ModuleType: sig
+
+  val check: Nast.program -> unit
 
 end = struct
 
-  let add x y t = 
-    let l = try IMap.find x t with _ -> [] in
-    IMap.add x (y :: l) t
+  let fpath k st (p1,_) (p2, x) = 
+    k st (Pos.btw p1 p2, x)
 
-  let rec program mdl = 
-    List.fold_left module_ IMap.empty mdl
+  let fid _ st _ = st
 
-  and module_ genv md = 
-    let env = List.fold_left decl IMap.empty md.md_decls in
-    let p, id = md.md_id in
-    IMap.add id (p, env) genv
+  let rec check mdl = 
+    let decls = List.fold_left module_ IMap.empty mdl in
+    CheckTypeCycle.decls fpath fid (Error.cycle "type definition") decls 
 
-  and decl env = function
-    | Dtype tdl -> List.fold_left type_def env tdl
-    | Dval _ -> env
+  and module_ acc md = 
+    List.fold_left decl acc md.md_decls 
 
-  and type_def env ((_, _), ty) = type_expr env ty
+  and decl acc = function
+    | Dtype tyl -> List.fold_left type_def acc tyl
+    | Dval _ -> acc
 
-  and type_expr env (_, ty) = type_expr_ env ty
-  and type_expr_ env = function
-    | Tunit | Tbool | Tint32
-    | Tfloat | Tvar _
-    | Tid _ -> env
-    | Tapply (ty, tyl) -> 
-	let env = List.fold_left type_expr env tyl in
-	type_expr env ty
-
-    | Ttuple tyl -> List.fold_left type_expr env tyl
-    | Tpath ((_,x), y) -> add x y env 
-    | Tfun (ty1, ty2) -> 
-	let env = type_expr env ty1 in
-	type_expr env ty2 
-
-    | Talgebric vl -> List.fold_left variant env vl 
-    | Trecord fl -> List.fold_left field env fl 
-    | Tabbrev ty -> type_expr env ty
-
-  and variant env (_, ty_opt) = 
-    match ty_opt with
-    | None -> env
-    | Some ty -> type_expr env ty
-
-  and field env (_, ty) =
-    type_expr env ty
-  
+  and type_def acc ((x,_), ty) = 
+    let pos, id = x in
+    IMap.add id (pos, snd ty) acc
 end
-
-module ModuleTypeDepCheck: sig
-
-end = struct
-
-  let rec check deps = 
-    let env = IMap.fold type_ deps IMap.empty in
-    env
-
-  and type_ x (p, env) acc = 
-    IMap.fold IMap.add env acc
-    
-end
-
-
 
 let program p = 
-  Abbrev.check p
+  Abbrev.check p ;
+  ModuleType.check p

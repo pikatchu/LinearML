@@ -249,9 +249,10 @@ and type_expr_ genv sig_ env x =
   | Tapply (ty, tyl) -> Nast.Tapply (k ty, List.map k tyl)
   | Ttuple tyl -> Nast.Ttuple (List.map k tyl)
   | Tpath (id1, id2) -> 
-      let md_id = Genv.module_id genv id1 in
+      let (p1, _) as md_id = Genv.module_id genv id1 in
       let sig_ = Genv.sig_ genv md_id in
-      let id2 = Env.type_ sig_ id2 in
+      let (p2, v) = Env.type_ sig_ id2 in
+      let id2 = Pos.btw p1 p2, v in
       Nast.Tpath (md_id, id2)
   | Tfun (ty1, ty2) -> Nast.Tfun (k ty1, k ty2)
   | Talgebric l -> Nast.Talgebric (List.map (tvariant genv sig_ env) l)

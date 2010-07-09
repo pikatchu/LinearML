@@ -1,10 +1,17 @@
 
 module Test:sig
 
-  type 'a t = 'a t2
+  type t3 = t
 
-  and t2 = { x: t }
+  and 'a t = 'a t
 
 end = struct
 
+end
+
+module Test2: sig
+
+  type t2 = Test.t
+  
+end = struct
 end

@@ -1,9 +1,17 @@
 
 module Test:sig
 
-  type 'a t = 'a t2
-  and 'a t2 = | Bobo of 'a t
+  type t3 = t
+
+  and 'a t = 'a Test2.t2
 
 end = struct
 
+end
+
+module Test2: sig
+
+  type t2 = Test.t
+  
+end = struct
 end

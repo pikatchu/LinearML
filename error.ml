@@ -56,15 +56,15 @@ let undefined_sig p v =
   err ("Value "^v^" has no definition") ;
   exit 9
 
-let through (p, _) = pos p 
-    
-let cyclic_abbrev pl =
+let cycle kind p id rl = 
+  let id = Ident.to_string id in
+  pos p ;
+  err ("The "^kind^" "^id^" is cyclic\n") ;
+  err ("Through this path:") ;
+  List.iter (fun (p, _) -> pos p) rl ;
+  exit 10
+
+let cycle kind pl =
   match pl with
   | [] -> assert false
-  | (p, id) :: rl -> 
-      let id = Ident.to_string id in
-      pos p ;
-      err ("The type abbreviation "^id^" is cyclic\n") ;
-      err ("Through this path:") ;
-      List.iter through rl ;
-      exit 10
+  | (p, id) :: rl -> cycle kind p id rl
