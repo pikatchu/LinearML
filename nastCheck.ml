@@ -7,6 +7,10 @@ open Nast
 (*   Given a set of type_expr, it checks that no definition in the set is  *)
 (*   cyclic. The functions fid, fpath and ferror are past as parameters, to *)
 (*   let the caller decide what to do with identifiers or paths. *)
+(*   Another way to implement this could have been to build all the *)
+(*   dependences as a graph. And then run a "generic" topological sort on *)
+(*   this graph. I don't like this options because it doesn't spare much *)
+(*   code while allocating a lot more. *)
 
 module CheckTypeCycle: sig
 
@@ -109,7 +113,7 @@ end
 
 module Abbrev: sig
 
-  val check: Nast.program -> unit
+  val check: Nast.program -> Nast.type_expr IMap.t IMap.t
 
 end = struct
 
@@ -117,11 +121,12 @@ end = struct
   let fid k status id = k status id
 
   let rec check mdl = 
-    List.iter module_ mdl
+    List.fold_left module_ IMap.empty mdl
 
-  and module_ md = 
+  and module_ acc md = 
     let decls = List.fold_left decl IMap.empty md.md_decls in
-    CheckTypeCycle.decls fpath fid (Error.cycle "type abbreviation") decls
+    CheckTypeCycle.decls fpath fid (Error.cycle "type abbreviation") decls ;
+    IMap.add (snd md.md_id) decls acc
 
   and decl decls = function
     | Dtype tyl -> List.fold_left type_def decls tyl
@@ -166,5 +171,4 @@ end = struct
 end
 
 let program p = 
-  Abbrev.check p ;
   ModuleType.check p

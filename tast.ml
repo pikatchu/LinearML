@@ -1,15 +1,21 @@
 open Utils
 
 type id = Pos.t * Ident.t
-type pstring = string
+type pstring = Pos.t * string
 
 type program = module_ list
 
 and module_ = {
     md_id: id ;
-    md_decls: (id * type_expr) list ;
+    md_decls: decl list ;
     md_defs: def list ;
   }
+
+and decl = 
+  | Dtype of type_def list
+  | Dval of id * type_expr
+
+and type_def = (id * id list) * type_expr
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
@@ -18,7 +24,6 @@ and type_expr_ =
   | Tint32
   | Tfloat
   | Tvar of id 
-  | Tinst_var of id
   | Tid of id
   | Tapply of type_expr * type_expr list
   | Ttuple of type_expr list
@@ -27,9 +32,6 @@ and type_expr_ =
   | Talgebric of (id * type_expr option) list
   | Trecord of (id * type_expr) list
   | Tabbrev of type_expr
-  | Tabs of id list * type_expr
-  | Tinst_abs of id list * type_expr
-  | Tlocal of id
 
 and def = 
   | Dmodule of id * id
@@ -37,7 +39,7 @@ and def =
   | Dletrec of (id * pat list * expr) list
   | Dalias of id * id
 
-and pat = type_expr * pat_
+and pat = Pos.t * pat_
 and pat_ = 
   | Punit
   | Pany 
@@ -55,12 +57,13 @@ and pat_ =
   | Pbar of pat * pat
   | Ptuple of pat list
 
-and pat_field = 
+and pat_field = Pos.t * pat_field_
+and pat_field_ = 
   | PFany
   | PFid of id 
   | PField of id * pat
 
-and expr = type_expr * expr_
+and expr = Pos.t * expr_
 and expr_ = 
   | Eunit
   | Ebool of bool
