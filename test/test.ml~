@@ -1,9 +1,15 @@
 
 module Test:sig
 
-  type t = t2
-  and t2 = t
+  type 'a t = int32
+
+  type t2 = t
+
+  type t3 = { x: t }
 
 end = struct
+
+
+  
 
 end

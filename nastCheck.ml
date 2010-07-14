@@ -80,6 +80,7 @@ end = struct
     | Talgebric vl -> List.fold_left (variant env path) status vl
     | Trecord fl -> List.fold_left (field env path) status fl 
     | Tabbrev ty -> type_expr env path status ty
+    | Tabs (idl, ty) -> type_expr env path status ty
 
   and variant env path status (_, ty_opt) =
     match ty_opt with
@@ -110,6 +111,7 @@ end
 (*****************************************************************************)
 (*     For each module: put all the type abbreviations in a set, check that *)
 (*     there are no cycles. *)
+(*****************************************************************************)
 
 module Abbrev: sig
 
@@ -132,16 +134,19 @@ end = struct
     | Dtype tyl -> List.fold_left type_def decls tyl
     | Dval _ -> decls
 
-  and type_def decls ((x,_), ty) = 
+  and type_def decls (x, ty) = 
     let pos, id = x in
     match ty with
+    | p, Tabs (idl, (_, Tabbrev ty)) ->
+	IMap.add id (p, Tabs (idl, ty)) decls
     | _, Tabbrev ty -> IMap.add id (pos, snd ty) decls
     | _ -> decls
 end
 
 (*****************************************************************************)
-(*     Puts all the type definitions of every module in a set. *)
+(*     Puts all the type definitions of every module in a set.               *)
 (*     Then checks that there are no cyclic type definition through modules. *)
+(*****************************************************************************)
 
 module ModuleType: sig
 
@@ -165,7 +170,7 @@ end = struct
     | Dtype tyl -> List.fold_left type_def acc tyl
     | Dval _ -> acc
 
-  and type_def acc ((x,_), ty) = 
+  and type_def acc (x, ty) = 
     let pos, id = x in
     IMap.add id (pos, snd ty) acc
 end

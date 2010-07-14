@@ -193,9 +193,12 @@ end = struct
     | Dtype tdef_l -> List.fold_left tdef env tdef_l
     | Dval (id, _) -> fst (Env.new_value env id)
 
-  and tdef env ((id, _), (_, ty)) = 
+  and tdef env (id, (_, ty)) = 
     let env, _ = Env.new_type env id in
-    match ty with
+    type_ id env ty
+
+  and type_ id env = function
+    | Tabs (_, (_, ty)) -> type_ id env ty
     | Talgebric vtl -> List.fold_left variant env vtl 
     | Trecord fdl -> List.fold_left field env fdl
     | _ -> env
@@ -203,6 +206,35 @@ end = struct
   and variant env (id, _) = fst (Env.new_cstr env id)
   and field env (id, _) = fst (Env.new_field env id)
 
+end
+
+module FreeVars = struct
+  open Ast
+
+  let rec type_expr acc (_, ty) = type_expr_ acc ty
+  and type_expr_ acc = function
+  | Tid _ 
+  | Tpath _ -> acc
+  | Tvar ((_,v) as x) when not (SMap.mem v acc) -> 
+      (* The mem is not necessary but makes the first occurence *)
+      (* of the variable as the reference which is nicer        *)
+      SMap.add v x acc
+
+  | Tvar _ -> acc
+  | Tapply (ty, tyl) -> 
+      let acc = type_expr acc ty in
+      List.fold_left type_expr acc tyl
+
+  | Ttuple tyl -> List.fold_left type_expr acc tyl
+  | Tfun (ty1, ty2) -> type_expr (type_expr acc ty1) ty2
+  | Tabbrev ty -> type_expr acc ty
+  | Talgebric _ 
+  | Trecord _ 
+  | Tabs _ -> assert false
+
+  let type_expr ty = 
+    let vm = type_expr SMap.empty ty in
+    SMap.fold (fun _ y acc -> y :: acc) vm []
 end
 
 let rec program mdl = 
@@ -227,18 +259,21 @@ and decl genv sig_ env = function
       let env = List.fold_left (bind_type sig_) env tdl in
       env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
 
-  | Dval (id, ty) -> 
+  | Dval (id, ((p, _) as ty)) -> 
       let id = Env.value sig_ id in
+      let tvarl = FreeVars.type_expr ty in
+      (* The declaration of the type variables is implicit *)
+      let ty = match tvarl with [] -> ty | l -> p, Tabs(tvarl, ty) in
       env, Nast.Dval (id, type_expr genv sig_ env ty)
 
-and bind_type sig_ env ((x, _), _) = 
+and bind_type sig_ env (x, _) = 
   let id = Env.type_ sig_ x in
   Env.add_type env x id
 
-and type_def genv sig_ env ((id, tvarl), ty) = 
+and type_def genv sig_ env (id, ty) = 
   let id = Env.type_ env id in
-  let env, tvarl = lfold Env.new_tvar env tvarl in
-  ((id, tvarl), type_expr genv sig_ env ty)
+  let ty = type_expr genv sig_ env ty in
+  id, ty
 
 and type_expr genv sig_ env (p, ty) = p, type_expr_ genv sig_ env ty
 and type_expr_ genv sig_ env x = 
@@ -258,6 +293,9 @@ and type_expr_ genv sig_ env x =
   | Talgebric l -> Nast.Talgebric (List.map (tvariant genv sig_ env) l)
   | Trecord l -> Nast.Trecord (List.map (tfield genv sig_ env) l)
   | Tabbrev ty -> Nast.Tabbrev (k ty)
+  | Tabs (tvarl, ty) -> 
+      let env, tvarl = lfold Env.new_tvar env tvarl in
+      Nast.Tabs (tvarl, type_expr genv sig_ env ty)
 
 and tid env (p, x) = tid_ env p x
 and tid_ env p = function

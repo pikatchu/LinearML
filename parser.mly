@@ -13,7 +13,7 @@ let rec tapply x = function
   | t :: rl -> tapply (btw x t, Tapply (t, [x])) rl
 
 let lapply pos x = function
-  | [] -> failwith "Syntax error TODO"
+  | [] -> Pos.btw pos (last x), Ttuple x
   | t :: rl -> tapply (Pos.btw pos (fst t), Tapply (t, x)) rl
 
 let rec simpl_arg e = function
@@ -29,6 +29,11 @@ let rec cstr_arg id = function
   | `Null -> fst id, Ecstr id
   | `Cstr x -> btw id x, Eecstr (id, x)
   | `Id f -> btw id f, Eextern (id, f)
+
+let dtype l = Dtype (List.map (fun ((x, idl), ty) -> 
+  match idl with
+  | [] -> x, ty
+  | _ -> x, (fst x, Tabs (idl, ty))) l)
 
 %}
 
@@ -153,7 +158,7 @@ simpl_pat_l:
 | simpl_pat simpl_pat_l { $1 :: $2 }
 
 type_def:
-| TYPE type_decl type_decl_l { Dtype ($2 :: $3)}
+| TYPE type_decl type_decl_l { dtype ($2 :: $3)}
 | VAL ID COLON type_expr { Dval ($2, $4) }
 
 type_decl:

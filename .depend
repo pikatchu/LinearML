@@ -20,11 +20,13 @@ nastCheck.cmo: utils.cmx pos.cmx nast.cmx error.cmx
 nastCheck.cmx: utils.cmx pos.cmx nast.cmx error.cmx 
 tast.cmo: utils.cmx pos.cmx ident.cmi 
 tast.cmx: utils.cmx pos.cmx ident.cmx 
-typing.cmo: utils.cmx tast.cmx pos.cmx nast.cmx 
-typing.cmx: utils.cmx tast.cmx pos.cmx nast.cmx 
+typing.cmo: utils.cmx pos.cmx nastCheck.cmx nast.cmx ident.cmi error.cmx 
+typing.cmx: utils.cmx pos.cmx nastCheck.cmx nast.cmx ident.cmx error.cmx 
 llast.cmo: 
 llast.cmx: 
 emit.cmo: /home/pika/godi/lib/llvm.cmi llast.cmx 
 emit.cmx: /home/pika/godi/lib/llvm.cmi llast.cmx 
-main.cmo: pos.cmx parser.cmi nastCheck.cmx naming.cmx lexer.cmx error.cmx 
-main.cmx: pos.cmx parser.cmx nastCheck.cmx naming.cmx lexer.cmx error.cmx 
+main.cmo: typing.cmx pos.cmx parser.cmi nastCheck.cmx naming.cmx lexer.cmx \
+    error.cmx 
+main.cmx: typing.cmx pos.cmx parser.cmx nastCheck.cmx naming.cmx lexer.cmx \
+    error.cmx 

@@ -1,17 +1,17 @@
 
 module Test:sig
 
-  type t3 = t
+  type t1 = int32 * int32
+  type 'a t2 = 'a * 'a
+  type ('a, 'b) t4 = 'a t2 * 'b t2
 
-  and 'a t = 'a t
+  type 'a t = { field1: ('a * 'a) t }
+
+  val f: bool t
+
 
 end = struct
 
-end
+  let f x = x
 
-module Test2: sig
-
-  type t2 = Test.t
-  
-end = struct
 end

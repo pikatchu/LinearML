@@ -68,3 +68,29 @@ let cycle kind pl =
   match pl with
   | [] -> assert false
   | (p, id) :: rl -> cycle kind p id rl
+
+let type_expects_arguments (p, x) n pdef = 
+  let x = Ident.to_string x in
+  let n = string_of_int n in
+  pos p ;
+  err ("The type "^x^" expects "^n^" arguments") ;
+  err ("Its definition is given here: ") ;
+  pos pdef
+
+let not_expecting_arguments px x pdef = 
+  let x = Ident.to_string x in
+  pos px ;
+  err ("The type "^x^" doesn't expect any arguments") ;
+  err ("Its definition is given here") ;
+  pos pdef ;
+  exit 2
+
+let type_arity px x size1 size2 pdef = 
+  let x = Ident.to_string x in
+  let size1 = string_of_int size1 in
+  let size2 = string_of_int size2 in
+  pos px ;
+  err ("The type "^x^" expects "^size2^" arguments not "^size1) ;
+  err ("Its definition is given here") ;
+  pos pdef ;
+  exit 2

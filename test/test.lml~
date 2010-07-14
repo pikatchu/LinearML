@@ -1,17 +1,17 @@
 
 module Test:sig
 
-  type t3 = t
 
-  and 'a t = 'a Test2.t2
+  type ('a, 'b) t4 = bool
+
+  type t = T of (int32, int32) Test2.t3
+
 
 end = struct
 
 end
 
 module Test2: sig
-
-  type t2 = Test.t
-  
+  type ('a, 'b) t3 = 'a * 'b * 'a * 'b
 end = struct
 end
