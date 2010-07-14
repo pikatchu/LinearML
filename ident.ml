@@ -18,9 +18,9 @@ let make x =
 let compare x y = x - y
 
 let to_string x = 
-  try (snd (IMap.find x !trace))
+  try IMap.find x !trace
   with Not_found -> "v"^string_of_int x
 
 let debug x =
-  try (snd (IMap.find x !trace))^"["^string_of_int x^"]"
+  try IMap.find x !trace^"["^string_of_int x^"]"
   with Not_found -> "v["^string_of_int x^"]"

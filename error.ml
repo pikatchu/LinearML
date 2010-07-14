@@ -94,3 +94,9 @@ let type_arity px x size1 size2 pdef =
   err ("Its definition is given here") ;
   pos pdef ;
   exit 2
+
+let unify p1 p2 = 
+  pos p1 ;
+  err "Unify" ;
+  pos p2 ;
+  exit 2

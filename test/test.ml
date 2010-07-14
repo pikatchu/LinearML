@@ -8,13 +8,25 @@ module Test:sig
   type 'a t = { field1: 'a x }
   and 'a x = 'a * 'a
 
-  val f: 'a t -> 'a t
+  type t3 = Bob of bool
+
+  val f: t3 -> int32
+  val f2: (bool, int32) t4 -> int32
 
 
 end = struct
 
+  let f x = 
+    match x with
+    | (Bob x | Bob x) -> x
 
+  let g x = x
+  let f2 x = x
 
-  let f x = x
+end
 
+module Test2: sig
+
+  type t = Test.t1
+end = struct
 end

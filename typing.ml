@@ -124,7 +124,8 @@ module ExpandAbbrevs = struct
   let rec program p = 
     let abbr = NastCheck.Abbrev.check p in
     let abbr = IMap.fold (fun _ x acc -> IMap.fold IMap.add x acc) abbr IMap.empty in
-    lfold (module_ abbr) IMap.empty p
+    let _, p = lfold (module_ abbr) IMap.empty p in
+    p
 
   and module_ abbr mem md = 
     let mem, decls = lfold (decl abbr) mem md.md_decls in
@@ -137,6 +138,7 @@ module ExpandAbbrevs = struct
 
     | Dval (id, ty) -> 
 	let mem, ty = type_expr abbr mem ty in
+	let ty = TupleExpand.type_expr ty in
 	Debug.type_expr ty ;
 	mem, Dval (id, ty)
 
@@ -230,27 +232,116 @@ module ExpandAbbrevs = struct
 
 end
 
-(*module Unify = struct
-  
- let rec type_expr = Pos.t * type_expr_
- and type_expr_ (_, ty1) (_, ty2) = 
-   match ty1, ty2 with
-   | Tunit, Tunit -> Tunit
-   | Tbool, Tbool -> Tbool
-   | Tint32, Tint32 -> Tint32
-   | Tfloat, Tfloat -> Tfloat
-   | Tvar (p, x1), Tvar (_, x2) when x1 = x2 -> Tvar (p, x1)
-   | Tid (p, x1), Tid (_, x2) when x1 = x2
-   | Tapply of type_expr * type_expr list
-   | Ttuple _ -> assert false
-   | Tpath (id1, id2) same as id
-   | Tfun of type_expr * type_expr
-   | Talgebric _ -> assert false
-   | Trecord _ -> assert false
-   | Tabbrev _ -> assert false
-   | Tabs of id list * type_expr
-end *)
+let rec instantiate (p, ty) = 
+  p, match ty with
+  | Tabs (vl, ty) -> 
+      let id (p, x) = p, Ident.make (Ident.to_string x) in
+      let nvl = List.map id vl in
+      let bind (_, x) ((p, _) as y) acc = IMap.add x (p, Tvar y) acc in
+      let subst = List.fold_right2 bind vl nvl IMap.empty in
+      Tabs (nvl, Subst.type_expr subst ty)
+  | _ -> ty
+
+module Unify = struct
 
 
-let go mdl = 
-  ExpandAbbrevs.program mdl
+  let rec type_expr (p1, ty1) (p2, ty2) = 
+    p1, match ty1, ty2 with
+    | Tunit, Tunit -> Tunit
+    | Tbool, Tbool -> Tbool
+    | Tint32, Tint32 -> Tint32
+    | Tfloat, Tfloat -> Tfloat
+    | Tvar (_, x1), Tvar (_, x2) when x1 = x2 -> ty1
+    | Tpath (_, (_, x1)), Tpath (_, (_, x2))
+    | Tid (_, x1), Tid (_, x2) when x1 = x2 -> ty1
+    | Tapply (ty1, tyl1), Tapply (ty2, tyl2) -> 
+	(* TODO check arity ? *)
+	let ty = type_expr ty1 ty2 in
+	let tyl = type_expr_list tyl1 tyl2 in
+	Tapply (ty, tyl)
+
+    | Ttuple tyl1, Ttuple tyl2 -> Ttuple (type_expr_list tyl1 tyl2)
+    | Tfun (targ1, tret1), Tfun (targ2, tret2) -> 
+	let targ = type_expr targ1 targ2 in
+	let tret = type_expr tret1 tret2 in
+	Tfun (targ, tret)
+
+    | Tabs (vl1, ty1), Tabs (vl2, ty2) -> 
+	let ty = type_expr ty1 ty2 in
+	let vl = type_id_list vl1 vl2 in
+	Tabs (vl, ty)
+
+    | Talgebric _, _ -> assert false
+    | Trecord _, _ -> assert false
+    | Tabbrev _, _ -> assert false
+    | Tabs _, _ -> assert false
+    | _, Talgebric _ -> assert false
+    | _, Trecord _ -> assert false
+    | _, Tabbrev _ -> assert false
+    | _, Tabs _ -> assert false
+    | _ -> Error.unify p1 p2
+
+  and type_expr_list tyl1 tyl2 = 
+    match tyl1, tyl2 with
+    | [], [] -> []
+    | [], _ | _, [] -> 
+	(* Tuples and abbreviations have been expanded *)
+	(* In case of application arity is checked before unification *)
+	assert false
+    | x1 :: rl1, x2 :: rl2 -> type_expr x1 x2 :: type_expr_list rl1 rl2
+
+  and type_id_list tyl1 tyl2 = 
+    match tyl1, tyl2 with
+    | [], [] -> []
+    | [], _ | _, [] -> assert false
+    | (p1, x1) :: rl1, (p2, x2) :: rl2 ->
+	if x1 <> x2 
+	then Error.unify p1 p2
+	else type_id_list rl1 rl2
+end
+
+(*module Genv = struct
+  type id = Pos.t * Ident.t
+  type pstring = Pos.t * string
+
+  let rec program mdl = 
+    List.fold_left module_ IMap.empty mdl
+
+  and module_ env = 
+    List.fold_left decl env md.md_decls
+
+  and decl env = 
+    | Dtype tdl -> List.fold_left tdef env tdl 
+    | Dval (id, ty) -> IMap.add id ty env
+
+  and tdef env (id, ty) = 
+    match ty with
+    | Trecord fdl -> List.fold_left (field id) env fdl
+    | Talgebric vl -> List.fold_left (variant id) env vl
+    | Tabs (_, ty) -> def env (id, ty)
+	
+  and field tid env (id, _) = IMap.add id tid env
+  and variant tid env (id, _) = IMap.add id tid env
+end      *)
+
+let rec program mdl = 
+  NastCheck.ModuleTypes.check mdl ;
+  let mdl = ExpandAbbrevs.program mdl in
+  List.map module_ mdl 
+
+and module_ md = 
+  List.fold_left decl None md.md_decls
+(*
+  {
+    md_id: id ;
+    md_decls: decl list ;
+    md_defs: def list ;
+  }
+*)
+
+and decl ty1 ty2 = 
+  match ty1, ty2 with
+  | None, Dval (_, ty) -> Some ty
+  | Some ty1, Dval (_, ty2) -> Some (Unify.type_expr ty1 ty2)
+  | _ -> None
+

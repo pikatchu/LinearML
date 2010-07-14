@@ -24,6 +24,8 @@ module Env:sig
   val add_type: t -> Ast.id -> Nast.id -> t
   val add_value: t -> Ast.id -> Nast.id -> t
 
+  val has_value: t -> Ast.id -> bool
+
   val alias: t -> Ast.id -> Ast.id -> t
 
   val check_signature: Ast.decl list -> t -> unit
@@ -47,7 +49,7 @@ end = struct
 
   let types = 
     List.fold_left (fun acc x -> 
-      let id = Ident.make (Pos.none, x) in
+      let id = Ident.make x in
       SMap.add x id acc) 
       SMap.empty
       prim_types
@@ -91,17 +93,17 @@ end = struct
     try p, SMap.find x t.cstrs
     with Not_found -> Error.unbound_name p x
 
-  let new_id t env ((p, x) as pos_x) = 
-    let id = Ident.make pos_x in
+  let new_id t env (p, x) = 
+    let id = Ident.make x in
     if SMap.mem x env
     then Error.multiple_def p x ;
     let env = SMap.add x id env in
     t, env, (p, id)
 
-  let new_value t x = 
-    let env = t.values in
-    let t, env, id = new_id t env x in
-    { t with values = env }, id
+  let new_value t (p, x) = 
+    let id = Ident.make x in
+    let values = SMap.add x id t.values in
+    { t with values = values }, (p, id) 
       
   let new_field t x = 
     let env = t.fields in
@@ -128,6 +130,8 @@ end = struct
 
   let add_value t (_, x) (_, id) = 
     { t with values = SMap.add x id t.values }
+
+  let has_value t (_, x) = SMap.mem x t.values
 
   let alias t x y = 
     let id = value t y in
@@ -170,8 +174,8 @@ end = struct
     try p, SMap.find x t.module_ids
     with Not_found -> Error.unbound_name p x
 
-  let new_module t ((_, x) as pos_x) = 
-    let id = Ident.make pos_x in
+  let new_module t (_, x) = 
+    let id = Ident.make x in
     let t = { t with module_ids = SMap.add x id t.module_ids } in
     t, id
 
@@ -317,8 +321,8 @@ and tfield genv sig_ env (id, ty) =
 and def sig_ (genv, env, acc) = function
   | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
   | Dlet (id, pl, e) -> 
-      let env, pl = lfold (pat genv sig_) env pl in
-      let e = expr genv sig_ env e in
+      let sub_env, pl = lfold (pat genv sig_) env pl in
+      let e = expr genv sig_ sub_env e in
       let env = bind_val sig_ env id in
       let id = Env.value env id in
       genv, env, Nast.Dlet (id, pl, e) :: acc
@@ -331,8 +335,10 @@ and def sig_ (genv, env, acc) = function
   | Dalias (id1, id2) -> genv, Env.alias env id1 id2, acc
 
 and bind_let sig_ env (x, _, _) = bind_val sig_ env x
-and bind_val sig_ env x = 
-  match Env.try_value sig_ x with
+and bind_val sig_ env ((p, v) as x) = 
+  if Env.has_value env x
+  then Error.multiple_def p v ;
+  match Env.try_value sig_  x with
   | None -> fst (Env.new_value env x)
   | Some id -> Env.add_value env x id
 

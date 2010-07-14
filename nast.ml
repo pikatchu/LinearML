@@ -15,8 +15,6 @@ and decl =
   | Dtype of (id * type_expr) list
   | Dval of id * type_expr
 
-and type_def = (id * id list) * type_expr
-
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tunit

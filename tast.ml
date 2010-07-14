@@ -12,10 +12,8 @@ and module_ = {
   }
 
 and decl = 
-  | Dtype of type_def list
+  | Dtype of (id * type_expr) list
   | Dval of id * type_expr
-
-and type_def = (id * id list) * type_expr
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
@@ -32,6 +30,7 @@ and type_expr_ =
   | Talgebric of (id * type_expr option) list
   | Trecord of (id * type_expr) list
   | Tabbrev of type_expr
+  | Tabs of id list * type_expr
 
 and def = 
   | Dmodule of id * id

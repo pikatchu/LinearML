@@ -148,7 +148,7 @@ end
 (*     Then checks that there are no cyclic type definition through modules. *)
 (*****************************************************************************)
 
-module ModuleType: sig
+module ModuleTypes: sig
 
   val check: Nast.program -> unit
 
@@ -175,5 +175,4 @@ end = struct
     IMap.add id (pos, snd ty) acc
 end
 
-let program p = 
-  ModuleType.check p
+let program p = ()

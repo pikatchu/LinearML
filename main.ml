@@ -38,7 +38,7 @@ let _ =
     let new_module = parse Sys.argv.(i) in
     let nast = Naming.program new_module in
     NastCheck.program nast ;
-    let _ = Typing.go nast in
+    let _ = Typing.program nast in
 (*    let tast = Typing.program nast in *)
     module_l := new_module :: !module_l 
   done ;
