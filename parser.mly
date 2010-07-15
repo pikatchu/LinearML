@@ -150,6 +150,7 @@ expr_l:
 
 simpl_pat:
 | ID { fst $1, Pid $1 }
+| LP RP { Pos.btw $1 $2, Punit }
 | LP pat_l RP { let x, y, z = $2 in Pos.btw x y, Ptuple z }
 | UNDERSCORE { $1, Pany }
 

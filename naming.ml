@@ -294,8 +294,12 @@ and type_expr_ genv sig_ env x =
       let id2 = Pos.btw p1 p2, v in
       Nast.Tpath (md_id, id2)
   | Tfun (ty1, ty2) -> Nast.Tfun (k ty1, k ty2)
-  | Talgebric l -> Nast.Talgebric (List.map (tvariant genv sig_ env) l)
-  | Trecord l -> Nast.Trecord (List.map (tfield genv sig_ env) l)
+  | Talgebric l -> 
+      let vl = List.map (tvariant genv sig_ env) l in
+      Nast.Talgebric (imap_of_list vl)
+  | Trecord l -> 
+      let fdl = List.map (tfield genv sig_ env) l in
+      Nast.Trecord (imap_of_list fdl)
   | Tabbrev ty -> Nast.Tabbrev (k ty)
   | Tabs (tvarl, ty) -> 
       let env, tvarl = lfold Env.new_tvar env tvarl in

@@ -2,6 +2,7 @@ open Utils
 open Nast
 
 module Debug = struct
+  open Tast
 
   let id o (_, x) = o (Ident.debug x)
 
@@ -9,6 +10,7 @@ module Debug = struct
   and type_expr_ o ty = 
     let k = type_expr o in
     match ty with
+    | Tany -> o "Tany"
     | Tunit -> o "Tunit"
     | Tbool -> o "Tbool"
     | Tint32 -> o "Tint32"
@@ -19,10 +21,11 @@ module Debug = struct
     | Ttuple tyl -> o "Ttuple" ; o "(" ;  list o tyl; o ")"
     | Tpath (id1, id2) -> o "Tpath" ; o "(" ; id o id1 ; o "." ; id o id2 ; o ")"
     | Tfun (ty1, ty2) -> o "Tfun" ; o "(" ;  k ty1 ; o "->" ; k ty2; o ")"
-    | Talgebric vl -> o "Talgebric" ; o "[" ; List.iter (variant o) vl ; o "]"
-    | Trecord fdl -> o "Trecord" ; o "{" ;  List.iter (field o) fdl; o "}"
+    | Talgebric vl -> o "Talgebric" ; o "[" ; imiter (variant o) vl ; o "]"
+    | Trecord fdl -> o "Trecord" ; o "{" ;  imiter (field o) fdl; o "}"
     | Tabbrev ty -> o "Tabbrev" ; o "(" ; k ty ; o ")"
     | Tabs (idl, ty) -> o "Tabs" ; o "(" ; tvar o idl ; o ": " ; k ty; o ")"
+    | Tdecl x -> o "Tdecl" ; o "(" ; id o x ; o ")"
 
   and tvar o = function
     | [] -> assert false
@@ -60,8 +63,8 @@ module Subst = struct
   | Tapply (ty, tyl) -> Tapply (type_expr env ty, List.map (type_expr env) tyl)
   | Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
   | Tfun (ty1, ty2) -> Tfun (type_expr env ty1, type_expr env ty2)
-  | Talgebric vl -> Talgebric (List.map (variant env) vl)
-  | Trecord fdl -> Trecord (List.map (field env) fdl)
+  | Talgebric vl -> Talgebric (IMap.map (variant env) vl)
+  | Trecord fdl -> Trecord (IMap.map (field env) fdl)
   | Tabbrev ty -> Tabbrev (type_expr env ty)
   | Tabs (vl, ty) ->
       let xl = List.map snd vl in
@@ -98,8 +101,8 @@ module TupleExpand = struct
 	let ty2 = type_expr ty2 in
 	(p, Tfun (ty1, ty2)) :: acc
 
-    | Talgebric vl -> (p, Talgebric (List.map variant vl)) :: acc
-    | Trecord fdl -> (p, Trecord (List.map field fdl)) :: acc
+    | Talgebric vl -> (p, Talgebric (IMap.map variant vl)) :: acc
+    | Trecord fdl -> (p, Trecord (IMap.map field fdl)) :: acc
     | Tabbrev ty -> type_expr_ acc ty
     | Tabs (idl, ty) -> 
 	let ty = type_expr ty in
@@ -139,7 +142,6 @@ module ExpandAbbrevs = struct
     | Dval (id, ty) -> 
 	let mem, ty = type_expr abbr mem ty in
 	let ty = TupleExpand.type_expr ty in
-	Debug.type_expr ty ;
 	mem, Dval (id, ty)
 
   and type_def abbr (mem, acc) (id, ty) = 
@@ -204,11 +206,11 @@ module ExpandAbbrevs = struct
 	mem, Tfun (ty1, ty2)
 
     | Talgebric vl -> 
-	let mem, vl = lfold (variant abbr) mem vl in
+	let mem, vl = imlfold (variant abbr) mem vl in
 	mem, Talgebric vl 
 
     | Trecord fdl -> 
-	let mem, fdl = lfold (field abbr) mem fdl in
+	let mem, fdl = imlfold (field abbr) mem fdl in
 	mem, Trecord fdl 
 
     | Tabbrev ty -> 
@@ -232,7 +234,7 @@ module ExpandAbbrevs = struct
 
 end
 
-let rec instantiate (p, ty) = 
+(*let rec instantiate (p, ty) = 
   p, match ty with
   | Tabs (vl, ty) -> 
       let id (p, x) = p, Ident.make (Ident.to_string x) in
@@ -240,10 +242,10 @@ let rec instantiate (p, ty) =
       let bind (_, x) ((p, _) as y) acc = IMap.add x (p, Tvar y) acc in
       let subst = List.fold_right2 bind vl nvl IMap.empty in
       Tabs (nvl, Subst.type_expr subst ty)
-  | _ -> ty
+  | _ -> ty *)
 
 module Unify = struct
-
+  open Tast
 
   let rec type_expr (p1, ty1) (p2, ty2) = 
     p1, match ty1, ty2 with
@@ -271,15 +273,43 @@ module Unify = struct
 	let vl = type_id_list vl1 vl2 in
 	Tabs (vl, ty)
 
-    | Talgebric _, _ -> assert false
-    | Trecord _, _ -> assert false
-    | Tabbrev _, _ -> assert false
-    | Tabs _, _ -> assert false
-    | _, Talgebric _ -> assert false
-    | _, Trecord _ -> assert false
-    | _, Tabbrev _ -> assert false
-    | _, Tabs _ -> assert false
-    | _ -> Error.unify p1 p2
+    | Talgebric vl1, Talgebric vl2 -> 
+	let vl = IMap.fold (variant vl2) vl1 vl2 in
+	Talgebric vl
+
+    | Trecord fdl1, Trecord fdl2 ->
+	(* TODO make sure they have the same fields defined *)
+	let fdl = IMap.fold field fdl1 fdl2 in
+	Trecord fdl
+
+    | Tabbrev _, _ | _, Tabbrev _ -> assert false
+    | _ -> 
+	Debug.type_expr (p1, ty1) ;
+	Debug.type_expr (p2, ty2) ;
+	Error.unify p1 p2
+
+  and variant vm x (cstr1, ty1) acc =
+    try 
+      let cstr2, ty2 = IMap.find x vm in
+      assert (snd cstr1 = snd cstr2) ;
+      let ty = type_expr_opt ty1 ty2 in
+      IMap.add x (cstr1, ty) acc
+    with 
+    | Not_found -> IMap.add x (cstr1, ty1) acc
+
+  and field x (fd1, ty1) acc = 
+    try 
+      let fd2, ty2 = IMap.find x acc in
+      let ty = type_expr ty1 ty2 in
+      IMap.add x (fd1, ty) acc
+    with 
+    | Not_found -> assert false
+
+  and type_expr_opt ty1 ty2 = 
+    match ty1, ty2 with
+    | None, None -> None
+    | Some ty1, Some ty2 -> Some (type_expr ty1 ty2)
+    | _ -> failwith "TODO Unify.type_expr_opt error message"
 
   and type_expr_list tyl1 tyl2 = 
     match tyl1, tyl2 with
@@ -300,48 +330,248 @@ module Unify = struct
 	else type_id_list rl1 rl2
 end
 
-(*module Genv = struct
-  type id = Pos.t * Ident.t
-  type pstring = Pos.t * string
+module Env = struct
 
-  let rec program mdl = 
-    List.fold_left module_ IMap.empty mdl
+  let get_type env (p, x) = try IMap.find x env with Not_found -> 
+    Tast.Tfun ((p, Tast.Tunit), (p, Tast.Tint32))
 
-  and module_ env = 
-    List.fold_left decl env md.md_decls
+  let add_type env (_, x) ty = IMap.add x ty env
 
-  and decl env = 
-    | Dtype tdl -> List.fold_left tdef env tdl 
-    | Dval (id, ty) -> IMap.add id ty env
+  let rec make mdl = 
+    List.fold_left module_ IMap.empty mdl 
 
-  and tdef env (id, ty) = 
-    match ty with
-    | Trecord fdl -> List.fold_left (field id) env fdl
-    | Talgebric vl -> List.fold_left (variant id) env vl
-    | Tabs (_, ty) -> def env (id, ty)
-	
-  and field tid env (id, _) = IMap.add id tid env
-  and variant tid env (id, _) = IMap.add id tid env
-end      *)
+  and module_ env md = 
+    let env = List.fold_left decl env md.md_decls in
+    List.fold_left def env md.md_defs
+
+  and def env = function
+  | Dlet (x, (args, e)) -> IMap.add of id * pat list * expr
+  | Dletrec of (id * pat list * expr) list
+  | Dalias of id * id
+
+
+end
+
+let id x = x
 
 let rec program mdl = 
   NastCheck.ModuleTypes.check mdl ;
   let mdl = ExpandAbbrevs.program mdl in
-  List.map module_ mdl 
+  List.map (module_ IMap.empty) mdl 
 
-and module_ md = 
-  List.fold_left decl None md.md_decls
-(*
-  {
-    md_id: id ;
-    md_decls: decl list ;
-    md_defs: def list ;
+and module_ env md = {
+    Tast.md_id = md.md_id ;
+    Tast.md_decls = List.map (decl env) md.md_decls ;
+    Tast.md_defs = List.map (def env) md.md_defs ;
   }
+
+and decl env = function
+  | Dtype tdl -> Tast.Dtype (List.map (tdef env) tdl)
+  | Dval (id, ty) -> Tast.Dval (id, type_expr env ty)
+
+and tdef env (x, ty) = id x, type_expr env ty
+
+and type_expr env (p, ty) = p, type_expr_ env ty
+and type_expr_ env = function
+  | Tunit -> Tast.Tunit
+  | Tbool -> Tast.Tbool
+  | Tint32 -> Tast.Tint32
+  | Tfloat -> Tast.Tfloat
+  | Tvar x -> Tast.Tvar (id x)
+  | Tid x -> Tast.Tid (id x)
+  | Tpath (x, y) -> Tast.Tpath (id x, id y)
+  | Tapply (ty, tyl) -> Tast.Tapply (type_expr env ty, type_expr_list env tyl)
+  | Ttuple tyl -> Tast.Ttuple (type_expr_list env tyl)
+  | Tfun (ty1, ty2) -> Tast.Tfun (type_expr env ty1, type_expr env ty2)
+  | Talgebric vl -> Tast.Talgebric (IMap.map (variant env) vl)
+  | Trecord fdl -> Tast.Trecord (IMap.map (field env) fdl)
+  | Tabbrev _ -> assert false
+  | Tabs (idl, ty) -> Tast.Tabs (List.map id idl, type_expr env ty)
+
+and variant env (x, ty_opt) = 
+  match ty_opt with
+  | None -> id x, None
+  | Some ty -> id x, Some (type_expr env ty)
+
+and field env (x, ty) = id x, type_expr env ty
+
+and type_expr_list env l = List.map (type_expr env) l
+
+and def env = function
+  | Dmodule _ -> assert false
+  | Dlet (id, pl, e) -> 
+      let fty = Env.get_type env id in
+      let tyl, rty = fun_type fty in
+      let env = simpl_pat_l env tyl pl in
+      let ty, _ = expr env e in
+      Debug.type_expr ty ;
+      Tast.Dlet (id, [], (fst id, Tast.Eunit))
+     
+  | _ -> failwith "TODO"
+(*  | Dletrec of (id * pat list * expr) list
+  | Dalias of id * id *)
+
+and fun_type = function
+  | Tast.Tfun ((_, Tast.Ttuple ty1), ty2) -> ty1, ty2
+  | Tast.Tfun (ty1, ty2) -> [ty1], ty2
+  | _ -> failwith "TODO fun_type should be a function"
+
+and simpl_pat_l env tyl1 tyl2 = 
+  match tyl1, tyl2 with
+  | [], [] -> env
+  | [], _ | _, [] -> failwith "TODO simpl_pat_l wrong arity"
+  | x1 :: rl1, x2 :: rl2 -> 
+      let env = simpl_pat env x1 x2 in
+      simpl_pat_l env rl1 rl2
+
+and simpl_pat env (p1, ty) (p2, p) = 
+  match ty, p with
+  | Tast.Tunit, Punit -> env
+  | _, Pany -> env
+  | _, Pid x -> Env.add_type env x ty
+  | Tast.Ttuple tyl, Ptuple pl -> simpl_pat_l env tyl pl
+  | _ -> failwith "either simpl_pat badly typed or assert false ;-)"
+
+(*and pat = Pos.t * pat_
+and pat_ = 
+  | Punit
+  | Pany 
+  | Pid of id
+  | Pchar of string
+  | Pint of string
+  | Pbool of bool
+  | Pfloat of string
+  | Pstring of string
+  | Pcstr of id 
+  | Pvariant of id * pat
+  | Pecstr of id * id
+  | Pevariant of id * id * pat
+  | Precord of pat_field list
+  | Pbar of pat * pat
+  | Ptuple of pat list 
+
+and pat_field = Pos.t * pat_field_
+and pat_field_ = 
+  | PFany
+  | PFid of id 
+  | PField of id * pat *)
+
+and unify ty1 ty2 = snd (Unify.type_expr ty1 ty2)
+
+and expr env (p, e) = 
+  match e with
+  | Elet (p, e1, e2) -> 
+      let ty, e1 = expr env e1 in
+      (* TODO ty must be an expanded tuple *)
+      (* TODO not simpl_pat but pat *)
+      let env = simpl_pat_l env [ty] [p] in
+      expr env e2
+  | _ ->
+      let ty, e = expr_ env e in
+      (p, ty), (p, e)
+
+and expr_ env = function
+  | Eunit -> Tast.Tunit, Tast.Eunit
+  | Ebool b -> Tast.Tbool, Tast.Ebool b
+  | Eid x -> Env.get_type env x, Tast.Eid x
+  | Eint n -> Tast.Tint32, Tast.Eint n 
+  | Efloat f -> Tast.Tfloat, Tast.Efloat f
+  | Eeq (e1, e2) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 ty2) ;
+      Tast.Tbool, Tast.Eeq (e1, e2)
+
+  | Elt (e1, e2) ->
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 ty2) ;
+      Tast.Tbool, Tast.Elt (e1, e2)
+
+  | Elte (e1, e2) ->
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 ty2) ;
+      Tast.Tbool, Tast.Elte (e1, e2)
+
+  | Egt (e1, e2) ->
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 ty2) ;
+      Tast.Tbool, Tast.Egt (e1, e2)
+
+  | Egte (e1, e2) ->
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 ty2) ;
+      Tast.Tbool, Tast.Egte (e1, e2)
+
+  | Eplus (e1, e2) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      (* TODO Check numerical ?? *)
+      unify ty1 ty2, Tast.Eplus (e1, e2)
+
+  | Eminus (e1, e2) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      (* TODO Check numerical ?? *)
+      unify ty1 ty2, Tast.Eminus (e1, e2)
+      
+  | Estar (e1, e2) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      (* TODO Check numerical ?? *)
+      unify ty1 ty2, Tast.Estar (e1, e2)
+
+  | Eseq (e1, e2) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      ignore (unify ty1 (fst e1, Tast.Tunit)) ;
+      snd ty2, Tast.Eseq (e1, e2)
+
+  | Etuple el -> 
+      let tyl, el = expr_list env el in
+      Tast.Ttuple tyl, Tast.Etuple el
+
+  | Ecstr x -> 
+      let vm = IMap.add (snd x) (x, None) IMap.empty in
+      let ty = Tast.Talgebric vm in
+      ty, Tast.Ecstr x
+
+  | Eecstr (md_id, x) -> 
+      let vm = IMap.add (snd x) (x, None) IMap.empty in
+      let ty = Tast.Talgebric vm in
+      ty, Tast.Eecstr (md_id, x)
+
+  | Eif (e1, e2, e3) -> 
+      let ty1, e1 = expr env e1 in
+      let ty2, e2 = expr env e2 in
+      let ty3, e3 = expr env e3 in
+      ignore (Unify.type_expr ty1 (fst e1, Tast.Tbool)) ;
+      let ty = unify ty2 ty3 in
+      ty, Tast.Eif (e1, e2, e3)
+
+
+and expr_list env el = 
+  (* TODO probably more complex than that !! *)
+  let l = List.map (expr env) el in
+  let tyl = List.map fst l in
+  let el = List.map snd l in
+  tyl, el
+
+
+(*  | Eefield of expr * id * id
+  | Eextern of id * id
+  | Echar of pstring
+  | Estring of pstring
+  | Erecord of (id * expr) list 
+  | Ederef of expr * expr 
+  | Efield of expr * id 
+  | Ematch of expr * (pat * expr) list
+
+  | Efun of pat list * expr 
+  | Eapply of expr * expr list
+
+
 *)
-
-and decl ty1 ty2 = 
-  match ty1, ty2 with
-  | None, Dval (_, ty) -> Some ty
-  | Some ty1, Dval (_, ty2) -> Some (Unify.type_expr ty1 ty2)
-  | _ -> None
-

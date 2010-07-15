@@ -77,8 +77,8 @@ end = struct
 	let status = type_expr env path status ty1 in
 	type_expr env path status ty2
 
-    | Talgebric vl -> List.fold_left (variant env path) status vl
-    | Trecord fl -> List.fold_left (field env path) status fl 
+    | Talgebric vl -> imfold (variant env path) status vl
+    | Trecord fl -> imfold (field env path) status fl 
     | Tabbrev ty -> type_expr env path status ty
     | Tabs (idl, ty) -> type_expr env path status ty
 

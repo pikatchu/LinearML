@@ -5,6 +5,22 @@ module SSet = Set.Make (Sid)
 module IMap = Map.Make (Ident)
 module ISet = Set.Make (Ident)
 
+let imap_of_list l = 
+  List.fold_left 
+    (fun acc (((_, x) as id), y) -> IMap.add x (id, y) acc) 
+    IMap.empty 
+    l
+
+let imfold f acc im = 
+  IMap.fold (fun x y acc -> f acc y) im acc
+
+let imiter f im = 
+  IMap.iter (fun _ x -> f x) im
+
+let imlfold f acc im = 
+  IMap.fold (fun x y (acc, im) ->
+    let acc, y = f acc y in
+    acc, IMap.add x y im) im (acc, IMap.empty)
     
 let lfold f acc l = 
   let acc, l = List.fold_left (fun (acc,l) x -> 

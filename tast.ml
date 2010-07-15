@@ -16,7 +16,8 @@ and decl =
   | Dval of id * type_expr
 
 and type_expr = Pos.t * type_expr_
-and type_expr_ = 
+and type_expr_ =
+  | Tany
   | Tunit
   | Tbool
   | Tint32
@@ -27,10 +28,11 @@ and type_expr_ =
   | Ttuple of type_expr list
   | Tpath of id * id
   | Tfun of type_expr * type_expr
-  | Talgebric of (id * type_expr option) list
-  | Trecord of (id * type_expr) list
+  | Talgebric of (id * type_expr option) IMap.t
+  | Trecord of (id * type_expr) IMap.t
   | Tabbrev of type_expr
   | Tabs of id list * type_expr
+  | Tdecl of id
 
 and def = 
   | Dmodule of id * id
