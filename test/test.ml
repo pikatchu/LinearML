@@ -15,10 +15,6 @@ module Test:sig
 
 end = struct
 
-
   let rec fac t = 
-    match t with
-    | (A, x | B, _ | C, (C| _)) -> 4
-
-
+    (if t = 0 then 1 else 2, 3) + 1
 end

@@ -110,3 +110,8 @@ let pbar_arity p1 n1 p2 n2 =
   err ("While this one has "^n2^" element(s)") ;
   err ("They should have the same arity") ;
   exit 2
+
+let no_tuple p =
+  pos p ;
+  err "Wasn't expecting a tuple" ;
+  exit 2

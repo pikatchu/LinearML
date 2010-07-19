@@ -280,7 +280,7 @@ simpl_expr:
 | STRING { fst $1, Estring $1 }
 | CHAR { fst $1, Echar $1 }
 | LCB field_l RCB dot_id { simpl_arg (Pos.btw $1 $3, Erecord $2) $4 }
-| LP expr RP dot_id { simpl_arg $2 $4 }
+| LP expr RP dot_id { simpl_arg (Pos.btw $1 $3, snd $2) $4 }
 | BEGIN expr END dot_id { simpl_arg $2 $4 }
 
 dot_cstr:

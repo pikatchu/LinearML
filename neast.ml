@@ -63,13 +63,14 @@ and expr_ =
   | Efloat of string
   | Echar of pstring
   | Estring of pstring
+  | Evariant of id * expr list
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
-  | Erecord of (id * expr) list 
+  | Erecord of (id * expr list) list 
   | Efield of expr * id 
-  | Ematch of expr * (pat * expr list) list
+  | Ematch of expr list * (pat * expr list) list
   | Elet of pat * expr list * expr list
   | Eif of expr * expr list * expr list
-  | Efun of pat list * expr list
+  | Efun of pat * expr list
   | Eapply of expr * expr list
 

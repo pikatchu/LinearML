@@ -353,7 +353,7 @@ and type_expr_tuple ((_, ty_) as ty) =
   | _ -> [type_expr ty]
 
 and def arity (id, pl, e) = 
-  let e = expr arity e in 
+  let e = expr arity e [] in 
   let pl = pat_list pl in
   id, pl, e
 
@@ -391,7 +391,12 @@ and pat_field_ = function
   | PFid x -> Neast.PFid x
   | PField (x, p) -> Neast.PField (x, pat p)
 
-and expr arity (p, e) = p, expr_ arity e 
+
+and expr arity (p, e) acc = 
+  match e with
+  | Etuple l -> List.fold_right (expr arity) l acc
+  | _ -> (p, expr_ arity e) :: acc
+
 and expr_ arity = function
   | Eunit -> Neast.Eunit
   | Ebool x -> Neast.Ebool x
@@ -401,27 +406,69 @@ and expr_ arity = function
   | Efloat x -> Neast.Efloat x
   | Echar x -> Neast.Echar x
   | Estring x -> Neast.Estring x
-  | Ecstr x -> Neast.Evariant (x, [])
+  | Ecstr x
   | Eecstr (_, x) -> Neast.Evariant (x, [])
 	(* TODO add check for variant arity *)
   | Efield (e, x) 
-  | Eefield (e, _, x) -> Neast.Efield (e, x)
+  | Eefield (e, _, x) -> 
+      let e = simpl_expr arity e in
+      Neast.Efield (e, x)
 
   | Ebinop (bop, e1, e2) ->
-      let e1 = expr e1 in
-      let e2 = expr e2 in
+      let e1 = simpl_expr arity e1 in
+      let e2 = simpl_expr arity e2 in
       Neast.Ebinop (bop, e1, e2)
 
   | Euop (uop, e) ->
-      let e = expr e in
-      Neast.Euop e
+      let e = simpl_expr arity e in
+      Neast.Euop (uop, e)
 
   | Etuple _ -> assert false
-(*  | Erecord of (id * expr) list 
-  | Elet of pat * expr * expr
-  | Eif of expr * expr * expr 
-  | Efun of pat list * expr 
-  | Eapply of expr * expr list
-  | Ematch of expr * (pat * expr) list
-*)
+  | Erecord fdl -> 
+      let fdl = List.map (fun (x, e) -> x, expr arity e []) fdl in
+      Neast.Erecord fdl
+
+  | Elet (p, e1, e2) -> 
+      let p = pat p in
+      let e1 = expr arity e1 [] in
+      let e2 = expr arity e2 [] in
+      Neast.Elet (p, e1, e2)
+
+  | Eif (e1, e2, e3) -> 
+      let e1 = simpl_expr arity e1 in
+      Neast.Eif (e1, expr arity e2 [], expr arity e3 [])
+
+  | Efun (pl, e) -> Neast.Efun (pat_list pl, expr arity e [])
+  | Eapply (e, el) -> 
+      (* TODO explode function call *)
+      Neast.Eapply (simpl_expr arity e, expr arity e []) (* TODO check arity *)
+  | Ematch (e, pel) -> 
+      (* TODO check arity *)
+      let e = expr arity e [] in
+      let pel = List.map (fun (p, e) -> pat p, expr arity e []) pel in
+      Neast.Ematch (e, pel)
+
+and simpl_expr arity ((p, _) as e) = 
+  let e = expr arity e [] in
+  let n = expr_arity 0 e in
+  if n <> 1
+  then Error.no_tuple p 
+  else match e with
+  | [e] -> e
+  | _ -> assert false
+
+and expr_arity acc e = 
+  List.fold_left expr_arity_ acc e
+
+and expr_arity_ acc (_, e) = 
+  match e with
+  | Neast.Eunit  | Neast.Ebool _  | Neast.Eid _
+  | Neast.Erid _  | Neast.Eint _  | Neast.Efloat _
+  | Neast.Echar _  | Neast.Estring _  | Neast.Evariant _
+  | Neast.Ebinop _  | Neast.Euop _  | Neast.Erecord _
+  | Neast.Efield _  | Neast.Efun _  | Neast.Eapply _ -> 1 + acc
+  | Neast.Ematch (_, []) -> assert false 
+  | Neast.Ematch (_, (_, el) :: _)
+  | Neast.Elet (_, el, _) 
+  | Neast.Eif (_, el, _) -> expr_arity acc el
 

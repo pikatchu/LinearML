@@ -8,7 +8,7 @@ module Test:sig
   type 'a t = { field1: 'a x }
   and 'a x = 'a * 'a
 
-  type t3 = Bob | Bib of int32
+  type t3 = B | A | C
 
   val fac: int32 -> int32
 
@@ -16,10 +16,9 @@ module Test:sig
 end = struct
 
 
-  let rec fac n = 
-    if n = 0
-    then 1
-    else n * (n-1)
+  let rec fac t = 
+    match t with
+    | (A, x | B, _ | C, (C| _)) -> 4
 
 
 end

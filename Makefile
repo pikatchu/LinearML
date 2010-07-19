@@ -3,7 +3,7 @@ OCAMLBIN =
 OCAMLLIB = /home/pika/godi/lib
 
 OCAMLC   = ocamlc
-OCAMLOPT = ocamlopt
+OCAMLOPT = ocamlopt.opt
 OCAMLDEP = ocamldep
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
