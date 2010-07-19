@@ -1,7 +1,7 @@
 open Utils
 
-type id = Pos.t * Ident.t
-type pstring = Pos.t * string
+type id = Nast.id
+type pstring = Nast.pstring
 
 type program = module_ list
 
@@ -16,8 +16,7 @@ and decl =
   | Dval of id * type_expr
 
 and type_expr = Pos.t * type_expr_
-and type_expr_ =
-  | Tany
+and type_expr_ = 
   | Tunit
   | Tbool
   | Tint32
@@ -30,11 +29,12 @@ and type_expr_ =
   | Talgebric of (id * type_expr list) IMap.t
   | Trecord of (id * type_expr list) IMap.t
   | Tabs of id list * type_expr
-  | Tdecl of id
 
-and def = id * pat list * expr
+and def = id * pat * expr list
 
-and pat = Pos.t * pat_
+and pat = Pos.t * pat_tuple list
+and pat_tuple = Pos.t * pat_el list
+and pat_el = Pos.t * pat_
 and pat_ = 
   | Punit
   | Pany 
@@ -44,13 +44,8 @@ and pat_ =
   | Pbool of bool
   | Pfloat of string
   | Pstring of string
-  | Pcstr of id 
   | Pvariant of id * pat
-  | Pecstr of id * id
-  | Pevariant of id * id * pat
   | Precord of pat_field list
-  | Pbar of pat * pat
-  | Ptuple of pat list
 
 and pat_field = Pos.t * pat_field_
 and pat_field_ = 
@@ -58,35 +53,22 @@ and pat_field_ =
   | PFid of id 
   | PField of id * pat
 
-and expr = Pos.t * type_expr_ * expr_
+and expr = Pos.t * expr_
 and expr_ = 
   | Eunit
   | Ebool of bool
   | Eid of id
+  | Erid of int * id
   | Eint of string
   | Efloat of string
-  | Eeq of expr * expr
-  | Elt of expr * expr
-  | Elte of expr * expr
-  | Egt of expr * expr
-  | Egte of expr * expr
-  | Eplus of expr * expr
-  | Eminus of expr * expr
-  | Estar of expr * expr
-  | Eseq of expr * expr
-  | Euminus of expr
-  | Etuple of expr list
-  | Ecstr of id
-  | Eecstr of id * id
-  | Eefield of expr * id * id
-  | Eextern of id * id
   | Echar of pstring
   | Estring of pstring
-  | Erecord of (id * expr list) list 
-  | Ederef of expr * expr 
+  | Ebinop of Ast.bop * expr * expr
+  | Euop of Ast.uop * expr
+  | Erecord of (id * expr) list 
   | Efield of expr * id 
-  | Ematch of expr list * (pat list * expr) list
-  | Elet of pat list * expr list * expr list
+  | Ematch of expr * (pat * expr list) list
+  | Elet of pat * expr list * expr list
   | Eif of expr * expr list * expr list
   | Efun of pat list * expr list
   | Eapply of expr * expr list

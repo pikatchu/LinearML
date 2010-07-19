@@ -31,7 +31,8 @@ module Env:sig
   val check_signature: Ast.decl list -> t -> unit
 
   val pattern_env: t -> t
-  val merge_penv: t -> t -> t
+  val union: t -> t -> t
+  val check_penv: t -> t -> unit
 
 end = struct
 
@@ -63,7 +64,10 @@ end = struct
   }
 
   let pattern_env t = { t with values = SMap.empty }
-  let merge_penv t1 t2 = { t1 with values = union t2.values t1.values }
+  let union t1 t2 = { t1 with values = union t2.values t1.values }
+
+  let check_penv t1 t2 = 
+    Printf.printf "TODO check penv\n"
 
   let value t (p, x) =
     try p, SMap.find x t.values
@@ -329,12 +333,12 @@ and def sig_ (genv, env, acc) = function
       let e = expr genv sig_ sub_env e in
       let env = bind_val sig_ env id in
       let id = Env.value env id in
-      genv, env, Nast.Dlet (id, pl, e) :: acc
+      genv, env, (id, pl, e) :: acc
 
   | Dletrec dl  -> 
       let env = List.fold_left (bind_let sig_) env dl in
-      let dl = List.map (dlet genv sig_ env) dl in
-      genv, env, Nast.Dletrec dl :: acc
+      let acc = List.fold_left (dlet genv sig_ env) acc dl in
+      genv, env, acc
 
   | Dalias (id1, id2) -> genv, Env.alias env id1 id2, acc
 
@@ -346,11 +350,11 @@ and bind_val sig_ env ((p, v) as x) =
   | None -> fst (Env.new_value env x)
   | Some id -> Env.add_value env x id
 
-and dlet genv sig_ env (id, pl, e) = 
+and dlet genv sig_ env acc (id, pl, e) = 
   let id = Env.value env id in
   let env, pl = lfold (pat genv sig_) env pl in
   let e = expr genv sig_ env e in
-  (id, pl, e)
+  (id, pl, e) :: acc
 
 and pat genv sig_ env (pos, p) = 
   let env, p = pat_ genv sig_ env p in
@@ -378,9 +382,10 @@ and pat_ genv sig_ env = function
 
   | Pbar (p1, p2) -> 
       let penv = Env.pattern_env env in
-      let penv, p1 = pat genv sig_ penv p1 in
-      let p2 = pat_bar genv sig_ penv p2 in
-      let env = Env.merge_penv env penv in
+      let penv1, p1 = pat genv sig_ penv p1 in
+      let penv2, p2 = pat genv sig_ penv p2 in
+      let env = Env.union penv1 penv in
+      Env.check_penv penv1 penv2 ;
       env, Nast.Pbar (p1, p2)
 
   | Ptuple pl -> 
@@ -412,54 +417,6 @@ and pat_field_ genv sig_ env = function
       let env, p = pat genv sig_ env p in
       env, Nast.PField (Env.field sig_ id, p)
 
-and pat_bar genv sig_ env (pos, p) = pos, pat_bar_ genv sig_ env p
-and pat_bar_ genv sig_ env = function
-  | Punit -> Nast.Punit
-  | Pany -> Nast.Pany
-  | Pid x -> Nast.Pid (Env.value env x)
-  | Pchar x -> Nast.Pchar x
-  | Pint x -> Nast.Pint x
-  | Pbool b -> Nast.Pbool b
-  | Pfloat f -> Nast.Pfloat f
-  | Pstring s -> Nast.Pstring s
-  | Pcstr id -> Nast.Pcstr (Env.cstr sig_ id)
-  | Pvariant (id, p) -> 
-      let p = pat_bar genv sig_ env p in
-      Nast.Pvariant (Env.cstr sig_ id, p)
-
-  | Precord fl -> 
-      let fl = List.map (pat_bar_field genv sig_ env) fl in
-      Nast.Precord fl
-
-  | Pbar (p1, p2) -> 
-      let p1 = pat_bar genv sig_ env p1 in
-      let p2 = pat_bar genv sig_ env p2 in
-      Nast.Pbar (p1, p2)
-
-  | Ptuple pl -> 
-      let pl = List.map (pat_bar genv sig_ env) pl in
-      Nast.Ptuple pl
-
-  | Pevariant (md_id, cstr, arg) -> 
-      let md_id = Genv.module_id genv md_id in
-      let md_sig = Genv.sig_ genv md_id in
-      let cstr = Env.cstr md_sig cstr in
-      let arg = pat_bar genv sig_ env arg in
-      Nast.Pevariant (md_id, cstr, arg)
-
-  | Pecstr (md_id, cstr) -> 
-      let md_id = Genv.module_id genv md_id in
-      let md_sig = Genv.sig_ genv md_id in
-      let cstr = Env.cstr md_sig cstr in
-      Nast.Pecstr (md_id, cstr)
-
-and pat_bar_field genv sig_ env (p, pf) = p, pat_bar_field_ genv sig_ env pf
-and pat_bar_field_ genv sig_ env = function
-  | PFany -> Nast.PFany
-  | PFid _ -> assert false
-  | PField (id, p) -> 
-      let p = pat_bar genv sig_ env p in
-      Nast.PField (Env.field sig_ id, p)
 
 and expr genv sig_ env (p, e) = p, expr_ genv sig_ env e
 and expr_ genv sig_ env e = 
@@ -472,19 +429,10 @@ and expr_ genv sig_ env e =
   | Echar x -> Nast.Echar x
   | Estring x -> Nast.Estring x
   | Eid x -> Nast.Eid (Env.value env x)
-  | Eeq (e1, e2) -> Nast.Eeq (k e1, k e2)
-  | Elt (e1, e2) -> Nast.Elt (k e1, k e2)
-  | Elte (e1, e2) -> Nast.Elte (k e1, k e2)
-  | Egt (e1, e2) -> Nast.Egt (k e1, k e2)
-  | Egte (e1, e2) -> Nast.Egte (k e1, k e2)
-  | Eplus (e1, e2) -> Nast.Eplus (k e1, k e2)
-  | Eminus (e1, e2) -> Nast.Eminus (k e1, k e2)
-  | Estar (e1, e2) -> Nast.Estar (k e1, k e2)
-  | Eseq (e1, e2) -> Nast.Eseq (k e1, k e2)
-  | Euminus e -> Nast.Euminus (k e)
+  | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
+  | Euop (uop, e) -> Nast.Euop (uop, k e)
   | Etuple el -> Nast.Etuple (List.map k el)
   | Ecstr x -> Nast.Ecstr (Env.cstr sig_ x)
-  | Ederef (e1, e2) -> Nast.Ederef (k e1, k e2)
   | Ematch (e, pel) -> 
       let pel = List.map (pat_expr genv sig_ env) pel in
       Nast.Ematch (k e, pel) 

@@ -8,16 +8,17 @@ module Test:sig
   type 'a t = { field1: 'a x }
   and 'a x = 'a * 'a
 
-  type t3 = Bob | Bib of int32
+  type t3 = B | A | C
 
-  val f: t3 -> int32
+  val fac: int32 -> int32
 
 
 end = struct
 
 
-  let f () = 
-    if true then Bob else Bib
+  let rec fac t = 
+    match t with
+    | (A, x | B, _ | C, (C| _)) -> 4
 
 
 end

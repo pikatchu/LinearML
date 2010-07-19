@@ -12,21 +12,25 @@ lexer.cmo: pos.cmx parser.cmi
 lexer.cmx: pos.cmx parser.cmx 
 parser.cmo: pos.cmx ast.cmx parser.cmi 
 parser.cmx: pos.cmx ast.cmx parser.cmi 
-nast.cmo: utils.cmx pos.cmx ident.cmi 
-nast.cmx: utils.cmx pos.cmx ident.cmx 
+nast.cmo: utils.cmx pos.cmx ident.cmi ast.cmx 
+nast.cmx: utils.cmx pos.cmx ident.cmx ast.cmx 
 naming.cmo: utils.cmx pos.cmx nast.cmx ident.cmi error.cmx ast.cmx 
 naming.cmx: utils.cmx pos.cmx nast.cmx ident.cmx error.cmx ast.cmx 
 nastCheck.cmo: utils.cmx pos.cmx nast.cmx error.cmx 
 nastCheck.cmx: utils.cmx pos.cmx nast.cmx error.cmx 
+neast.cmo: utils.cmx pos.cmx nast.cmx 
+neast.cmx: utils.cmx pos.cmx nast.cmx 
+nastExpand.cmo: utils.cmx pos.cmx nastCheck.cmx nast.cmx error.cmx 
+nastExpand.cmx: utils.cmx pos.cmx nastCheck.cmx nast.cmx error.cmx 
 tast.cmo: utils.cmx pos.cmx ident.cmi 
 tast.cmx: utils.cmx pos.cmx ident.cmx 
-typing.cmo: utils.cmx pos.cmx nastCheck.cmx nast.cmx ident.cmi error.cmx 
-typing.cmx: utils.cmx pos.cmx nastCheck.cmx nast.cmx ident.cmx error.cmx 
+typing.cmo: utils.cmx tast.cmx nast.cmx ident.cmi error.cmx 
+typing.cmx: utils.cmx tast.cmx nast.cmx ident.cmx error.cmx 
 llast.cmo: 
 llast.cmx: 
 emit.cmo: /home/pika/godi/lib/llvm.cmi llast.cmx 
 emit.cmx: /home/pika/godi/lib/llvm.cmi llast.cmx 
-main.cmo: typing.cmx pos.cmx parser.cmi nastCheck.cmx naming.cmx lexer.cmx \
-    error.cmx 
-main.cmx: typing.cmx pos.cmx parser.cmx nastCheck.cmx naming.cmx lexer.cmx \
-    error.cmx 
+main.cmo: typing.cmx pos.cmx parser.cmi nastExpand.cmx nastCheck.cmx \
+    naming.cmx lexer.cmx error.cmx 
+main.cmx: typing.cmx pos.cmx parser.cmx nastExpand.cmx nastCheck.cmx \
+    naming.cmx lexer.cmx error.cmx 

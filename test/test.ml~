@@ -8,21 +8,18 @@ module Test:sig
   type 'a t = { field1: 'a x }
   and 'a x = 'a * 'a
 
-  val f: (bool, int32) t4 -> int32
-  val f2: (bool, int32) t4 -> int32
+  type t3 = Bob | Bib of int32
+
+  val fac: int32 -> int32
 
 
 end = struct
 
 
+  let rec fac n = 
+    if n = 0
+    then 1
+    else n * (n-1)
 
-  let f x = x
-  let f2 x = x
 
-end
-
-module Test2: sig
-
-  type t = Test.t1
-end = struct
 end

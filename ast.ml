@@ -67,16 +67,8 @@ and expr_ =
   | Eid of id
   | Eint of string
   | Efloat of string
-  | Eeq of expr * expr
-  | Elt of expr * expr
-  | Elte of expr * expr
-  | Egt of expr * expr
-  | Egte of expr * expr
-  | Eplus of expr * expr
-  | Eminus of expr * expr
-  | Estar of expr * expr
-  | Eseq of expr * expr
-  | Euminus of expr
+  | Ebinop of bop * expr * expr
+  | Euop of uop * expr
   | Etuple of expr list
   | Ecstr of id
   | Eecstr of id * id
@@ -85,10 +77,24 @@ and expr_ =
   | Echar of pstring
   | Estring of pstring
   | Erecord of (id * expr) list 
-  | Ederef of expr * expr 
   | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
+
+and bop = 
+  | Eeq
+  | Elt
+  | Elte
+  | Egt
+  | Egte
+  | Eplus
+  | Eminus
+  | Estar
+  | Eseq
+  | Ederef
+
+and uop =
+  | Euminus

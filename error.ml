@@ -100,3 +100,13 @@ let unify p1 p2 =
   err "Unify" ;
   pos p2 ;
   exit 2
+
+let pbar_arity p1 n1 p2 n2 =
+  let n1 = string_of_int n1 in
+  let n2 = string_of_int n2 in
+  pos p1 ;
+  err ("This pattern matches a tuple of "^n1^" element(s)") ;
+  pos p2 ;
+  err ("While this one has "^n2^" element(s)") ;
+  err ("They should have the same arity") ;
+  exit 2

@@ -32,11 +32,7 @@ and type_expr_ =
   | Tabbrev of type_expr
   | Tabs of id list * type_expr
 
-and def = 
-  | Dmodule of id * id
-  | Dlet of id * pat list * expr
-  | Dletrec of (id * pat list * expr) list
-  | Dalias of id * id
+and def = id * pat list * expr
 
 and pat = Pos.t * pat_
 and pat_ = 
@@ -69,25 +65,16 @@ and expr_ =
   | Eid of id
   | Eint of string
   | Efloat of string
-  | Eeq of expr * expr
-  | Elt of expr * expr
-  | Elte of expr * expr
-  | Egt of expr * expr
-  | Egte of expr * expr
-  | Eplus of expr * expr
-  | Eminus of expr * expr
-  | Estar of expr * expr
-  | Eseq of expr * expr
-  | Euminus of expr
+  | Echar of pstring
+  | Estring of pstring
+  | Ebinop of Ast.bop * expr * expr
+  | Euop of Ast.uop * expr
   | Etuple of expr list
   | Ecstr of id
   | Eecstr of id * id
   | Eefield of expr * id * id
   | Eextern of id * id
-  | Echar of pstring
-  | Estring of pstring
   | Erecord of (id * expr) list 
-  | Ederef of expr * expr 
   | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr

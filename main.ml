@@ -31,14 +31,14 @@ let _ =
     
 
 let _ = 
-  Printf.printf "Started\n" ;
   let last_arg = (Array.length Sys.argv) - 1  in
   let module_l = ref [] in
   for i = 1 to last_arg do
     let new_module = parse Sys.argv.(i) in
     let nast = Naming.program new_module in
     NastCheck.program nast ;
-    let _ = Typing.program nast in
+    let neast = NastExpand.program nast in
+    let _ = Typing.program neast in
 (*    let tast = Typing.program nast in *)
     module_l := new_module :: !module_l 
   done ;

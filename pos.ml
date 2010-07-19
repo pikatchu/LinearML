@@ -38,3 +38,18 @@ let string t =
     t.pos_file line start end_
   
 let compare = compare
+
+let rec begin_end l = 
+  match l with
+  | [] -> assert false
+  | x :: _ -> fst x, end_ l
+
+and end_ x = 
+  match x with
+  | [] -> assert false
+  | [x] -> fst x
+  | _ :: rl -> end_ rl
+
+let list l = 
+  let b, e = begin_end l in
+  btw b e, l

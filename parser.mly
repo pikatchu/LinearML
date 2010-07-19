@@ -302,16 +302,16 @@ expr:
 | LET pat EQ expr IN expr %prec let_ { Pos.btw $1 (fst $6), Elet ($2, $4, $6) }
 | MATCH expr WITH pat_action_l %prec match_ { Pos.btw $1 (fst (last $4)), Ematch ($2, $4) }
 | FUN simpl_pat_l ARROW expr { Pos.btw $1 (fst $4), Efun ($2, $4) }
-| MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euminus $2 }
-| expr EQ expr { btw $1 $3, Eeq ($1, $3) }
-| expr LT expr { btw $1 $3, Elt ($1, $3) }
-| expr LTE expr { btw $1 $3, Elte ($1, $3) }
-| expr GT expr { btw $1 $3, Egt ($1, $3) }
-| expr GTE expr { btw $1 $3, Egte ($1, $3) }
-| expr PLUS expr { btw $1 $3, Eplus ($1, $3) }
-| expr MINUS expr { btw $1 $3, Eminus ($1, $3) }
-| expr STAR expr { btw $1 $3, Estar ($1, $3) }
-| expr SC expr { btw $1 $3, Eseq ($1, $3) }
+| MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euop (Euminus, $2) }
+| expr EQ expr { btw $1 $3, Ebinop (Eeq, $1, $3) }
+| expr LT expr { btw $1 $3, Ebinop (Elt, $1, $3) }
+| expr LTE expr { btw $1 $3, Ebinop (Elte, $1, $3) }
+| expr GT expr { btw $1 $3, Ebinop (Egt, $1, $3) }
+| expr GTE expr { btw $1 $3, Ebinop (Egte, $1, $3) }
+| expr PLUS expr { btw $1 $3, Ebinop (Eplus, $1, $3) }
+| expr MINUS expr { btw $1 $3, Ebinop (Eminus, $1, $3) }
+| expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
+| expr SC expr { btw $1 $3, Ebinop (Eseq, $1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
 | simpl_expr simpl_expr_l { 
   match $2 with 

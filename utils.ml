@@ -11,6 +11,9 @@ let imap_of_list l =
     IMap.empty 
     l
 
+let list_of_imap m = 
+  IMap.fold (fun _ y acc -> y :: acc) m []
+
 let imfold f acc im = 
   IMap.fold (fun x y acc -> f acc y) im acc
 
@@ -39,3 +42,5 @@ let uniq cmp l = uniq cmp (List.sort cmp l)
 let union t1 t2 = SMap.fold SMap.add t1 t2
 
 let option f = function None -> None | Some x -> Some (f x)
+
+let fold_right f acc l = List.fold_right (fun x acc -> f acc x) l acc
