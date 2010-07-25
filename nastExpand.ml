@@ -1,28 +1,6 @@
 open Utils
 open Nast
 
-module Debug = struct
-  open Nast
-  let rec pat o p = 
-    o "(" ; List.iter (pat_tuple o) p ; o ")" 
-
-  and pat_tuple o p = 
-    o "[" ; List.iter (pat_ o) p ; o "]" 
-
-  and pat_ o (_, p) = 
-    begin match p with
-  | Punit -> o "Punit"
-  | Pany -> o "Pany" 
-  | Pcstr x 
-  | Pid x -> o (Ident.to_string (snd x))
-  | _ -> assert false end ;
-    o " "
-
-  let o = output_string stdout
-  let pat p = pat o p ; o "\n"
-
-end
-
 module Subst = struct
 
   let rec type_expr env (p, ty) = 
@@ -31,8 +9,8 @@ module Subst = struct
     | _ -> p, type_expr_ env ty
 
   and type_expr_ env = function
-  | Tunit | Tbool | Tpath _
-  | Tint32 | Tfloat | Tid _ | Tvar _ as x -> x
+  | Tprim _ | Tpath _
+  | Tid _ | Tvar _ as x -> x
   | Tapply (ty, tyl) -> Tapply (type_expr env ty, List.map (type_expr env) tyl)
   | Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
   | Tfun (ty1, ty2) -> Tfun (type_expr env ty1, type_expr env ty2)
@@ -54,53 +32,56 @@ end
 
 module Tuple = struct
 
-  let rec type_expr (p, ty) = 
-    match type_expr_ [] (p, ty) with
+  let rec type_expr_tuple ((p, _) as ty) = 
+    match List.rev (snd (type_expr p (100, []) ty)) with
     | [x] -> x
-    | l -> (p, Ttuple (List.rev l))
+    | l -> p, Ttuple l
 
-  and type_expr_ acc (p, ty) = 
-    match ty with
-    | Tunit | Tbool | Tint32
-    | Tfloat | Tvar _ | Tid _ 
-    | Tpath _ as x -> (p, x) :: acc
-    | Ttuple tyl -> List.fold_left type_expr_ acc tyl
+  and type_expr pos (n, acc) (p, ty) = 
+    let type_expr = type_expr pos in
+    if n <= 0
+    then Error.tuple_too_big pos 
+    else match ty with
+    | Tprim _
+    | Tvar _ | Tid _ 
+    | Tpath _ as x -> n-1, (p, x) :: acc
+    | Ttuple tyl -> List.fold_left type_expr (n, acc) tyl
     | Tapply (ty, tyl) -> 
-	let tyl = List.map type_expr tyl in
-	(p, Tapply (ty, tyl)) :: acc
+	let tyl = List.map type_expr_tuple tyl in
+	n-1, (p, Tapply (ty, tyl)) :: acc
 
     | Tfun (ty1, ty2) -> 
-	let ty1 = type_expr ty1 in
-	let ty2 = type_expr ty2 in
-	(p, Tfun (ty1, ty2)) :: acc
+	let ty1 = type_expr_tuple ty1 in
+	let ty2 = type_expr_tuple ty2 in
+	n-1, (p, Tfun (ty1, ty2)) :: acc
 
-    | Talgebric vl -> (p, Talgebric (IMap.map variant vl)) :: acc
-    | Trecord fdl -> (p, Trecord (IMap.map field fdl)) :: acc
-    | Tabbrev ty -> type_expr_ acc ty
+    | Talgebric vl -> n-1, (p, Talgebric (IMap.map variant vl)) :: acc
+    | Trecord fdl -> n-1, (p, Trecord (IMap.map field fdl)) :: acc
+    | Tabbrev ty -> type_expr (n, acc) ty
     | Tabs (idl, ty) -> 
-	let ty = type_expr ty in
-	(p, Tabs (idl, ty)) :: acc
+	let ty = type_expr_tuple ty in
+	n-1, (p, Tabs (idl, ty)) :: acc
 
   and variant (id, ty_opt) = 
     match ty_opt with
     | None -> id, None
-    | Some ty -> id, Some (type_expr ty)
+    | Some ty -> id, Some (type_expr_tuple ty)
 
-  and field (id, ty) = id, type_expr ty
+  and field (id, ty) = id, type_expr_tuple ty
 
-  let rec pat acc ((pos, p) as pp) =
-      match p with
-      | Ptuple p -> List.fold_left pat acc p
-      | _ -> pp :: acc
-		   
-  let pat_list pl = List.rev (List.fold_left pat [] pl)
-  let pat p = List.rev (pat [] p)
 end
 
 module Abbrevs: sig
 
   val program: Nast.program -> Nast.program
 end = struct
+
+  let foreign = function Tpath _ -> true | _ -> false
+
+  let check_pointer p_id (p, ty) = 
+    match ty with
+    | Tid _ | Tpath _ | Tapply _ -> ()
+    | _ -> Error.not_pointer_type p_id p
 
   let check_abs id (p, ty) = 
     match ty with
@@ -124,12 +105,12 @@ end = struct
 
     | Dval (id, ty) -> 
 	let mem, ty = type_expr abbr mem ty in
-	let ty = Tuple.type_expr ty in
+	let ty = Tuple.type_expr_tuple ty in
 	mem, Dval (id, ty)
 
   and type_def abbr (mem, acc) (id, ty) = 
     let mem, ty = type_expr abbr mem ty in
-    let ty = Tuple.type_expr ty in
+    let ty = Tuple.type_expr_tuple ty in
     if IMap.mem (snd id) abbr
     then mem, acc
     else mem, (id, ty) :: acc
@@ -139,8 +120,7 @@ end = struct
     mem, (p, ty)
 
   and type_expr_ abbr mem p = function
-    | Tunit | Tbool 
-    | Tint32 | Tfloat | Tvar _ as x -> mem, x 
+    | Tprim _ | Tvar _ as x -> mem, x 
 
     | (Tpath (_, (_, x)) 
     | Tid (_, x)) when IMap.mem x mem -> 
@@ -177,6 +157,8 @@ end = struct
     | Tapply (ty, tyl) -> 
 	let mem, ty = type_expr abbr mem ty in
 	let mem, tyl = lfold (type_expr abbr) mem tyl in
+	if foreign (snd ty)
+	then List.iter (check_pointer (fst ty)) tyl ;
 	mem, Tapply (ty, tyl)
 
     | Ttuple tyl -> 
@@ -217,36 +199,6 @@ end = struct
 
 end
 
-module Arity: sig
-
-  val make: Nast.program -> (int * int) IMap.t
-
-end  = struct
-  
-  let rec make mdl = 
-    List.fold_left module_ IMap.empty mdl
-
-  and module_ env md = 
-    List.fold_left decl env md.md_decls
-
-  and decl env = function
-  | Dtype _ -> env
-  | Dval (x, ty) -> type_expr env (snd x) ty
-
-  and type_expr env x (_, ty) = 
-    match ty with 
-    | Tfun (ty1, ty2) -> IMap.add x (arity ty1, arity ty2) env
-    | _ -> failwith "TODO expected function type"
-
-(* This works because we expanded all the tuples in *)
-(* type definitions at this point *)
-  and arity (_, ty) = 
-    match ty with
-    | Ttuple l -> List.length l
-    | _ -> 1
-
-end
-
 module Pat: sig
 
   val pat: Nast.pat -> Pos.t * (Pos.t * Nast.pat list) list
@@ -268,10 +220,11 @@ end = struct
 	(* We don't have to check the rest of the list by construction *)
 	let n1 = List.length x1 in
 	let n2 = List.length x2 in
-	let p1, _ = Pos.list x1 in
-	let p2, _ = Pos.list x2 in
 	if n1 <> n2
-	then Error.pbar_arity p1 n1 p2 n2
+	then 
+	  let p1, _ = Pos.list x1 in
+	  let p2, _ = Pos.list x2 in
+	  Error.pbar_arity p1 n1 p2 n2
 	else ()
 
   let rec pat l = 
@@ -300,39 +253,37 @@ end = struct
 	  
 end
 
-let check_arity l1 l2 = 
-  if List.length (snd l1) <> List.length (snd l2)
-  then failwith "TODO bad arity" 
-  else ()
 
 let rec program mdl = 
   let mdl = Abbrevs.program mdl in
-  let arity = Arity.make mdl in
-  List.map (module_ arity) mdl
+  List.map module_ mdl
 
-and module_ arity md = {
+and module_ md = {
   Neast.md_id = md.md_id ;
   Neast.md_decls = List.map decl md.md_decls ;
-  Neast.md_defs = List.map (def arity) md.md_defs ;
+  Neast.md_defs = List.map (def) md.md_defs ;
 }
 
 and decl = function
   | Dtype tdl -> Neast.Dtype (List.map tdef tdl)
-  | Dval (x, ty) -> Neast.Dval (x, type_expr ty)
+  | Dval (x, ty) -> 
+      match type_expr ty with
+      | _, Neast.Tabs (_, (_, Neast.Tfun (tyl1, tyl2)))
+      | _, Neast.Tfun (tyl1, tyl2) -> Neast.Dval (x, tyl1, tyl2)
+      | p, _ -> Error.expected_function p
 
 and tdef (id, ty) = (id, type_expr ty)
 
 and type_expr (p, ty) = p, type_expr_ ty
 and type_expr_ = function
-  | Tunit -> Neast.Tunit
-  | Tbool -> Neast.Tbool
-  | Tint32 -> Neast.Tint32
-  | Tfloat -> Neast.Tfloat
+  | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 
-  | Tapply (ty, tyl) -> Neast.Tapply (type_expr ty, List.map type_expr tyl)
+  | Tapply (((_, Tid x) | (_, Tpath (_, x))), tyl) -> 
+      Neast.Tapply (x, List.map type_expr tyl)
+  | Tapply _ -> assert false
   | Ttuple _ -> assert false
-  | Tpath (x, y) -> Neast.Tpath (x, y) 
+  | Tpath (x, y) -> Neast.Tid y
   | Tfun (ty1, ty2) -> Neast.Tfun (type_expr_tuple ty1, type_expr_tuple ty2)
   | Talgebric vm -> Neast.Talgebric (IMap.map variant vm)
   | Trecord fdm -> Neast.Trecord (IMap.map field fdm) 
@@ -352,8 +303,8 @@ and type_expr_tuple ((_, ty_) as ty) =
   | Ttuple l -> List.map type_expr l
   | _ -> [type_expr ty]
 
-and def arity (id, pl, e) = 
-  let e = expr arity e [] in 
+and def (id, pl, e) = 
+  let e = expr e [] in 
   let pl = pat_list pl in
   id, pl, e
 
@@ -369,14 +320,9 @@ and pat_bar (p, x) = p, List.map pat_pos x
 
 and pat_pos (p, x) = p, pat_ x
 and pat_ = function
-  | Punit -> Neast.Punit
+  | Pvalue v -> Neast.Pvalue v
   | Pany -> Neast.Pany
   | Pid x -> Neast.Pid x
-  | Pchar x -> Neast.Pchar x
-  | Pint x -> Neast.Pint x
-  | Pbool x -> Neast.Pbool x
-  | Pfloat x -> Neast.Pfloat x
-  | Pstring x -> Neast.Pstring x
   | Pcstr x 
   | Pecstr (_, x) -> Neast.Pvariant (x, (fst x, []))
   | Pevariant (_, x, p)
@@ -391,84 +337,58 @@ and pat_field_ = function
   | PFid x -> Neast.PFid x
   | PField (x, p) -> Neast.PField (x, pat p)
 
-
-and expr arity (p, e) acc = 
+and expr (p, e) acc = 
   match e with
-  | Etuple l -> List.fold_right (expr arity) l acc
-  | _ -> (p, expr_ arity e) :: acc
+  | Etuple l -> List.fold_right (expr) l acc
+  | _ -> (p, expr_ e) :: acc
 
-and expr_ arity = function
-  | Eunit -> Neast.Eunit
-  | Ebool x -> Neast.Ebool x
-  | Eextern (_, x)
+and expr_ = function
+  | Evalue v -> Neast.Evalue v
   | Eid x -> Neast.Eid x
-  | Eint x -> Neast.Eint x
-  | Efloat x -> Neast.Efloat x
-  | Echar x -> Neast.Echar x
-  | Estring x -> Neast.Estring x
-  | Ecstr x
-  | Eecstr (_, x) -> Neast.Evariant (x, [])
-	(* TODO add check for variant arity *)
-  | Efield (e, x) 
-  | Eefield (e, _, x) -> 
-      let e = simpl_expr arity e in
+  | Ecstr x -> Neast.Evariant (x, [])
+  | Efield (e, x) -> 
+      let e = simpl_expr e in
       Neast.Efield (e, x)
 
   | Ebinop (bop, e1, e2) ->
-      let e1 = simpl_expr arity e1 in
-      let e2 = simpl_expr arity e2 in
+      let e1 = simpl_expr e1 in
+      let e2 = simpl_expr e2 in
       Neast.Ebinop (bop, e1, e2)
 
   | Euop (uop, e) ->
-      let e = simpl_expr arity e in
+      let e = simpl_expr e in
       Neast.Euop (uop, e)
 
   | Etuple _ -> assert false
   | Erecord fdl -> 
-      let fdl = List.map (fun (x, e) -> x, expr arity e []) fdl in
+      let fdl = List.map (fun (x, e) -> x, expr e []) fdl in
       Neast.Erecord fdl
 
   | Elet (p, e1, e2) -> 
       let p = pat p in
-      let e1 = expr arity e1 [] in
-      let e2 = expr arity e2 [] in
+      let e1 = expr e1 [] in
+      let e2 = expr e2 [] in
       Neast.Elet (p, e1, e2)
 
   | Eif (e1, e2, e3) -> 
-      let e1 = simpl_expr arity e1 in
-      Neast.Eif (e1, expr arity e2 [], expr arity e3 [])
+      let e1 = simpl_expr e1 in
+      Neast.Eif (e1, expr e2 [], expr e3 [])
 
-  | Efun (pl, e) -> Neast.Efun (pat_list pl, expr arity e [])
-  | Eapply (e, el) -> 
-      (* TODO explode function call *)
-      Neast.Eapply (simpl_expr arity e, expr arity e []) (* TODO check arity *)
+  | Efun _ -> assert false
+  | Eapply (e, el) -> apply (simpl_expr e) (List.fold_right expr el [])
   | Ematch (e, pel) -> 
-      (* TODO check arity *)
-      let e = expr arity e [] in
-      let pel = List.map (fun (p, e) -> pat p, expr arity e []) pel in
+      let e = expr e [] in
+      let pel = List.map (fun (p, e) -> pat p, expr e []) pel in
       Neast.Ematch (e, pel)
 
-and simpl_expr arity ((p, _) as e) = 
-  let e = expr arity e [] in
-  let n = expr_arity 0 e in
-  if n <> 1
-  then Error.no_tuple p 
-  else match e with
+and simpl_expr ((p, _) as e) = 
+  match expr e [] with
   | [e] -> e
-  | _ -> assert false
+  | _ -> Error.no_tuple p 
 
-and expr_arity acc e = 
-  List.fold_left expr_arity_ acc e
-
-and expr_arity_ acc (_, e) = 
-  match e with
-  | Neast.Eunit  | Neast.Ebool _  | Neast.Eid _
-  | Neast.Erid _  | Neast.Eint _  | Neast.Efloat _
-  | Neast.Echar _  | Neast.Estring _  | Neast.Evariant _
-  | Neast.Ebinop _  | Neast.Euop _  | Neast.Erecord _
-  | Neast.Efield _  | Neast.Efun _  | Neast.Eapply _ -> 1 + acc
-  | Neast.Ematch (_, []) -> assert false 
-  | Neast.Ematch (_, (_, el) :: _)
-  | Neast.Elet (_, el, _) 
-  | Neast.Eif (_, el, _) -> expr_arity acc el
-
+and apply e1 e2 = 
+  match snd e1 with
+  | Neast.Evariant (x, []) -> Neast.Evariant (x, e2)
+  | Neast.Evariant _ -> assert false
+  | Neast.Eid id -> Neast.Eapply (id, e2)
+  | _ -> Error.expected_function (fst e1)

@@ -1,56 +1,29 @@
 open Utils
 
-type id = Pos.t * Ident.t
-type pstring = Pos.t * string
+type id = Neast.id
+type pstring = Neast.pstring
 
 type program = module_ list
 
 and module_ = {
     md_id: id ;
-    md_decls: decl list ;
+    md_decls: Neast.decl list ;
     md_defs: def list ;
   }
 
-and decl = 
-  | Dtype of (id * type_expr) list
-  | Dval of id * type_expr
+and type_expr = Neast.type_expr
 
-and type_expr = Pos.t * type_expr_
-and type_expr_ =
-  | Tany
-  | Tunit
-  | Tbool
-  | Tint32
-  | Tfloat
-  | Tvar of id 
-  | Tid of id
-  | Tapply of type_expr * type_expr list
-  | Tpath of id * id
-  | Tfun of type_expr list * type_expr list
-  | Talgebric of (id * type_expr list) IMap.t
-  | Trecord of (id * type_expr list) IMap.t
-  | Tabs of id list * type_expr
-  | Tdecl of id
+and def = id * pat * expr list
 
-and def = id * pat list * expr
-
-and pat = Pos.t * pat_
+and pat = Pos.t * pat_tuple list
+and pat_tuple = Pos.t * pat_el list
+and pat_el = type_expr * (Pos.t * pat_)
 and pat_ = 
-  | Punit
   | Pany 
   | Pid of id
-  | Pchar of string
-  | Pint of string
-  | Pbool of bool
-  | Pfloat of string
-  | Pstring of string
-  | Pcstr of id 
+  | Pvalue of Neast.value
   | Pvariant of id * pat
-  | Pecstr of id * id
-  | Pevariant of id * id * pat
   | Precord of pat_field list
-  | Pbar of pat * pat
-  | Ptuple of pat list
 
 and pat_field = Pos.t * pat_field_
 and pat_field_ = 
@@ -58,36 +31,16 @@ and pat_field_ =
   | PFid of id 
   | PField of id * pat
 
-and expr = Pos.t * type_expr_ * expr_
+and expr = type_expr list * (Pos.t * expr_)
 and expr_ = 
-  | Eunit
-  | Ebool of bool
   | Eid of id
-  | Eint of string
-  | Efloat of string
-  | Eeq of expr * expr
-  | Elt of expr * expr
-  | Elte of expr * expr
-  | Egt of expr * expr
-  | Egte of expr * expr
-  | Eplus of expr * expr
-  | Eminus of expr * expr
-  | Estar of expr * expr
-  | Eseq of expr * expr
-  | Euminus of expr
-  | Etuple of expr list
-  | Ecstr of id
-  | Eecstr of id * id
-  | Eefield of expr * id * id
-  | Eextern of id * id
-  | Echar of pstring
-  | Estring of pstring
+  | Evalue of Neast.value
+  | Evariant of id * expr list
+  | Ebinop of Ast.bop * expr * expr
+  | Euop of Ast.uop * expr
   | Erecord of (id * expr list) list 
-  | Ederef of expr * expr 
   | Efield of expr * id 
-  | Ematch of expr list * (pat list * expr) list
-  | Elet of pat list * expr list * expr list
+  | Ematch of expr list * (pat * expr list) list
+  | Elet of pat * expr list * expr list
   | Eif of expr * expr list * expr list
-  | Efun of pat list * expr list
   | Eapply of expr * expr list
-

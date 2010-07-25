@@ -13,22 +13,28 @@ and module_ = {
 
 and decl = 
   | Dtype of (id * type_expr) list
-  | Dval of id * type_expr
+  | Dval of id * type_expr list * type_expr list
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
-  | Tunit
-  | Tbool
-  | Tint32
-  | Tfloat
+  | Tany
+  | Tundef
+  | Tdef of id list
+  | Tprim of type_prim
   | Tvar of id 
   | Tid of id
-  | Tapply of type_expr * type_expr list
-  | Tpath of id * id
+  | Tapply of id * type_expr list
   | Tfun of type_expr list * type_expr list
   | Talgebric of (id * type_expr list) IMap.t
   | Trecord of (id * type_expr list) IMap.t
   | Tabs of id list * type_expr
+
+and type_prim = Nast.type_prim =   
+  | Tunit
+  | Tbool
+  | Tchar
+  | Tint32
+  | Tfloat
 
 and def = id * pat * expr list
 
@@ -36,14 +42,9 @@ and pat = Pos.t * pat_tuple list
 and pat_tuple = Pos.t * pat_el list
 and pat_el = Pos.t * pat_
 and pat_ = 
-  | Punit
   | Pany 
   | Pid of id
-  | Pchar of string
-  | Pint of string
-  | Pbool of bool
-  | Pfloat of string
-  | Pstring of string
+  | Pvalue of value
   | Pvariant of id * pat
   | Precord of pat_field list
 
@@ -55,14 +56,8 @@ and pat_field_ =
 
 and expr = Pos.t * expr_
 and expr_ = 
-  | Eunit
-  | Ebool of bool
   | Eid of id
-  | Erid of int * id
-  | Eint of string
-  | Efloat of string
-  | Echar of pstring
-  | Estring of pstring
+  | Evalue of value
   | Evariant of id * expr list
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
@@ -71,6 +66,79 @@ and expr_ =
   | Ematch of expr list * (pat * expr list) list
   | Elet of pat * expr list * expr list
   | Eif of expr * expr list * expr list
-  | Efun of pat * expr list
-  | Eapply of expr * expr list
+  | Eapply of id * expr list
 
+and value = Nast.value
+
+module CompareType = struct
+
+  type t = id * type_expr list
+
+  let (&&&) x1 x2 = 
+    let c = x1 () in
+    if c = 0
+    then x2 ()
+    else c
+
+  let rec list cmp l1 l2 () = 
+    match l1, l2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | x1 :: rl1, x2 :: rl2 -> 
+	cmp x1 x2 &&& list cmp rl1 rl2
+
+  let rec compare (id1, ty1) (id2, ty2) = 
+    id id1 id2 &&& 
+    list ty ty1 ty2
+
+  and id (_, x1) (_, x2) () = 
+    Ident.compare x1 x2
+
+  and ty (_, ty1) (_, ty2) () = 
+    match ty1, ty2 with
+    | Tany, Tany -> 0
+    | Tprim ty1, Tprim ty2 -> prim ty1 ty2
+    | Tid x1, Tid x2
+    | Tvar x1, Tvar x2 -> id x1 x2 ()
+    | Tapply (ty1, tyl1), Tapply (ty2, tyl2) -> 
+	id ty1 ty2 &&&
+	list ty tyl1 tyl2
+	  
+    | Tfun (ty1, ty2), Tfun (ty3, ty4) ->
+	list ty ty1 ty3 &&&
+	list ty ty2 ty4
+	  
+    | Talgebric vm1, Talgebric vm2 -> 
+	let vl1 = list_of_imap vm1 in
+	let vl2 = list_of_imap vm2 in
+	list variant vl1 vl2 ()
+	  
+    | Trecord vm1, Trecord vm2 -> 
+	let vl1 = list_of_imap vm1 in
+	let vl2 = list_of_imap vm2 in
+	list field vl1 vl2 ()
+
+    | Tabs (idl1, ty1), Tabs (idl2, ty2) -> 
+	list id idl1 idl2 &&&
+	ty ty1 ty2
+
+    | _, _ -> Pervasives.compare ty1 ty2
+
+  and prim ty1 ty2 = 
+    match ty1, ty2 with
+    | Tunit, Tunit -> 0
+    | Tbool, Tbool -> 0
+    | Tint32, Tint32 -> 0
+    | Tfloat, Tfloat -> 0
+    | _ -> Pervasives.compare ty1 ty2
+
+  and variant (id1, ty1) (id2, ty2) () =
+    id id1 id2 &&&
+    list ty ty1 ty2
+
+  and field (id1, ty1) (id2, ty2) () = 
+    id id1 id2 &&&
+    list ty ty1 ty2
+    
+end

@@ -41,11 +41,11 @@ and pat_ =
   | Punit
   | Pany 
   | Pid of id
-  | Pchar of string
-  | Pint of string
+  | Pchar of pstring
+  | Pint of pstring
   | Pbool of bool
-  | Pfloat of string
-  | Pstring of string
+  | Pfloat of pstring
+  | Pstring of pstring
   | Pcstr of id 
   | Pvariant of id * pat
   | Pecstr of id * id
@@ -65,8 +65,10 @@ and expr_ =
   | Eunit
   | Ebool of bool
   | Eid of id
-  | Eint of string
-  | Efloat of string
+  | Eint of pstring
+  | Efloat of pstring
+  | Echar of pstring
+  | Estring of pstring
   | Ebinop of bop * expr * expr
   | Euop of uop * expr
   | Etuple of expr list
@@ -74,8 +76,6 @@ and expr_ =
   | Eecstr of id * id
   | Eefield of expr * id * id
   | Eextern of id * id
-  | Echar of pstring
-  | Estring of pstring
   | Erecord of (id * expr) list 
   | Efield of expr * id 
   | Ematch of expr * (pat * expr) list

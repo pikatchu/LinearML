@@ -17,10 +17,7 @@ and decl =
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
-  | Tunit
-  | Tbool
-  | Tint32
-  | Tfloat
+  | Tprim of type_prim
   | Tvar of id 
   | Tid of id
   | Tapply of type_expr * type_expr list
@@ -32,18 +29,20 @@ and type_expr_ =
   | Tabbrev of type_expr
   | Tabs of id list * type_expr
 
+and type_prim = 
+  | Tunit
+  | Tbool
+  | Tchar
+  | Tint32
+  | Tfloat
+
 and def = id * pat list * expr
 
 and pat = Pos.t * pat_
 and pat_ = 
-  | Punit
   | Pany 
   | Pid of id
-  | Pchar of string
-  | Pint of string
-  | Pbool of bool
-  | Pfloat of string
-  | Pstring of string
+  | Pvalue of value
   | Pcstr of id 
   | Pvariant of id * pat
   | Pecstr of id * id
@@ -60,20 +59,12 @@ and pat_field_ =
 
 and expr = Pos.t * expr_
 and expr_ = 
-  | Eunit
-  | Ebool of bool
   | Eid of id
-  | Eint of string
-  | Efloat of string
-  | Echar of pstring
-  | Estring of pstring
+  | Evalue of value
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
   | Etuple of expr list
   | Ecstr of id
-  | Eecstr of id * id
-  | Eefield of expr * id * id
-  | Eextern of id * id
   | Erecord of (id * expr) list 
   | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
@@ -81,3 +72,12 @@ and expr_ =
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
+
+and value = 
+  | Eunit
+  | Ebool of bool
+  | Eint of pstring
+  | Efloat of pstring
+  | Echar of pstring
+  | Estring of pstring
+    

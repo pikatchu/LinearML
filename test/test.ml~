@@ -1,24 +1,24 @@
 
 module Test:sig
 
-  type t1 = int32 * int32
-  type 'a t2 = 'a * 'a
-  type ('a, 'b) t4 = 'a t2 * 'b t2
+  type 'a t = { field1: 'a }
 
-  type 'a t = { field1: 'a x }
-  and 'a x = 'a * 'a
-
-  type t3 = B | A | C
+  type 'a t2 = A of 'a
 
   val fac: int32 -> int32
 
-
 end = struct
 
+  let rec fac x = 
+    if x = 0
+    then f x
+    else f x
 
-  let rec fac t = 
-    match t with
-    | (A, x | B, _ | C, (C| _)) -> 4
+  and f x = fac x
+
+  let k x = x
 
 
 end
+
+

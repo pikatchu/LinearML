@@ -15,6 +15,8 @@ let make x =
   trace := IMap.add !counter x !trace ;
   res
 
+let tmp () = make "__tmp"
+
 let compare x y = x - y
 
 let to_string x = 

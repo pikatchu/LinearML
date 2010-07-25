@@ -1,5 +1,6 @@
 open Utils
 
+
 let err x = output_string stderr x ; output_string stderr "\n"
 let pos x = err (Pos.string x)
 
@@ -44,12 +45,18 @@ let application_to_primitive_type p id =
   err ("Error: "^id^" is a primitive type without arguments") ;
   exit 7
 
-let expected_function pos1 pos2 = 
-  pos pos1 ;
+let expected_function p = 
+  pos p ;
   err ("Expected Function") ;
-  pos pos2 ;
-  err ("This is not a function") ;
   exit 8
+
+let expected_function_not p p2 = 
+  pos p ;
+  err ("Expected Function") ;
+  pos p2 ;
+  err "This expression is not a function" ;
+  exit 8
+
 
 let undefined_sig p v = 
   pos p ;
@@ -114,4 +121,40 @@ let pbar_arity p1 n1 p2 n2 =
 let no_tuple p =
   pos p ;
   err "Wasn't expecting a tuple" ;
+  exit 2
+
+let no_tuple_for_type_app p px =
+  pos px ;
+  err ("This type is not an abbreviation") ;
+  pos p ;
+  err "You cannot pass a tuple as argument" ;
+  exit 2
+
+let tuple_too_big p = 
+  pos p ;
+  err "This tuple has more than 100 elements, use a record instead" ;
+  exit 2
+
+let not_pointer_type p_id p = 
+  pos p ;
+  err "This type is not a pointer" ;
+  pos p_id ;
+  err "It can only be applied to a type defined in the same module" ;
+  exit 2
+
+
+let infinite_loop p = 
+  pos p ;
+  err "Unsound type" ;
+  exit 2
+
+let arity p1 p2 = 
+  pos p1 ;
+  err "Arity" ;
+  pos p2 ;
+  exit 2
+
+let unused p = 
+  pos p ;
+  err "Unused" ;
   exit 2

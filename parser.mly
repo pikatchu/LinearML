@@ -229,12 +229,12 @@ pat_field_l:
 pat_:
 | TRUE { $1, Pbool true }
 | FALSE { $1, Pbool false }
-| CHAR { fst $1, Pchar (snd $1) }
-| FLOAT { fst $1, Pfloat (snd $1) }
-| STRING { fst $1, Pstring (snd $1) }
+| CHAR { fst $1, Pchar $1 }
+| FLOAT { fst $1, Pfloat $1 }
+| STRING { fst $1, Pstring $1 }
 | LP RP { Pos.btw $1 $2, Punit }
 | ID { fst $1, Pid $1 }
-| INT { fst $1, Pint (snd $1) }
+| INT { fst $1, Pint $1 }
 | UNDERSCORE { $1, Pany }
 | CSTR { fst $1, Pcstr $1 }
 | CSTR pat_ { Pos.btw (fst $1) (fst $2), Pvariant ($1, $2) }
@@ -275,8 +275,8 @@ simpl_expr:
 | LP RP { Pos.btw $1 $2, Eunit }
 | TRUE { $1, Ebool true }
 | FALSE { $1, Ebool false }
-| INT { fst $1, Eint (snd $1) }
-| FLOAT { fst $1, Efloat (snd $1) }
+| INT { fst $1, Eint $1 }
+| FLOAT { fst $1, Efloat $1 }
 | STRING { fst $1, Estring $1 }
 | CHAR { fst $1, Echar $1 }
 | LCB field_l RCB dot_id { simpl_arg (Pos.btw $1 $3, Erecord $2) $4 }

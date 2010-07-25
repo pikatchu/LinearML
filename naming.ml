@@ -267,12 +267,17 @@ and decl genv sig_ env = function
       let env = List.fold_left (bind_type sig_) env tdl in
       env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
 
-  | Dval (id, ((p, _) as ty)) -> 
+  | Dval (id, ((p, Tfun (ty1, ty2)))) -> 
       let id = Env.value sig_ id in
-      let tvarl = FreeVars.type_expr ty in
+      let tvarl = FreeVars.type_expr ty1 in
+      let env, tvarl = lfold Env.new_tvar env tvarl in
+      let ty1 = type_expr genv sig_ env ty1 in
+      let ty = p, Nast.Tfun (ty1, type_expr genv sig_ env ty2) in
       (* The declaration of the type variables is implicit *)
-      let ty = match tvarl with [] -> ty | l -> p, Tabs(tvarl, ty) in
-      env, Nast.Dval (id, type_expr genv sig_ env ty)
+      let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
+      env, Nast.Dval (id, ty)
+
+  | Dval ((p, _), _) -> Error.expected_function p
 
 and bind_type sig_ env (x, _) = 
   let id = Env.type_ sig_ x in
@@ -311,10 +316,11 @@ and type_expr_ genv sig_ env x =
 
 and tid env (p, x) = tid_ env p x
 and tid_ env p = function
-  | "unit" -> Nast.Tunit
-  | "bool" -> Nast.Tbool
-  | "int32" -> Nast.Tint32
-  | "float" -> Nast.Tfloat
+  | "unit" -> Nast.Tprim Nast.Tunit
+  | "bool" -> Nast.Tprim Nast.Tbool
+  | "int32" -> Nast.Tprim Nast.Tint32
+  | "float" -> Nast.Tprim Nast.Tfloat
+  | "char" -> Nast.Tprim Nast.Tchar
   | x -> Nast.Tid (Env.type_ env (p, x))
 
 and tvariant genv sig_ env (id, ty) = 
@@ -361,16 +367,16 @@ and pat genv sig_ env (pos, p) =
   env, (pos, p)
 
 and pat_ genv sig_ env = function
-  | Punit -> env, Nast.Punit
+  | Punit -> env, Nast.Pvalue Nast.Eunit
   | Pany -> env, Nast.Pany
   | Pid x -> 
       let env, x = Env.new_value env x in
       env, Nast.Pid x
-  | Pchar x -> env, Nast.Pchar x
-  | Pint x -> env, Nast.Pint x
-  | Pbool b -> env, Nast.Pbool b
-  | Pfloat f -> env, Nast.Pfloat f
-  | Pstring s -> env, Nast.Pstring s
+  | Pchar x -> env, Nast.Pvalue (Nast.Echar x)
+  | Pint x -> env, Nast.Pvalue (Nast.Eint x)
+  | Pbool b -> env, Nast.Pvalue (Nast.Ebool b)
+  | Pfloat f -> env, Nast.Pvalue (Nast.Efloat f)
+  | Pstring s -> env, Nast.Pvalue (Nast.Estring s)
   | Pcstr id -> env, Nast.Pcstr (Env.cstr sig_ id)
   | Pvariant (id, p) -> 
       let env, p = pat genv sig_ env p in
@@ -422,12 +428,12 @@ and expr genv sig_ env (p, e) = p, expr_ genv sig_ env e
 and expr_ genv sig_ env e = 
   let k = expr genv sig_ env in
   match e with
-  | Eunit -> Nast.Eunit
-  | Ebool x -> Nast.Ebool x
-  | Eint x -> Nast.Eint x
-  | Efloat x -> Nast.Efloat x
-  | Echar x -> Nast.Echar x
-  | Estring x -> Nast.Estring x
+  | Eunit -> Nast.Evalue Nast.Eunit
+  | Ebool x -> Nast.Evalue (Nast.Ebool x)
+  | Eint x -> Nast.Evalue (Nast.Eint x)
+  | Efloat x -> Nast.Evalue (Nast.Efloat x)
+  | Echar x -> Nast.Evalue (Nast.Echar x)
+  | Estring x -> Nast.Evalue (Nast.Estring x)
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -455,19 +461,19 @@ and expr_ genv sig_ env e =
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
       let id2 = Env.value sig_md id2 in
-      Nast.Eextern (md_id, id2)
+      Nast.Eid id2
 
   | Eefield (e, id1, id2) -> 
       let id1 = Genv.module_id genv id1 in
       let sig_ = Genv.sig_ genv id1 in
       let id2 = Env.field sig_ id2 in
-      Nast.Eefield (k e, id1, id2)
+      Nast.Efield (k e, id2)
 
   | Eecstr (md_id, id) ->
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
       let id = Env.cstr sig_md id in      
-      Nast.Eecstr (md_id, id)
+      Nast.Ecstr id
 
 
 and field genv sig_ env (id, e) = 
