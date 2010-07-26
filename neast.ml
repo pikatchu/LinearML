@@ -19,7 +19,7 @@ and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
   | Tundef
-  | Tdef of id list
+  | Tdef of ISet.t
   | Tprim of type_prim
   | Tvar of id 
   | Tid of id
@@ -98,32 +98,60 @@ module CompareType = struct
   and ty (_, ty1) (_, ty2) () = 
     match ty1, ty2 with
     | Tany, Tany -> 0
+    | Tany, _ -> -1
+    | _, Tany -> 1
+
     | Tprim ty1, Tprim ty2 -> prim ty1 ty2
-    | Tid x1, Tid x2
+    | Tprim _, _ -> -1
+    | _, Tprim _ -> 1
+
+    | Tid x1, Tid x2 -> id x1 x2 ()
+    | Tid _, _ -> -1
+    | _, Tid _-> 1
+
     | Tvar x1, Tvar x2 -> id x1 x2 ()
+    | Tvar _, _ -> -1
+    | _, Tvar _ -> 1
+
     | Tapply (ty1, tyl1), Tapply (ty2, tyl2) -> 
 	id ty1 ty2 &&&
-	list ty tyl1 tyl2
-	  
+	list ty tyl1 tyl2	  
+    | Tapply _, _ -> -1
+    |  _, Tapply _ -> 1
+
     | Tfun (ty1, ty2), Tfun (ty3, ty4) ->
 	list ty ty1 ty3 &&&
-	list ty ty2 ty4
-	  
+	list ty ty2 ty4	  
+    | Tfun _, _ -> -1
+    | _, Tfun _ -> 1
+
     | Talgebric vm1, Talgebric vm2 -> 
 	let vl1 = list_of_imap vm1 in
 	let vl2 = list_of_imap vm2 in
-	list variant vl1 vl2 ()
-	  
+	list variant vl1 vl2 ()  
+    | Talgebric _, _ -> -1
+    | _, Talgebric _ -> 1
+
     | Trecord vm1, Trecord vm2 -> 
 	let vl1 = list_of_imap vm1 in
 	let vl2 = list_of_imap vm2 in
 	list field vl1 vl2 ()
+    | Trecord _, _ -> -1
+    |  _, Trecord _ -> 1
 
     | Tabs (idl1, ty1), Tabs (idl2, ty2) -> 
 	list id idl1 idl2 &&&
 	ty ty1 ty2
+    | Tabs _, _ -> -1
+    | _, Tabs _ -> 1
 
-    | _, _ -> Pervasives.compare ty1 ty2
+    | Tdef s1, Tdef s2 -> ISet.compare s1 s2
+    | Tdef _, _ -> -1
+    | _, Tdef _ -> 1
+
+    | Tundef, Tundef -> 0
+    | Tundef _, _ -> -1
+    | _, Tundef _ -> 1
 
   and prim ty1 ty2 = 
     match ty1, ty2 with

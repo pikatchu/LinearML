@@ -76,13 +76,6 @@ module Abbrevs: sig
   val program: Nast.program -> Nast.program
 end = struct
 
-  let foreign = function Tpath _ -> true | _ -> false
-
-  let check_pointer p_id (p, ty) = 
-    match ty with
-    | Tid _ | Tpath _ | Tapply _ -> ()
-    | _ -> Error.not_pointer_type p_id p
-
   let check_abs id (p, ty) = 
     match ty with
     | Tabs (idl, _) -> Error.type_expects_arguments id (List.length idl) p
@@ -157,8 +150,6 @@ end = struct
     | Tapply (ty, tyl) -> 
 	let mem, ty = type_expr abbr mem ty in
 	let mem, tyl = lfold (type_expr abbr) mem tyl in
-	if foreign (snd ty)
-	then List.iter (check_pointer (fst ty)) tyl ;
 	mem, Tapply (ty, tyl)
 
     | Ttuple tyl -> 

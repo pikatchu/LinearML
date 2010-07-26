@@ -267,12 +267,11 @@ and decl genv sig_ env = function
       let env = List.fold_left (bind_type sig_) env tdl in
       env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
 
-  | Dval (id, ((p, Tfun (ty1, ty2)))) -> 
+  | Dval (id, ((p, Tfun (_, _)) as ty)) -> 
       let id = Env.value sig_ id in
-      let tvarl = FreeVars.type_expr ty1 in
-      let env, tvarl = lfold Env.new_tvar env tvarl in
-      let ty1 = type_expr genv sig_ env ty1 in
-      let ty = p, Nast.Tfun (ty1, type_expr genv sig_ env ty2) in
+      let tvarl = FreeVars.type_expr ty in
+      let sub_env, tvarl = lfold Env.new_tvar env tvarl in
+      let ty = type_expr genv sig_ sub_env ty in
       (* The declaration of the type variables is implicit *)
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
       env, Nast.Dval (id, ty)
@@ -477,7 +476,7 @@ and expr_ genv sig_ env e =
 
 
 and field genv sig_ env (id, e) = 
-  Env.field env id, expr genv sig_ env e
+  Env.field sig_ id, expr genv sig_ env e
 
 and pat_expr genv sig_ env (p, e) = 
   let env, p = pat genv sig_ env p in

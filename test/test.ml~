@@ -1,23 +1,20 @@
 
 module Test:sig
 
-  type 'a t = { field1: 'a }
 
-  type 'a t2 = A of 'a
 
-  val fac: int32 -> int32
+  val fac: ('a -> 'b) * 'a -> 'b
 
 end = struct
+  let rec fac f x = f x
+end
 
-  let rec fac x = 
-    if x = 0
-    then f x
-    else f x
+module Main: sig
 
-  and f x = fac x
+  val f: unit -> unit
+end = struct
 
-  let k x = x
-
+  let f x = Test.fac (fun x -> x) x
 
 end
 
