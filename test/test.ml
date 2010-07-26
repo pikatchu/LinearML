@@ -1,26 +1,17 @@
 
+
 module Test:sig
 
-  type 'a t = 
-    | A
-    | B of 'a 
 
-  type ('a, 'b) t2 = ('a -> 'b) t
-
-  val fac: unit -> ('a, 'a) t2
-  val id: 'a -> 'a
+  val fac: 'c -> 'c
 
 end = struct
 
-  let rec fac x = B (fun x -> x)
-    
-  let id x = x
-end
+  let rec map n f x = 
+    if n = 0
+    then f x
+    else map (n-1) f f
 
-
-module Test2: sig
-  val f: unit -> unit
-end = struct
-
-  let f x = Test.id (x, x)
+  let rec fac x = map 10 (fun x -> x) x
+      
 end

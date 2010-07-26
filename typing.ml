@@ -140,6 +140,7 @@ let rec tundef tyl =
   match tyl with
   | [] -> false
   | (_, Tundef _) :: _ -> true
+  | (_, Tapply (_, l)) :: rl -> tundef l || tundef rl
   | _ :: rl -> tundef rl
 
 let rec check_undef p tyl =
@@ -179,6 +180,7 @@ and module_ tenv md =
   o "phase2" ;
   (* Re-type all with function calls solved *)
   let acc = List.fold_left (decl env) acc md.md_decls in
+  (* Remember: it doesn't mean it's well typed at this point *)
   o "phase3" ;
   acc
 
@@ -225,8 +227,7 @@ and pat_el (pos, p) (_, ty) env =
 and expr_list env acc el =
   match el with
   | [] -> acc, []
-  | (_, Eapply (x, el)) :: rl
-  | (_, Evariant (x, el)) :: rl ->
+  | (_, Eapply (x, el)) :: rl ->
       let acc, rl = expr_list env acc rl in
       let acc, tyl = expr_list env acc el in
       let acc, rty = apply env acc x tyl in
@@ -238,6 +239,20 @@ and expr_list env acc el =
       let acc, tyl1 = expr_list env acc el1 in
       let acc, tyl2 = expr_list env acc el2 in     
       let acc, tyl = unify_list env acc tyl1 tyl2 in
+      acc, tyl @ rl
+
+  | (_, Elet (argl, e1, e2)) :: rl -> 
+      let acc, rl = expr_list env acc rl in
+      let acc, tyl = expr_list env acc e1 in
+      let env = { env with tenv = pat env.tenv argl tyl } in 
+      let acc, tyl = expr_list env acc e2 in
+      acc, tyl @ rl
+
+  | (_, Efield (e, (_, x))) :: rl -> 
+      let acc, rl = expr_list env acc rl in
+      let acc, rectype = expr env acc e in
+      let fdtype = IMap.find x env.tenv in 
+      let acc, tyl = proj env acc rectype fdtype in
       acc, tyl @ rl
 
   | e :: rl ->
@@ -254,8 +269,11 @@ and expr env acc ((p, _) as e) =
 
 and expr_ env acc (p, e) =
   match e with
+
   | Eid (_, x) -> acc, (p, snd (IMap.find x env.tenv))
   | Evalue v -> acc, (p, Tprim (value v))
+  | Evariant (x, el) -> variant env acc (x, el)
+
   | Ebinop (Ast.Eseq, ((p, _) as e1), e2) -> 
       let acc, ty1 = expr env acc e1 in
       let acc, ty1 = unify_el env acc ty1 (p, Tprim Tunit) in
@@ -264,14 +282,39 @@ and expr_ env acc (p, e) =
   | Ebinop (bop, e1, e2) -> 
       let acc, ty1 = expr env acc e1 in
       let acc, ty2 = expr env acc e2 in
+      let acc, _ = unify_el env acc ty1 ty2 in
       let acc, ty = binop env acc bop p ty1 ty2 in
       acc, ty
 
   | Euop (Ast.Euminus, e) -> expr env acc e
-(*  | Erecord of (id * expr list) list 
-  | Efield of expr * id 
+
+  | Erecord fdl -> 
+      let acc, fdl = lfold (variant env) acc fdl in
+      List.fold_left 
+	(fun (acc, rty) ty -> 
+	  unify_el env acc rty ty) 
+	(acc, (p, Tany))
+	fdl
+
+(* 
   | Ematch of expr list * (pat * expr list) list
-  | Elet of pat * expr list * expr list *)
+ *)
+
+and variant env acc (x, el) = 
+  let acc, tyl = expr_list env acc el in
+  let acc, rty = apply env acc x tyl in
+  match rty with 
+  | [x] -> acc, x 
+  | _ -> assert false
+
+and proj env acc ty fty = 
+  match ty, fty with
+  | (_, Tapply ((_, x1), argl1)), (_, Tfun (ty, [_, Tapply ((_, x2), argl2)])) ->
+      if x1 <> x2
+      then failwith "TODO proj" ;
+      let acc, subst = instantiate_list env acc IMap.empty argl2 argl1 in
+      replace_list subst env acc ty
+  | _ -> failwith "TODO proj"
 
 and binop env acc bop p ty1 ty2 = 
   match bop with
@@ -343,6 +386,7 @@ and unify_el_ env acc (p1, ty1) (p2, ty2) =
   | Trecord _, _ | _, Trecord _
   | Tabs _, _ | _, Tabs _ -> assert false
   | _ -> 
+      o "Unify_el\n" ;
       Debug.type_expr (p1, ty1) ;
       Debug.type_expr (p1, ty2) ;
       Error.unify p1 p2
@@ -358,7 +402,13 @@ and apply env acc ((fp, x) as fid) tyl =
       end
       else begin
 	let acc, subst = instantiate_list env acc IMap.empty tyl1 tyl in
-	let rty = replace_list subst tyl2 in
+	o "llllllllllllllllll" ;
+	IMap.iter (fun x y -> 
+	o (Ident.debug x) ;
+	Debug.type_expr y) subst ;
+	o "llllllllllllllllll22" ;
+	let acc, rty = replace_list subst env acc tyl2 in
+	Debug.type_expr_list rty ;
 	let fcall = IMap.add x tyl acc.fcall in
 	let mem = TMap.add (fid, tyl) rty acc.mem in
 	let acc = { fcall = fcall ; mem = mem } in
@@ -400,8 +450,12 @@ and instantiate_list env acc subst tyl1 tyl2 =
             
 and instantiate env (acc, subst) (p2, ty1) (p, ty2) = 
   match ty1, ty2 with
+  | (Tany | Tundef), _
+  | _, (Tany | Tundef) -> acc, subst
   | Tprim ty1, Tprim ty2 when ty1 = ty2 -> acc, subst
-  | Tvar (_, x), _ -> acc, IMap.add x (p, ty2) subst
+  | Tvar (_, x), _ -> 
+      (try instantiate env (acc, subst) (IMap.find x subst) (p, ty2)
+      with Not_found -> acc, IMap.add x (p, ty2) subst)
   | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
       instantiate_list env acc subst tyl1 tyl2
 
@@ -421,21 +475,39 @@ and instantiate env (acc, subst) (p2, ty1) (p, ty2) =
   | Trecord _, _ | _, Trecord _ -> assert false
   | Tabs _, _ | _, Tabs _ -> assert false
   | ty1, ty2 -> 
+      o "Instantiate\n" ;
       Debug.type_expr (p2, ty1) ;
       Debug.type_expr (p2, ty2) ;
       Error.unify p2 p
 
-and replace subst (p, ty) = 
+and replace subst env acc (p, ty) = 
   match ty with
-  | Tundef _ as x -> p, x
+  | Tundef _ as x -> acc, (p, x)
   | Tvar (p, x) -> 
-      (try replace subst (IMap.find x subst)
-      with Not_found -> p, Tvar (p, x))
-  | Tapply (x, tyl) -> p, Tapply (x, List.map (replace subst) tyl)
-  | Tfun (tyl1, tyl2) -> p, Tfun (List.map (replace subst) tyl1, List.map (replace subst) tyl2)
-  | Tabs (l, ty) -> p, Tabs (l, replace subst ty) 
+      (try 
+	let ty = IMap.find x subst in
+	(match ty with
+	| _, Tvar (_, y) when x = y -> acc, ty
+	| _ -> 
+	    if ISet.mem x (FreeVars.type_expr ISet.empty ty)
+	    then assert false (* TODO get rid of this *)
+	    else replace subst env acc ty)
+      with Not_found -> acc, (p, Tvar (p, x)))
+  | Tapply (x, tyl) -> 
+      let acc, tyl = lfold (replace subst env) acc tyl in
+      acc, (p, Tapply (x, tyl))
+
+  | Tfun (tyl1, tyl2) -> 
+      let acc, tyl1 = replace_list subst env acc tyl1 in
+      let acc, tyl2 = replace_list subst env acc tyl2 in
+      acc, (p, Tfun (tyl1, tyl2))
+
+  | Tabs (l, ty) -> 
+      let acc, ty = replace subst env acc ty in
+      acc, (p, Tabs (l, ty) )
   | Talgebric _ 
   | Trecord _ -> assert false
-  | _ -> p, ty
+  | _ -> acc, (p, ty)
 
-and replace_list subst tyl = List.map (replace subst) tyl
+and replace_list subst env acc tyl = 
+  lfold (replace subst env) acc tyl

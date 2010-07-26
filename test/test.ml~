@@ -1,21 +1,26 @@
 
 module Test:sig
 
+  type 'a t = 
+    | A
+    | B of 'a 
 
+  type ('a, 'b) t2 = ('a -> 'b) t
 
-  val fac: ('a -> 'b) * 'a -> 'b
+  val fac: unit -> ('a, 'a) t2
+  val id: 'a -> 'a
 
 end = struct
-  let rec fac f x = f x
+
+  let rec fac x = B (fun x -> x)
+    
+  let id x = x
 end
 
-module Main: sig
 
+module Test2: sig
   val f: unit -> unit
 end = struct
 
-  let f x = Test.fac (fun x -> x) x
-
+  let f x = Test.id (x, x)
 end
-
-
