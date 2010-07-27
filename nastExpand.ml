@@ -271,7 +271,10 @@ and type_expr_ = function
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 
   | Tapply (((_, Tid x) | (_, Tpath (_, x))), tyl) -> 
-      Neast.Tapply (x, List.map type_expr tyl)
+      let tyl = List.map type_expr tyl in
+      let tyl = Pos.list tyl in
+      Neast.Tapply (x, tyl)
+
   | Tapply _ -> assert false
   | Ttuple _ -> assert false
   | Tpath (x, y) -> Neast.Tid y
@@ -283,19 +286,19 @@ and type_expr_ = function
 
 and variant (x, ty) =
   x, match ty with
-  | None -> []
+  | None -> fst x, []
   | Some ty -> type_expr_tuple ty
 
 and field (x, ty) = 
   x, type_expr_tuple ty
 
-and type_expr_tuple ((_, ty_) as ty) = 
-  match ty_ with
-  | Ttuple l -> List.map type_expr l
+and type_expr_tuple ((p, ty_) as ty) = 
+  p, match ty_ with
+  | Ttuple l -> (List.map type_expr l)
   | _ -> [type_expr ty]
 
 and def (id, pl, e) = 
-  let e = expr e [] in 
+  let e = tuple e in 
   let pl = pat_list pl in
   id, pl, e
 
@@ -328,15 +331,18 @@ and pat_field_ = function
   | PFid x -> Neast.PFid x
   | PField (x, p) -> Neast.PField (x, pat p)
 
+and tuple ((p, _) as e) = 
+  p, expr e []
+
 and expr (p, e) acc = 
   match e with
-  | Etuple l -> List.fold_right (expr) l acc
-  | _ -> (p, expr_ e) :: acc
+  | Etuple l -> List.fold_right expr l acc
+  | _ -> (p, expr_ p e) :: acc
 
-and expr_ = function
+and expr_ p = function
   | Evalue v -> Neast.Evalue v
   | Eid x -> Neast.Eid x
-  | Ecstr x -> Neast.Evariant (x, [])
+  | Ecstr x -> Neast.Evariant (x, (p, []))
   | Efield (e, x) -> 
       let e = simpl_expr e in
       Neast.Efield (e, x)
@@ -352,24 +358,30 @@ and expr_ = function
 
   | Etuple _ -> assert false
   | Erecord fdl -> 
-      let fdl = List.map (fun (x, e) -> x, expr e []) fdl in
+      let fdl = List.map (fun (x, e) -> x, tuple e) fdl in
       Neast.Erecord fdl
 
   | Elet (p, e1, e2) -> 
       let p = pat p in
-      let e1 = expr e1 [] in
-      let e2 = expr e2 [] in
+      let e1 = tuple e1 in
+      let e2 = tuple e2 in
       Neast.Elet (p, e1, e2)
 
   | Eif (e1, e2, e3) -> 
       let e1 = simpl_expr e1 in
-      Neast.Eif (e1, expr e2 [], expr e3 [])
+      let e2 = tuple e2 in
+      let e3 = tuple e3 in
+      Neast.Eif (e1, e2, e3)
 
   | Efun _ -> assert false
-  | Eapply (e, el) -> apply (simpl_expr e) (List.fold_right expr el [])
+  | Eapply (e, el) -> 
+      let p, el = Pos.list el in
+      let el = List.fold_right expr el [] in
+      apply (simpl_expr e) (p, el)
+
   | Ematch (e, pel) -> 
-      let e = expr e [] in
-      let pel = List.map (fun (p, e) -> pat p, expr e []) pel in
+      let e = tuple e in
+      let pel = List.map (fun (p, e) -> pat p, tuple e) pel in
       Neast.Ematch (e, pel)
 
 and simpl_expr ((p, _) as e) = 
@@ -379,7 +391,7 @@ and simpl_expr ((p, _) as e) =
 
 and apply e1 e2 = 
   match snd e1 with
-  | Neast.Evariant (x, []) -> Neast.Evariant (x, e2)
+  | Neast.Evariant (x, (_, [])) -> Neast.Evariant (x, e2)
   | Neast.Evariant _ -> assert false
   | Neast.Eid id -> Neast.Eapply (id, e2)
   | _ -> Error.expected_function (fst e1)

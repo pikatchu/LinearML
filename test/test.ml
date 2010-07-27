@@ -3,15 +3,19 @@
 module Test:sig
 
 
-  val fac: 'c -> 'c
+  val fac: int32 -> bool * bool
 
 end = struct
 
-  let rec map n f x = 
-    if n = 0
-    then f x
-    else map (n-1) f f
+  let g x = x, x
 
-  let rec fac x = map 10 (fun x -> x) x
+  let f x = 
+    if x = 0 
+    then 1, 1
+    else g x
+
+  let rec fac x = 
+    let x, _ = f x in
+    x, fac x
       
 end

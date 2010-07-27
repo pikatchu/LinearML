@@ -13,7 +13,7 @@ and module_ = {
 
 and decl = 
   | Dtype of (id * type_expr) list
-  | Dval of id * type_expr list * type_expr list
+  | Dval of id * type_expr_list * type_expr_list
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
@@ -23,11 +23,13 @@ and type_expr_ =
   | Tprim of type_prim
   | Tvar of id 
   | Tid of id
-  | Tapply of id * type_expr list
-  | Tfun of type_expr list * type_expr list
-  | Talgebric of (id * type_expr list) IMap.t
-  | Trecord of (id * type_expr list) IMap.t
+  | Tapply of id * type_expr_list
+  | Tfun of type_expr_list * type_expr_list
+  | Talgebric of (id * type_expr_list) IMap.t
+  | Trecord of (id * type_expr_list) IMap.t
   | Tabs of id list * type_expr
+
+and type_expr_list = Pos.t * type_expr list
 
 and type_prim = Nast.type_prim =   
   | Tunit
@@ -36,7 +38,7 @@ and type_prim = Nast.type_prim =
   | Tint32
   | Tfloat
 
-and def = id * pat * expr list
+and def = id * pat * tuple
 
 and pat = Pos.t * pat_tuple list
 and pat_tuple = Pos.t * pat_el list
@@ -58,21 +60,23 @@ and expr = Pos.t * expr_
 and expr_ = 
   | Eid of id
   | Evalue of value
-  | Evariant of id * expr list
+  | Evariant of id * tuple
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
-  | Erecord of (id * expr list) list 
+  | Erecord of (id * tuple) list 
   | Efield of expr * id 
-  | Ematch of expr list * (pat * expr list) list
-  | Elet of pat * expr list * expr list
-  | Eif of expr * expr list * expr list
-  | Eapply of id * expr list
+  | Ematch of tuple * (pat * tuple) list
+  | Elet of pat * tuple * tuple
+  | Eif of expr * tuple * tuple
+  | Eapply of id * tuple
+
+and tuple = Pos.t * expr list
 
 and value = Nast.value
 
 module CompareType = struct
 
-  type t = id * type_expr list
+  type t = id * type_expr_list
 
   let (&&&) x1 x2 = 
     let c = x1 () in
@@ -80,13 +84,15 @@ module CompareType = struct
     then x2 ()
     else c
 
-  let rec list cmp l1 l2 () = 
+  let rec list cmp (_, l1) (_, l2) () = list_ cmp l1 l2 ()
+
+  and list_ cmp l1 l2 () = 
     match l1, l2 with
     | [], [] -> 0
     | [], _ -> -1
     | _, [] -> 1
     | x1 :: rl1, x2 :: rl2 -> 
-	cmp x1 x2 &&& list cmp rl1 rl2
+	cmp x1 x2 &&& list_ cmp rl1 rl2
 
   let rec compare (id1, ty1) (id2, ty2) = 
     id id1 id2 &&& 
@@ -128,19 +134,21 @@ module CompareType = struct
     | Talgebric vm1, Talgebric vm2 -> 
 	let vl1 = list_of_imap vm1 in
 	let vl2 = list_of_imap vm2 in
-	list variant vl1 vl2 ()  
+	list_ variant vl1 vl2 ()  
+
     | Talgebric _, _ -> -1
     | _, Talgebric _ -> 1
 
     | Trecord vm1, Trecord vm2 -> 
 	let vl1 = list_of_imap vm1 in
 	let vl2 = list_of_imap vm2 in
-	list field vl1 vl2 ()
+	list_ field vl1 vl2 ()
+
     | Trecord _, _ -> -1
     |  _, Trecord _ -> 1
 
     | Tabs (idl1, ty1), Tabs (idl2, ty2) -> 
-	list id idl1 idl2 &&&
+	list_ id idl1 idl2 &&&
 	ty ty1 ty2
     | Tabs _, _ -> -1
     | _, Tabs _ -> 1
@@ -150,8 +158,6 @@ module CompareType = struct
     | _, Tdef _ -> 1
 
     | Tundef, Tundef -> 0
-    | Tundef _, _ -> -1
-    | _, Tundef _ -> 1
 
   and prim ty1 ty2 = 
     match ty1, ty2 with
