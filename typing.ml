@@ -1,6 +1,8 @@
 open Utils
 open Neast
 
+exception Unify of Pos.t * Pos.t
+
 let o s = output_string stdout s ; print_newline() ; flush stdout
 
 module Debug = struct
@@ -146,12 +148,6 @@ and tundef_ tyl =
   | (_, Tapply (_, l)) :: rl -> tundef l || tundef_ rl
   | _ :: rl -> tundef_ rl
 
-let rec check_undef p tyl =
-  match tyl with
-  | [] -> ()
-  | (_, Tundef) :: _ -> Error.infinite_loop p
-  | _ :: rl -> check_undef p rl
-
 let add_used ((_, x), _) _ acc =
   ISet.add x acc
 
@@ -193,14 +189,15 @@ and def env (((p, x), al, b) as d) =
   { tenv = tenv ; defs = defs }
 
 and retype env acc (fid, ty) = 
-  let acc, (p, rty) = apply env acc fid ty in
-  check_undef p rty ;
+  let p = fst fid in
+  let acc, (p, rty) = apply env acc p fid ty in
   acc
 
 and decl env acc = function
   | Dtype _ -> acc
   | Dval (fid, tyl, rty) ->
-      let acc, rty = apply_def env acc fid tyl rty in
+      let p = fst fid in
+      let acc, rty = apply_def env acc p fid tyl rty in
       o (Ident.debug (snd fid)) ;
       Debug.type_expr_list rty ;
       { acc with fcall = IMap.empty }
@@ -215,8 +212,7 @@ and pat env (p, pl) (p2, tyl) =
       )
   | _ -> failwith "TODO pat"
 
-and pat_el (pos, p) (_, ty) env = 
-  let ty = pos, ty in
+and pat_el (_, p) ty env = 
   match p with
   | Pany -> env
   | Pid (_, x) -> IMap.add x ty env 
@@ -232,10 +228,10 @@ and expr_list env acc (p, el) =
 and expr_list_ env acc el =
   match el with
   | [] -> acc, []
-  | (_, Eapply (x, el)) :: rl ->
+  | (p, Eapply (x, el)) :: rl ->
       let acc, rl = expr_list_ env acc rl in
       let acc, tyl = expr_list env acc el in
-      let acc, rty = apply env acc x tyl in
+      let acc, rty = apply env acc p x tyl in
       acc, snd rty @ rl
 
   | (_, Eif (e1, el1, el2)) :: rl -> 
@@ -308,8 +304,9 @@ and expr_ env acc (p, e) =
  *)
 
 and variant env acc (x, el) = 
+  let p = Pos.btw (fst x) (fst el) in
   let acc, tyl = expr_list env acc el in
-  let acc, rty = apply env acc x tyl in
+  let acc, rty = apply env acc p x tyl in
   match rty with 
   | _, [x] -> acc, x 
   | _ -> assert false
@@ -351,16 +348,23 @@ and unify_list env acc ((p1, tyl1) as l1) ((p2, tyl2) as l2) =
   then acc, l1
   else if List.length tyl1 <> List.length tyl2
   then Error.arity p1 p2
-  else 
+  else try 
     let acc, tyl = lfold2 (unify_el env) acc tyl1 tyl2 in
     acc, (p1, tyl)
+  with Unify (ep1, ep2) ->
+    Error.pos p1 ;
+    Error.pos p2 ;
+    Error.pos ep1 ;
+    Error.pos ep2 ;
+    exit 2
   
 and unify_el env acc ty1 ty2 = 
   match ty1, ty2 with
   | (p, Tdef ids), (_, Tfun (tyl, rty))
   | (_, Tfun (tyl, rty)), (p, Tdef ids) ->
+      (* TODO not sure about the position *)
       let idl = ISet.fold (fun x acc -> (p, x) :: acc) ids [] in
-      let acc, rty = apply_def_list env acc idl tyl rty in
+      let acc, rty = apply_def_list env acc p idl tyl rty in
       acc, (p, Tfun (tyl, rty))
 
   | (p, Tapply ((_, x) as id, tyl1)), (_, Tapply ((_, y), tyl2)) when x = y -> 
@@ -390,13 +394,9 @@ and unify_el_ env acc (p1, ty1) (p2, ty2) =
   | Talgebric _, _ | _, Talgebric _
   | Trecord _, _ | _, Trecord _
   | Tabs _, _ | _, Tabs _ -> assert false
-  | _ -> 
-      o "Unify_el\n" ;
-      Debug.type_expr (p1, ty1) ;
-      Debug.type_expr (p1, ty2) ;
-      Error.unify p1 p2
+  | _ -> raise (Unify (p1, p2))
 
-and apply env acc ((fp, x) as fid) tyl = 
+and apply env acc p ((fp, x) as fid) tyl = 
   match IMap.find x env.tenv with
   | (_, Tfun (tyl1, tyl2)) -> 
       if IMap.mem x acc.fcall
@@ -408,31 +408,30 @@ and apply env acc ((fp, x) as fid) tyl =
       else begin
 	let acc, subst = instantiate_list env acc IMap.empty tyl1 tyl in
 	let acc, rty = replace_list subst env acc tyl2 in
-	Debug.type_expr_list rty ;
 	let fcall = IMap.add x tyl acc.fcall in
 	let mem = TMap.add (fid, tyl) rty acc.mem in
 	let acc = { fcall = fcall ; mem = mem } in
 	acc, rty
       end
 
-  | (p, Tdef ids) -> 
-      let rty = fp, [fp, Tundef] in
+  | (_, Tdef ids) -> 
+      let rty = p, [p, Tundef] in
       let idl = ISet.fold (fun x acc -> (p, x) :: acc) ids [] in
-      apply_def_list env acc idl tyl rty
+      apply_def_list env acc p idl tyl rty
 
   | p2, _ -> Error.expected_function_not fp p2
 
-and apply_def_list env acc idl tyl rty = 
+and apply_def_list env acc p idl tyl rty = 
   List.fold_left 
     (fun (acc, rty) fid -> 
-      apply_def env acc fid tyl rty) 
+      apply_def env acc p fid tyl rty) 
     (acc, rty) 
     idl
     
-and apply_def env acc fid tyl rty = 
+and apply_def env acc p fid tyl rty = 
   try acc, TMap.find (fid, tyl) acc.mem
   with Not_found -> 
-    let undef = fst fid, [fst fid, Tundef] in (* TODO better pos *)
+    let undef = p, [p, Tundef] in (* TODO better pos *)
     let acc = { acc with mem = TMap.add (fid, tyl) undef acc.mem } in
     let (_, argl, el) = IMap.find (snd fid) env.defs in
     let env = { env with tenv = pat env.tenv argl tyl } in 
@@ -459,7 +458,7 @@ and instantiate env (acc, subst) (p2, ty1) (p, ty2) =
   | Tfun (tyl, rty1), Tdef ids ->
       let idl = ISet.fold (fun x acc -> (p, x) :: acc) ids [] in
       let rty = p, [p, Tundef] in
-      let acc, rty2 = apply_def_list env acc idl tyl rty in
+      let acc, rty2 = apply_def_list env acc p idl tyl rty in
       instantiate_list env acc subst rty1 rty2
 
   | Tdef _, _ -> assert false

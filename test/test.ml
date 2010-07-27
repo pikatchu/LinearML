@@ -3,7 +3,7 @@
 module Test:sig
 
 
-  val fac: int32 -> bool * bool
+  val fac: int32 -> 'a
 
 end = struct
 
@@ -11,11 +11,12 @@ end = struct
 
   let f x = 
     if x = 0 
-    then 1, 1
+    then 1, true
     else g x
 
   let rec fac x = 
-    let x, _ = f x in
-    x, fac x
+    if true
+    then f 1
+    else f false
       
 end
