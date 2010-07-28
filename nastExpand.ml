@@ -261,18 +261,20 @@ and decl = function
       match type_expr ty with
       | _, Neast.Tabs (_, (_, Neast.Tfun (tyl1, tyl2)))
       | _, Neast.Tfun (tyl1, tyl2) -> Neast.Dval (x, tyl1, tyl2)
-      | p, _ -> Error.expected_function p
+      | p :: _, _ -> Error.expected_function p
+      | _ -> assert false
 
 and tdef (id, ty) = (id, type_expr ty)
 
-and type_expr (p, ty) = p, type_expr_ ty
+and type_expr (p, ty) = [p], type_expr_ ty
 and type_expr_ = function
   | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 
   | Tapply (((_, Tid x) | (_, Tpath (_, x))), tyl) -> 
+      let p, tyl = Pos.list tyl in
       let tyl = List.map type_expr tyl in
-      let tyl = Pos.list tyl in
+      let tyl = p, tyl in
       Neast.Tapply (x, tyl)
 
   | Tapply _ -> assert false

@@ -50,14 +50,6 @@ let expected_function p =
   err ("Expected Function") ;
   exit 8
 
-let expected_function_not p p2 = 
-  pos p ;
-  err ("Expected Function") ;
-  pos p2 ;
-  err "This expression is not a function" ;
-  exit 8
-
-
 let undefined_sig p v = 
   pos p ;
   err ("Value "^v^" has no definition") ;
@@ -102,11 +94,6 @@ let type_arity px x size1 size2 pdef =
   pos pdef ;
   exit 2
 
-let unify p1 p2 = 
-  pos p1 ;
-  err "Unify" ;
-  pos p2 ;
-  exit 2
 
 let pbar_arity p1 n1 p2 n2 =
   let n1 = string_of_int n1 in
@@ -145,7 +132,7 @@ let not_pointer_type p_id p =
 
 let infinite_loop p = 
   pos p ;
-  err "Unsound type" ;
+  err "This function call probably doesn't terminate" ;
   exit 2
 
 let arity p1 p2 = 
@@ -158,3 +145,43 @@ let unused p =
   pos p ;
   err "Unused" ;
   exit 2
+
+let rec trace pl = 
+  match pl with
+  | [] -> ()
+  | x1 :: pl ->
+      pos x1 ;
+      trace pl
+
+let trace p pl = 
+  if pl = []
+  then ()
+  else begin
+    pos p ;
+    err "The type from this expression was infered using that path" ;
+    trace pl
+  end
+
+let unify pl1 pl2 = 
+  match pl1, pl2 with
+  | [], _ | _, [] -> assert false
+  | p1 :: pl1, p2 :: pl2 ->
+      pos p1 ;
+      err "This expression must have the same type as" ;
+      pos p2 ;
+      err "this expression" ;
+      trace p1 pl1 ;
+      trace p2 pl2 ;
+      exit 2
+
+let expected_numeric p p2 =
+  pos (List.hd p2) ;
+  err "Expected a numeric type" ;
+  exit 2
+
+let expected_function_not p p2 = 
+  pos p ;
+  err ("Expected Function") ;
+  trace p p2 ;
+  exit 8
+

@@ -2,20 +2,26 @@
 
 module Test:sig
 
+  type 'a t =
+    | Empty
+    | Cons of 'a * 'a t
 
-  val fac: int32 -> bool * bool
+  val g: float -> float
 
 end = struct
 
-  let g x = x, x
+  let f x = x + x
 
-  let f x = 
-    if x = 0 
-    then 1, 1
-    else g x
+  let g x = f x + x
 
-  let rec fac x = 
-    let x, _ = f x in
-    x, fac x
-      
+  let rec map f l = 
+    match l with
+    | [] -> []
+    | x :: rl ->
+	let y = f x in
+	let rl' = map rl in
+	if y == x && rl' == rl
+	then l
+	else 
+
 end

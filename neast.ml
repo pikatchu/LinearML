@@ -15,11 +15,11 @@ and decl =
   | Dtype of (id * type_expr) list
   | Dval of id * type_expr_list * type_expr_list
 
-and type_expr = Pos.t * type_expr_
+and type_expr = Pos.t list * type_expr_
 and type_expr_ = 
   | Tany
   | Tundef
-  | Tdef of ISet.t
+  | Tdef of Pos.t IMap.t
   | Tprim of type_prim
   | Tvar of id 
   | Tid of id
@@ -153,7 +153,12 @@ module CompareType = struct
     | Tabs _, _ -> -1
     | _, Tabs _ -> 1
 
-    | Tdef s1, Tdef s2 -> ISet.compare s1 s2
+    | Tdef s1, Tdef s2 -> 
+	let add x _ acc = ISet.add x acc in
+	let set1 = IMap.fold add s1 ISet.empty in
+	let set2 = IMap.fold add s2 ISet.empty in
+	ISet.compare set1 set2
+
     | Tdef _, _ -> -1
     | _, Tdef _ -> 1
 
