@@ -16,9 +16,9 @@ and type_expr_list = Neast.type_expr_list
 
 and def = id * pat * tuple
 
-and pat = Pos.t * pat_tuple list
-and pat_tuple = Pos.t * pat_el list
-and pat_el = Pos.t * type_expr * pat_
+and pat = type_expr_list * pat_tuple list
+and pat_tuple = pat_el list
+and pat_el = type_expr * pat_
 and pat_ = 
   | Pany 
   | Pid of id
@@ -32,7 +32,17 @@ and pat_field_ =
   | PFid of id 
   | PField of id * pat
 
-and expr = Pos.t * type_expr * expr_
+and tuple = type_expr_list * tuple_pos list
+and tuple_pos = type_expr_list * tuple_
+and tuple_ = 
+  | Ematch of tuple * (pat * tuple) list
+  | Elet of pat * tuple * tuple
+  | Eif of expr * tuple * tuple
+  | Eapply of id * tuple
+  | Efield of expr * id 
+  | Eexpr of expr
+
+and expr = type_expr * expr_
 and expr_ = 
   | Eid of id
   | Evalue of value
@@ -40,12 +50,5 @@ and expr_ =
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
   | Erecord of (id * tuple) list 
-  | Efield of expr * id 
-  | Ematch of tuple * (pat * tuple) list
-  | Elet of pat * tuple * tuple
-  | Eif of expr * tuple * tuple
-  | Eapply of id * tuple
-
-and tuple = Pos.t * type_expr_list * expr list
 
 and value = Nast.value
