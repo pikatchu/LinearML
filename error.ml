@@ -146,42 +146,20 @@ let unused p =
   err "Unused" ;
   exit 2
 
-let rec trace pl = 
-  match pl with
-  | [] -> ()
-  | x1 :: pl ->
-      pos x1 ;
-      trace pl
+let unify p1 p2 = 
+  pos p1 ;
+  err "This expression must have the same type as" ;
+  pos p2 ;
+  err "this expression" ;
+  exit 2
 
-let trace p pl = 
-  if pl = []
-  then ()
-  else begin
-    pos p ;
-    err "The type from this expression was infered using that path" ;
-    trace pl
-  end
-
-let unify pl1 pl2 = 
-  match pl1, pl2 with
-  | [], _ | _, [] -> assert false
-  | p1 :: pl1, p2 :: pl2 ->
-      pos p1 ;
-      err "This expression must have the same type as" ;
-      pos p2 ;
-      err "this expression" ;
-      trace p1 pl1 ;
-      trace p2 pl2 ;
-      exit 2
-
-let expected_numeric p p2 =
-  pos (List.hd p2) ;
+let expected_numeric p =
+  pos p ;
   err "Expected a numeric type" ;
   exit 2
 
-let expected_function_not p p2 = 
+let expected_function p = 
   pos p ;
   err ("Expected Function") ;
-  trace p p2 ;
   exit 8
 

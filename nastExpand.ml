@@ -251,22 +251,41 @@ let rec program mdl =
 
 and module_ md = {
   Neast.md_id = md.md_id ;
-  Neast.md_decls = List.map decl md.md_decls ;
+  Neast.md_decls = List.fold_left decl [] md.md_decls ;
   Neast.md_defs = List.map (def) md.md_defs ;
 }
 
-and decl = function
-  | Dtype tdl -> Neast.Dtype (List.map tdef tdl)
+and decl acc = function
+  | Dtype tdl -> List.fold_left tdef acc tdl
+  | Dval (x, (_, Tabs (_, ty)))
   | Dval (x, ty) -> 
       match type_expr ty with
-      | _, Neast.Tabs (_, (_, Neast.Tfun (tyl1, tyl2)))
-      | _, Neast.Tfun (tyl1, tyl2) -> Neast.Dval (x, tyl1, tyl2)
-      | p :: _, _ -> Error.expected_function p
-      | _ -> assert false
+      | _, Neast.Tfun _ as ty -> Neast.Dval (x, ty) :: acc
+      | p, _ -> Error.expected_function p
 
-and tdef (id, ty) = (id, type_expr ty)
+and tdef acc (id, (p, ty)) = 
+  match ty with
+  | Talgebric vm -> algebric acc id [] vm
+  | Tabs (idl, (_, Talgebric vm)) -> algebric acc id idl vm
+  | Trecord fdm -> record acc id [] fdm
+  | Tabs (idl, (_, Trecord fdm)) -> record acc id idl fdm
+  | _ -> assert false
 
-and type_expr (p, ty) = [p], type_expr_ ty
+and algebric acc id idl vm =
+  let vm = IMap.map variant vm in
+  Neast.Dalgebric (new_tdef id idl vm) :: acc
+
+and record acc id idl fdm = 
+  let fdm = IMap.map field fdm in
+  Neast.Drecord (new_tdef id idl fdm) :: acc
+
+and new_tdef id idl tm = {
+    Neast.td_id = id ;
+    Neast.td_args = idl ;
+    Neast.td_map  = tm ;
+  }
+
+and type_expr (p, ty) = p, type_expr_ ty
 and type_expr_ = function
   | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x
@@ -277,14 +296,15 @@ and type_expr_ = function
       let tyl = p, tyl in
       Neast.Tapply (x, tyl)
 
-  | Tapply _ -> assert false
-  | Ttuple _ -> assert false
   | Tpath (x, y) -> Neast.Tid y
   | Tfun (ty1, ty2) -> Neast.Tfun (type_expr_tuple ty1, type_expr_tuple ty2)
-  | Talgebric vm -> Neast.Talgebric (IMap.map variant vm)
-  | Trecord fdm -> Neast.Trecord (IMap.map field fdm) 
-  | Tabbrev _ -> assert false
-  | Tabs (xl, ty) -> Neast.Tabs (xl, type_expr ty)
+
+  | Tapply _ 
+  | Ttuple _ 
+  | Talgebric _ 
+  | Trecord _ 
+  | Tabbrev _ 
+  | Tabs _ -> assert false
 
 and variant (x, ty) =
   x, match ty with

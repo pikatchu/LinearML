@@ -12,10 +12,17 @@ and module_ = {
   }
 
 and decl = 
-  | Dtype of (id * type_expr) list
-  | Dval of id * type_expr_list * type_expr_list
+  | Dalgebric of tdef
+  | Drecord of tdef
+  | Dval of id * type_expr
 
-and type_expr = Pos.t list * type_expr_
+and tdef = {
+    td_id: id ;
+    td_args: id list ;
+    td_map:  (id * type_expr_list) IMap.t
+  }
+
+and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
   | Tundef
@@ -25,9 +32,6 @@ and type_expr_ =
   | Tid of id
   | Tapply of id * type_expr_list
   | Tfun of type_expr_list * type_expr_list
-  | Talgebric of (id * type_expr_list) IMap.t
-  | Trecord of (id * type_expr_list) IMap.t
-  | Tabs of id list * type_expr
 
 and type_expr_list = Pos.t * type_expr list
 
@@ -131,34 +135,11 @@ module CompareType = struct
     | Tfun _, _ -> -1
     | _, Tfun _ -> 1
 
-    | Talgebric vm1, Talgebric vm2 -> 
-	let vl1 = list_of_imap vm1 in
-	let vl2 = list_of_imap vm2 in
-	list_ variant vl1 vl2 ()  
-
-    | Talgebric _, _ -> -1
-    | _, Talgebric _ -> 1
-
-    | Trecord vm1, Trecord vm2 -> 
-	let vl1 = list_of_imap vm1 in
-	let vl2 = list_of_imap vm2 in
-	list_ field vl1 vl2 ()
-
-    | Trecord _, _ -> -1
-    |  _, Trecord _ -> 1
-
-    | Tabs (idl1, ty1), Tabs (idl2, ty2) -> 
-	list_ id idl1 idl2 &&&
-	ty ty1 ty2
-    | Tabs _, _ -> -1
-    | _, Tabs _ -> 1
-
     | Tdef s1, Tdef s2 -> 
 	let add x _ acc = ISet.add x acc in
 	let set1 = IMap.fold add s1 ISet.empty in
 	let set2 = IMap.fold add s2 ISet.empty in
 	ISet.compare set1 set2
-
     | Tdef _, _ -> -1
     | _, Tdef _ -> 1
 

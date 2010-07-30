@@ -1,7 +1,7 @@
 open Utils
 
-type id = Neast.id
-type pstring = Neast.pstring
+type id = Nast.id
+type pstring = Nast.pstring
 
 type program = module_ list
 
@@ -12,16 +12,17 @@ and module_ = {
   }
 
 and type_expr = Neast.type_expr
+and type_expr_list = Neast.type_expr_list
 
-and def = id * pat * expr list
+and def = id * pat * tuple
 
 and pat = Pos.t * pat_tuple list
 and pat_tuple = Pos.t * pat_el list
-and pat_el = type_expr * (Pos.t * pat_)
+and pat_el = Pos.t * type_expr * pat_
 and pat_ = 
   | Pany 
   | Pid of id
-  | Pvalue of Neast.value
+  | Pvalue of value
   | Pvariant of id * pat
   | Precord of pat_field list
 
@@ -31,16 +32,20 @@ and pat_field_ =
   | PFid of id 
   | PField of id * pat
 
-and expr = type_expr list * (Pos.t * expr_)
+and expr = Pos.t * type_expr * expr_
 and expr_ = 
   | Eid of id
-  | Evalue of Neast.value
-  | Evariant of id * expr list
+  | Evalue of value
+  | Evariant of id * tuple
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
-  | Erecord of (id * expr list) list 
+  | Erecord of (id * tuple) list 
   | Efield of expr * id 
-  | Ematch of expr list * (pat * expr list) list
-  | Elet of pat * expr list * expr list
-  | Eif of expr * expr list * expr list
-  | Eapply of expr * expr list
+  | Ematch of tuple * (pat * tuple) list
+  | Elet of pat * tuple * tuple
+  | Eif of expr * tuple * tuple
+  | Eapply of id * tuple
+
+and tuple = Pos.t * type_expr_list * expr list
+
+and value = Nast.value

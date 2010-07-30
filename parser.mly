@@ -148,16 +148,6 @@ expr_l:
 | { [] }
 | AND ID simpl_pat_l EQ expr expr_l { ($2, $3, $5) :: $6 }
 
-simpl_pat:
-| ID { fst $1, Pid $1 }
-| LP RP { Pos.btw $1 $2, Punit }
-| LP pat_l RP { let x, y, z = $2 in Pos.btw x y, Ptuple z }
-| UNDERSCORE { $1, Pany }
-
-simpl_pat_l:
-| simpl_pat { [$1] }
-| simpl_pat simpl_pat_l { $1 :: $2 }
-
 type_def:
 | TYPE type_decl type_decl_l { dtype ($2 :: $3)}
 | VAL ID COLON type_expr { Dval ($2, $4) }
@@ -226,22 +216,37 @@ pat_field_l:
 | pat_field SC { [$1] }
 | pat_field SC pat_field_l { $1 :: $3 }
 
-pat_:
+simpl_pat:
+| ID { fst $1, Pid $1 }
+| LP RP { Pos.btw $1 $2, Punit }
+| LP pat_l RP { let x, y, z = $2 in Pos.btw x y, Ptuple z }
+| UNDERSCORE { $1, Pany }
 | TRUE { $1, Pbool true }
 | FALSE { $1, Pbool false }
 | CHAR { fst $1, Pchar $1 }
 | FLOAT { fst $1, Pfloat $1 }
 | STRING { fst $1, Pstring $1 }
-| LP RP { Pos.btw $1 $2, Punit }
-| ID { fst $1, Pid $1 }
 | INT { fst $1, Pint $1 }
-| UNDERSCORE { $1, Pany }
+
+simpl_pat_l:
+| simpl_pat { [$1] }
+| simpl_pat simpl_pat_l { $1 :: $2 }
+
+pat_:
+| simpl_pat { $1 }
 | CSTR { fst $1, Pcstr $1 }
-| CSTR pat_ { Pos.btw (fst $1) (fst $2), Pvariant ($1, $2) }
+| CSTR simpl_pat_l { 
+  let p, tuple = Pos.list $2 in
+  Pos.btw (fst $1) p, 
+  Pvariant ($1, (p, Ptuple tuple))
+}
 | CSTR DOT CSTR { btw $1 $3, Pecstr ($1, $3) }
-| CSTR DOT CSTR pat_ { btw $1 $4, Pevariant ($1, $3, $4) }
+| CSTR DOT CSTR simpl_pat_l { 
+  let p, tuple = Pos.list $4 in
+  Pos.btw (fst $1) p, 
+  Pevariant ($1, $3, (p, Ptuple tuple)) 
+}
 | LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
-| LP pat RP { $2 }
 
 pat_l:
 | pat_ { fst $1, fst $1, [$1] }

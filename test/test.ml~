@@ -1,27 +1,9 @@
 
+module Test2: sig
 
-module Test:sig
-
-  type 'a t =
-    | Empty
-    | Cons of 'a * 'a t
-
-  val g: float -> float
+  type 'a t = None | Some of 'a
 
 end = struct
 
-  let f x = x + x
-
-  let g x = f x + x
-
-  let rec map f l = 
-    match l with
-    | [] -> []
-    | x :: rl ->
-	let y = f x in
-	let rl' = map rl in
-	if y == x && rl' == rl
-	then l
-	else 
-
 end
+
