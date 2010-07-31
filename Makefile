@@ -24,9 +24,9 @@ LIBSOPT = $(LIBS:.cma=.cmxa)
 INCLUDE = -I $(OCAMLLIB)
 CLIBS = $(addprefix $(OCAMLLIB)/, $(LLVM_LIBS:.cma=.a))
 
-default: lmlc
+default: limlc
 
-.PHONY: lmlc
+.PHONY: limlc
 
 OBJECTS_ML = \
 	pos.ml\
@@ -56,11 +56,11 @@ OBJECTS_ML = \
 OBJECTS_CMO = $(OBJECTS_ML:.ml=.cmo)	
 OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)	
 
-lmlc: $(OBJECTS_CMX)
+limlc: $(OBJECTS_CMX)
 	echo $(LIBS)
 	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) -o $@
 
-lmlc.bc: $(OBJECTS_CMO)
+limlc.bc: $(OBJECTS_CMO)
 	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) -o $@
 
 ##############################################################################
@@ -87,6 +87,6 @@ depend: $(OBJECTS_ML)
 
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
-	rm -f lmlc lmlc.bc
+	rm -f limlc limlc.bc
 
 include .depend

@@ -1,40 +1,24 @@
 
+
 module Test: sig
 
-  type 'a t = 
-    | Empty
-    | Cons of 'a * 'a t
+  type 'a t = None
 
-  val flatten: 'a t t -> 'a t
+  val flatten: 'a t t -> 'b t
 
 end = struct
 
-  let rec append l1 l2 = 
-    match l1 with
-    | Empty -> l2
-    | Cons x rl -> Cons x (append rl l2)
+  let flatten x = None
 
-  let rec flatten t = 
-    match t with
-    | Empty -> Empty
-    | Cons l rl -> 
-	let rl = flatten rl in
-	append l rl
 end
 
 module Test2: sig
-
-  type 'a t = {
-      field1: 'a ;
-      field2: int32 ;
-    }
-
-  type t2 = { field3: unit }
 
   val test: 'a -> 'a
 
 end = struct
 
-  let rec test x = Test.flatten (test x)
+  let rec test x = x
+    
 
 end

@@ -96,12 +96,20 @@ module TMap = Map.Make (CompareType)
 type env = {
     tenv: type_expr IMap.t ;
     defs: def IMap.t ;
+    decls: bool TMap.t ;
     phase2: bool ;
   }
 
 type acc = {
     mem: type_expr_list TMap.t ;
   }
+
+let empty tenv = { 
+  tenv = tenv ; 
+  defs = IMap.empty ; 
+  phase2 = false ; 
+  decls = TMap.empty ;
+}
 
 let rec tundef (_, tyl) = tundef_ tyl
 and tundef_ tyl = 
@@ -132,8 +140,10 @@ let rec program mdl =
   List.map (module_ tenv) mdl
   
 and module_ tenv md = 
-  let env = { tenv = tenv ; defs = IMap.empty ; phase2 = false } in
+  let env = empty tenv in
   let env = List.fold_left def env md.md_defs in
+  let decls = List.fold_left get_decl TMap.empty md.md_decls in
+  let env = { env with decls = decls } in
   let acc = { mem = TMap.empty } in
   let acc = List.fold_left (decl env) acc md.md_decls in
   let used = ISet.empty in
@@ -144,10 +154,14 @@ and module_ tenv md =
   let acc = { mem = mem } in
   let env = { env with phase2 = true } in
   let acc = List.fold_left (decl env) acc md.md_decls in
-  let _, defs = TMap.fold (typed_def env) acc.mem (acc, []) in 
-  { Tast.md_id = md.md_id ;
+  let ads = acc, [], IMap.empty in
+  let _, defs, subst = TMap.fold (typed_def env) acc.mem ads in 
+  let md = { 
+    Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
-    Tast.md_defs = defs }
+    Tast.md_defs = defs 
+  } in
+  Tast.Rename.module_ subst md
 
 and def env (((p, x), al, b) as d) = 
   let tenv = IMap.add x (p, Tdef (IMap.add x p IMap.empty)) env.tenv in
@@ -166,14 +180,28 @@ and decl env acc = function
   | Dval _ -> assert false
   | _ -> acc
 
-and typed_def env ((p, f), tyl) rty (acc, defs) = 
+and get_decl acc = function
+  | Dval (fid, (_, Tfun (tyl, _))) -> 
+      TMap.add (fid, tyl) true acc
+  | _ -> acc
+
+and typed_def env ((p, f), tyl) rty (acc, defs, subst) = 
   let (fid, args, e) = IMap.find f env.defs in
   let env, acc, args = pat env acc args tyl in
   let acc, ((rty2, _) as e) = tuple env acc e in
   if tundef rty2
   then Error.infinite_loop (fst rty2) ;
   let acc, rty = unify_list env acc rty2 rty in
-  acc, (fid, args, e) :: defs
+  let def = fid, args, e in
+  if TMap.mem (fid, tyl) env.decls 
+  then acc, def :: defs, subst
+  else fresh_def acc defs subst def
+
+and fresh_def acc defs subst def = 
+  let (_, x), _, _ = def in
+  let def = Tast.Fresh.def def in
+  let (_, y), _, _ = def in
+  acc, def :: defs, IMap.add x y subst
 
 and pat env acc (p1, pl) (p2, tyl) = 
   match pl with
@@ -527,6 +555,7 @@ and instantiate papp env (acc, subst) (pl1, ty1) (pl2, ty2) =
   | Tvar (_, x), Tvar (_, y) when x = y -> acc, subst
   | Tvar v, _ -> instantiate_var papp env acc subst v (pl2, ty2)
 
+  | Tid (_, x), Tid (_, y) when x = y -> acc, subst
   | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
       instantiate_list papp env acc subst tyl1 tyl2
 

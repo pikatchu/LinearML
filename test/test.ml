@@ -2,23 +2,19 @@
 
 module Test: sig
 
-  type 'a t = None
+  type t = 
+    | Empty
+    | Cons of int32 * t
 
-  val flatten: 'a t t -> 'b t
-
-end = struct
-
-  let flatten x = None
-
-end
-
-module Test2: sig
-
-  val test: 'a -> 'a
+  val split: t * int32 -> int32 * t
 
 end = struct
 
-  let rec test x = x
-    
+  let split x default = 
+    match x with
+    | Empty -> default, x
+    | Cons x l -> x, l
+
 
 end
+
