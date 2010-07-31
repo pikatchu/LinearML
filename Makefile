@@ -43,7 +43,6 @@ OBJECTS_ML = \
 	nastExtractFuns.ml\
 	nastExpand.ml\
 	tast.ml\
-	tastRename.ml\
 	typing.ml\
 	llast.ml\
 	emit.ml\
