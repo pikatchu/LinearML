@@ -17,7 +17,8 @@ and function_ md ctx builder f =
   let mblock = declare_function f.fname ftype md in
   body mblock ctx builder f.fbody
 
-and body mblock ctx builder l = List.map (block mblock ctx builder) l
+and body mblock ctx builder l = 
+  List.map (block mblock ctx builder) l
 
 and type_ ctx = function
   | Int1 -> i1_type ctx
@@ -36,6 +37,4 @@ and type_ ctx = function
 and block mblock ctx builder blk = 
   let bb = append_block ctx blk.bname mblock in
   position_at_end bb builder ;
-  assert (blk.bdecl = []) ;
-
-  
+  assert (blk.bdecl = [])   

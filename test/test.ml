@@ -1,13 +1,24 @@
 
+
 module Test: sig
 
-  type t = int32
+  type 'a t = None
 
-  val f: 'a -> 'a
+  val flatten: 'a t t -> 'b t
 
 end = struct
 
-  let rec f x = 1 + f x
+  let flatten x = None
 
 end
 
+module Test2: sig
+
+  val test: 'a -> 'a
+
+end = struct
+
+  let rec test x = x
+    
+
+end

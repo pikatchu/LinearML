@@ -12,7 +12,14 @@ let trace = ref IMap.empty
 let make x = 
   incr counter ;
   let res = !counter in
-  trace := IMap.add !counter x !trace ;
+  trace := IMap.add res x !trace ;
+  res
+
+let fresh x = 
+  incr counter ;
+  let res = !counter in
+  let name = IMap.find x !trace in
+  trace := IMap.add res name !trace ;
   res
 
 let tmp () = make "__tmp"

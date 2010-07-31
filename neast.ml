@@ -162,3 +162,25 @@ module CompareType = struct
     list ty ty1 ty2
     
 end
+
+module FreeVars = struct
+
+  let rec type_expr t (_, ty) = type_expr_ t ty
+
+  and type_expr_ t = function
+    | Tundef _
+    | Tany
+    | Tprim _ 
+    | Tid _ -> t
+    | Tvar (_, x) -> ISet.add x t
+
+    | Tapply (_, (_, tyl)) -> 
+	List.fold_left type_expr t tyl
+
+    | Tfun ((_, tyl1), (_, tyl2)) -> 
+	let t = List.fold_left type_expr t tyl1 in
+	List.fold_left type_expr t tyl2
+
+    | Tdef _ -> assert false
+
+end

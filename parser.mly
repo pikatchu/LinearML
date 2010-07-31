@@ -227,6 +227,7 @@ simpl_pat:
 | FLOAT { fst $1, Pfloat $1 }
 | STRING { fst $1, Pstring $1 }
 | INT { fst $1, Pint $1 }
+| LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
 
 simpl_pat_l:
 | simpl_pat { [$1] }
@@ -246,7 +247,6 @@ pat_:
   Pos.btw (fst $1) p, 
   Pevariant ($1, $3, (p, Ptuple tuple)) 
 }
-| LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
 
 pat_l:
 | pat_ { fst $1, fst $1, [$1] }

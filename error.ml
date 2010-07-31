@@ -163,3 +163,8 @@ let expected_function p =
   err ("Expected Function") ;
   exit 8
 
+
+let recursive_type p =
+  pos p ;
+  err ("Recursive type") ;
+  exit 8
