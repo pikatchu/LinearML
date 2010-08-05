@@ -219,7 +219,7 @@ pat_field_l:
 simpl_pat:
 | ID { fst $1, Pid $1 }
 | LP RP { Pos.btw $1 $2, Punit }
-| LP pat_l RP { let x, y, z = $2 in Pos.btw x y, Ptuple z }
+| LP pat RP { $2 }
 | UNDERSCORE { $1, Pany }
 | TRUE { $1, Pbool true }
 | FALSE { $1, Pbool false }
@@ -303,9 +303,18 @@ simpl_expr_l:
 | simpl_expr simpl_expr_l { $1 :: $2 }
 
 expr:
-| IF expr THEN expr ELSE expr %prec if_ { Pos.btw $1 (fst $6), Eif ($2, $4, $6) }
-| LET pat EQ expr IN expr %prec let_ { Pos.btw $1 (fst $6), Elet ($2, $4, $6) }
-| MATCH expr WITH pat_action_l %prec match_ { Pos.btw $1 (fst (last $4)), Ematch ($2, $4) }
+| IF expr THEN expr ELSE expr %prec if_ { 
+    Pos.btw $1 (fst $6), Eif ($2, $4, $6) 
+  }
+
+| LET pat EQ expr IN expr %prec let_ { 
+  Pos.btw $1 (fst $6), Elet ($2, $4, $6) 
+}
+
+| MATCH expr WITH pat_action_l %prec match_ { 
+  Pos.btw $1 (fst (last $4)), Ematch ($2, List.rev $4) 
+  }
+
 | FUN simpl_pat_l ARROW expr { Pos.btw $1 (fst $4), Efun ($2, $4) }
 | MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euop (Euminus, $2) }
 | expr EQ expr { btw $1 $3, Ebinop (Eeq, $1, $3) }

@@ -44,6 +44,9 @@ OBJECTS_ML = \
 	nastExpand.ml\
 	tast.ml\
 	typing.ml\
+	stast.ml\
+	stastOfTast.ml\
+	stastCheck.ml\
 	llast.ml\
 	emit.ml\
 	main.ml

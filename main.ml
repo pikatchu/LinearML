@@ -11,23 +11,6 @@ let parse fn =
   | Lexer.Lexical_error _ -> Error.lexing_error lb 
   | Parsing.Parse_error -> Error.syntax_error lb 
 
-(*let rec loop env = 
-  output_string stdout "$ " ; flush stdout ;
-  let s = read_line() in
-  let lb = Lexing.from_string s in
-  let p = Parser.expr Lexer.token lb in
-  let x = Eval.expr env p in
-  output_string stdout (AstPp.expr x) ;
-  output_char stdout '\n' ;
-  flush stdout ;
-  loop env
-
-let _ = 
-  let file = "/home/pika/linearML/test/test.ml" in
-  let p = parse file in
-  let env = Eval.program p in
-  loop env 
-*)
     
 let _ = 
   let last_arg = (Array.length Sys.argv) - 1  in
@@ -43,7 +26,12 @@ let _ =
     Printf.printf "Done Fun extraction\n" ; flush stdout ;
     let neast = NastExpand.program nast in
     Printf.printf "Done nastExpand\n" ; flush stdout ;
-    let _ = Typing.program neast in
+    let tast = Typing.program neast in
+    Printf.printf "Done Typing\n" ;
+    let stast = StastOfTast.program tast in
+    Printf.printf "Done Strict typing\n" ;
+    StastCheck.program stast ;
+    Printf.printf "Done Stast Check\n" ;
 (*    let tast = Typing.program nast in *)
     module_l := new_module :: !module_l 
   done ;

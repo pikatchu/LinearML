@@ -240,7 +240,8 @@ end = struct
   let add_pos l = 
     Pos.list (List.map Pos.list l)
 
-  let pat p = add_pos (pat [p])
+  let pat p = 
+    add_pos (pat [p])
 	  
 end
 

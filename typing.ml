@@ -5,7 +5,7 @@ open Neast
 let o s = output_string stdout s ; print_newline() ; flush stdout
 
 module Debug = struct
-  open Tast
+  open Neast
 
   let id o (_, x) = o (Ident.debug x)
 
@@ -125,6 +125,11 @@ let check_numeric p ty =
   | _, Tprim (Tint32 _ | Tfloat _) -> ()
   | _, _ -> Error.expected_numeric p
 
+let check_bool ((p, ty), _) = 
+  match ty with
+  | Tundef | Tany | Tprim Tbool -> ()
+  | _ -> Error.expected_bool p
+
 let check_used uset (id, _, _) = 
   if not (ISet.mem (snd id) uset) 
   then Error.unused (fst id) 
@@ -159,11 +164,11 @@ and module_ tenv md =
   let md = { 
     Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
-    Tast.md_defs = defs 
+    Tast.md_defs = defs ;
   } in
   Tast.Rename.module_ subst md
 
-and def env (((p, x), al, b) as d) = 
+and def env (((p, x), al, b) as d) =
   let tenv = IMap.add x (p, Tdef (IMap.add x p IMap.empty)) env.tenv in
   let defs = IMap.add x d env.defs in
   { env with tenv = tenv ; defs = defs }
@@ -175,7 +180,8 @@ and decl env acc = function
       let acc, (rty2, _) = tuple env acc e in
       if env.phase2 && tundef rty2
       then Error.infinite_loop (fst rty2) ;
-      let acc, _ = unify_list env acc rty2 rty in
+      let acc, rty = unify_list env acc rty2 rty in
+      let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
       acc
   | Dval _ -> assert false
   | _ -> acc
@@ -203,26 +209,31 @@ and fresh_def acc defs subst def =
   let (_, y), _, _ = def in
   acc, def :: defs, IMap.add x y subst
 
-and pat env acc (p1, pl) (p2, tyl) = 
+and pat env acc (p1, pl) (p2, tyl): env * acc * Tast.pat = 
   match pl with
   | [] -> assert false
-  | [p1, l] -> 
-      if List.length l <> List.length tyl
+  | [(p1, l_) as l] -> 
+      if List.length l_ <> List.length tyl
       then Error.arity p1 p2 ;
       let env, acc, (tyl, pl) = pat_tuple env acc l tyl in
-      env, acc, ((p1, tyl), [pl])
+      env, acc, (tyl, [pl])
 
-  | (p1, l) :: rl -> 
-      let env, acc, ((_, tyl), _) = pat env acc (p1, pl) (p2, tyl) in
+  | ((p1, _) as l) :: rl -> 
+      let env, acc, (_, rl) = pat env acc (p1, rl) (p2, tyl) in
       let env, acc, (tyl, pl) = pat_tuple env acc l tyl in
-      env, acc, ((p1, tyl), [pl])
+      env, acc, (tyl, pl :: rl)
 
-and pat_tuple env acc l tyl = 
+and pat_tuple env acc (p, l) tyl = 
+  let env, acc, (tyl, pl) = pat_tuple_ env acc l tyl in
+  let tyl = p, tyl in
+  env, acc, (tyl, (tyl, pl))
+
+and pat_tuple_ env acc l tyl: env * acc * (Tast.type_expr list * Tast.pat_el list) = 
   match l, tyl with
   | [], [] -> env, acc, ([], [])
   | [], _ | _, [] -> assert false
   | p :: rl1, ty :: rl2 ->
-      let env, acc, (tyl, pl) = pat_tuple env acc rl1 rl2 in
+      let env, acc, (tyl, pl) = pat_tuple_ env acc rl1 rl2 in
       let env, acc, ((ty, _) as p) = pat_el env acc p ty in
       env, acc, (ty :: tyl, p :: pl)
 
@@ -303,6 +314,7 @@ and tuple_ env acc p = function
 
   | Eif (e1, el1, el2) -> 
       let acc, e1 = expr env acc e1 in (* TODO check bool *)
+      check_bool e1 ;
       let acc, ((tyl1, _) as el1) = tuple env acc el1 in
       let acc, ((tyl2, _) as el2) = tuple env acc el2 in     
       let acc, tyl = unify_list env acc tyl1 tyl2 in
@@ -604,7 +616,7 @@ and replace subst env acc (p, ty) =
 
 and replace_var subst env acc (p, x) =
   try replace subst env acc (IMap.find x subst)
-  with Not_found -> acc, (p, Tany)
+  with Not_found -> acc, (p, Tvar (p, x))
 
 and replace_list subst env acc (p, tyl) = 
   let acc, tyl = lfold (replace subst env) acc tyl in

@@ -2,23 +2,20 @@
 
 module Test: sig
 
-  type 'a t = None
+  type 'a t = 
+    | Empty
+    | Cons of 'a * 'a t
 
-  val flatten: 'a t t -> 'b t
-
-end = struct
-
-  let flatten x = None
-
-end
-
-module Test2: sig
-
-  val test: 'a -> 'a
+  val f: 'a t t -> int32
 
 end = struct
 
-  let rec test x = x
-    
+  let f t =
+    match t, t, t with
+    | Empty, Empty, Empty -> 0
+    | Empty, Cons _ _, Empty -> 1
+    | Cons _ _, Cons _ _, Empty -> 2
+    | Cons _ _, Empty, Empty -> 1
 
 end
+

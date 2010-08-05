@@ -168,3 +168,30 @@ let recursive_type p =
   pos p ;
   err ("Recursive type") ;
   exit 8
+
+let expected_bool p =
+  pos p ;
+  err "Expected bool" ;
+  exit 2
+
+let unused_branch p = 
+  pos p ;
+  err "This branch is unused" ;
+  exit 2
+
+let missing_fields p s = 
+  pos p ;
+  err "Some fields are missing" ;
+  err s ;
+  exit 2
+
+let forgot_fields p l =
+  pos p ;
+  err "Some fields are missing" ;
+  List.iter (Printf.fprintf stderr "%s\n") l ;
+  exit 2
+
+let useless p = 
+  pos p ;
+  err "All the fields are already captured" ;
+  exit 2

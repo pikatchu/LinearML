@@ -14,6 +14,9 @@ let imap_of_list l =
 let list_of_imap m = 
   IMap.fold (fun _ y acc -> y :: acc) m []
 
+let clist_of_imap m = 
+  IMap.fold (fun x y acc -> (x, y) :: acc) m []
+
 let imfold f acc im = 
   IMap.fold (fun x y acc -> f acc y) im acc
 
@@ -50,3 +53,9 @@ let union t1 t2 = SMap.fold SMap.add t1 t2
 let option f = function None -> None | Some x -> Some (f x)
 
 let fold_right f acc l = List.fold_right (fun x acc -> f acc x) l acc
+
+let rec print_list o f sep t = 
+  match t with
+  | [] -> ()
+  | [x] -> f o x
+  | x :: rl -> f o x ; o sep ; print_list o f sep rl
