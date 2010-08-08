@@ -209,7 +209,7 @@ and fresh_def acc defs subst def =
   let (_, y), _, _ = def in
   acc, def :: defs, IMap.add x y subst
 
-and pat env acc (p1, pl) (p2, tyl): env * acc * Tast.pat = 
+and pat env acc (p1, pl) (p2, tyl) = 
   match pl with
   | [] -> assert false
   | [(p1, l_) as l] -> 
@@ -228,7 +228,7 @@ and pat_tuple env acc (p, l) tyl =
   let tyl = p, tyl in
   env, acc, (tyl, (tyl, pl))
 
-and pat_tuple_ env acc l tyl: env * acc * (Tast.type_expr list * Tast.pat_el list) = 
+and pat_tuple_ env acc l tyl =
   match l, tyl with
   | [], [] -> env, acc, ([], [])
   | [], _ | _, [] -> assert false

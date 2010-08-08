@@ -218,6 +218,7 @@ pat_field_l:
 
 simpl_pat:
 | ID { fst $1, Pid $1 }
+| CSTR { fst $1, Pcstr $1 }
 | LP RP { Pos.btw $1 $2, Punit }
 | LP pat RP { $2 }
 | UNDERSCORE { $1, Pany }
@@ -235,7 +236,6 @@ simpl_pat_l:
 
 pat_:
 | simpl_pat { $1 }
-| CSTR { fst $1, Pcstr $1 }
 | CSTR simpl_pat_l { 
   let p, tuple = Pos.list $2 in
   Pos.btw (fst $1) p, 

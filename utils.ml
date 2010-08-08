@@ -5,6 +5,8 @@ module SSet = Set.Make (Sid)
 module IMap = Map.Make (Ident)
 module ISet = Set.Make (Ident)
 
+let o = output_string stdout
+
 let imap_of_list l = 
   List.fold_left 
     (fun acc (((_, x) as id), y) -> IMap.add x (id, y) acc) 
@@ -59,3 +61,9 @@ let rec print_list o f sep t =
   | [] -> ()
   | [x] -> f o x
   | x :: rl -> f o x ; o sep ; print_list o f sep rl
+
+let rec filter_opt l = 
+  match l with
+  | [] -> []
+  | None :: rl -> filter_opt rl
+  | Some x :: rl -> x :: filter_opt rl

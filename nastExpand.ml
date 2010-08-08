@@ -331,9 +331,9 @@ and pat_list pl =
 
 and pat p =
   let pos, p = Pat.pat p in
-  pos, List.map pat_bar p
+  pos, List.map (pat_bar pos) p
 
-and pat_bar (p, x) = p, List.map pat_pos x
+and pat_bar pos (_, x) = pos, List.map pat_pos x
 
 and pat_pos (p, x) = p, pat_ x
 and pat_ = function
