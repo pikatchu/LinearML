@@ -8,6 +8,12 @@ let rec last = function
   | [x,_] -> x
   | _ :: rl -> last rl
 
+let rec pat_end = function
+  | [] -> assert false
+  | [_,x] -> (fst x)
+  | _ :: rl -> pat_end rl
+
+
 let rec tapply x = function
   | [] -> x
   | t :: rl -> tapply (btw x t, Tapply (t, [x])) rl
@@ -312,7 +318,8 @@ expr:
 }
 
 | MATCH expr WITH pat_action_l %prec match_ { 
-  Pos.btw $1 (fst (last $4)), Ematch ($2, List.rev $4) 
+  let l = List.rev $4 in
+  Pos.btw $1 (pat_end l), Ematch ($2, l) 
   }
 
 | FUN simpl_pat_l ARROW expr { Pos.btw $1 (fst $4), Efun ($2, $4) }

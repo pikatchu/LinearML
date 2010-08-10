@@ -2,89 +2,109 @@ open Utils
 open Stast
 
 type ty = 
-  | ATempty
   | ATany
   | ATalgebric of (Ident.t * int) list * ty option IMap.t
-  | ATrecord of ty IMap.t
+  | ATrecord of (Ident.t * int) list * ty IMap.t
   | ATprod of ty list
   | ATchoice of ty list
 
-let rec has_any = function
-  | ATempty -> false 
-  | ATany -> true
-  | ATalgebric (_, m) -> 
-      IMap.fold (fun _ t acc -> 
-	match t with
-	| None -> acc
-	| Some t -> has_any t || acc) m false
+module Cmp = struct
 
-  | ATrecord m -> 
-      IMap.fold (fun _ t acc -> 
-	has_any t || acc) m false
+  type t = ty
 
-  | ATchoice tyl
-  | ATprod tyl -> 
-      List.fold_left (fun acc t ->
-	acc || has_any t) false tyl
-
-
-module Compare = struct
-
-  let rec type_ t1 t2 = 
+  let rec compare t1 t2 = 
     match t1, t2 with
-    | ATempty, ATempty -> 0
-    | ATempty, _ -> -1
-    | _, ATempty -> 1
 
     | ATalgebric (_, m1), ATalgebric (_, m2) -> 
-	IMap.compare type_opt m1 m2
+	IMap.compare compare_opt m1 m2
+
     | ATalgebric _, _ -> -1
     | _, ATalgebric _ -> 1
 
-    | ATrecord m1, ATrecord m2 -> 
-	IMap.compare type_ m1 m2
+    | ATrecord (_, m1), ATrecord (_, m2) -> 
+	let l1 = list_of_imap m1 in 
+	let l2 = list_of_imap m2 in 
+	compare (ATprod l1) (ATprod l2)
+
     | ATrecord _, _ -> -1
     | _, ATrecord _ -> 1
 
     | ATprod tyl1, ATprod tyl2 -> 
 	List.fold_left2 (fun c x y ->
 	  if c = 0
-	  then type_ x y
+	  then compare x y
 	  else c) 0 tyl1 tyl2
 
+    | ATprod _, _ -> -1
+    | _, ATprod _ -> 1
+
+    | ATchoice _, _ 
+    | _, ATchoice _ -> assert false
+
     | ATany, ATany -> 0
-    | ATany, _ -> -1
-    | _, ATany -> 1 
 
-(*    | ATprod _, _ -> -1
-    | _, ATprod _ -> 1 *)
-    | _ -> assert false
-	
-
-  and type_opt ty1 ty2 = 
+  and compare_opt ty1 ty2 = 
     match ty1, ty2 with
     | None, None -> 0
-    | Some x1, Some x2 -> type_ x1 x2
+    | Some x1, Some x2 -> compare x1 x2
     | _ -> assert false
+
 end
+
+module TSet = Set.Make (Cmp)
+
+let rec make_any n = 
+  if n <= 0
+  then []
+  else ATany :: (make_any (n-1))
+		 
+let any n = 
+  if n = 0
+  then None
+  else if n = 1 
+  then Some ATany
+  else Some (ATprod (make_any n))
+
+let any_field n = 
+  if n = 1
+  then ATany
+  else ATprod (make_any n)
+
 
 module Print = struct
 
-  let rec type_ o = function
-    | ATempty -> o "0"
+  let rec is_any = function
+  | ATany -> true
+  | ATalgebric (_, m) -> IMap.is_empty m
 
+  | ATrecord (_, m) -> 
+      IMap.fold (fun _ t acc -> 
+	is_any t || acc) m false
+
+  | ATchoice tyl
+  | ATprod tyl -> 
+      List.fold_left (fun acc t ->
+	acc || is_any t) false tyl
+
+
+  let rec type_ o = function
     | ATany -> o "_"
 
-    | ATalgebric (_, m) -> 
+    | ATalgebric (idl, m) -> 
 	let l = clist_of_imap m in
 	(match l with
 	| [] -> o "_"
-	| [x] -> variant o x
-	| l -> o "(" ; print_list o variant " | " l ; o ")")
+	| [x] -> variant idl o x
+	| l -> o "(" ; print_list o (variant idl) " | " l ; o ")")
 
-    | ATrecord m -> 
+    | ATrecord (_, m) -> 
 	let l = clist_of_imap m in
-	o "{" ; print_list o field " ; " l ; o "}"
+	let c = ref false in
+	IMap.iter (fun _ t -> if is_any t then c := true) m ;
+	o "{ " ; fields o l ; 
+	if !c
+	then (o " ; _") ;
+	o " }"
 
     | ATprod tl -> 
 	o "(" ; print_list o type_ ", " tl ; o ")"
@@ -92,53 +112,93 @@ module Print = struct
     | ATchoice tl -> 
 	print_list o type_ " || " tl
 
-  and variant o (id, ty) = 
-    let id = Ident.to_string id in
+  and variant idl o (x, ty) = 
+    let id = Ident.to_string x in
     match ty with
     | None -> o id
-    | Some ty -> 
-	o id ; o " " ; type_ o ty
+    | Some ATany ->
+	let n = List.assoc x idl in
+	let l = ref [] in
+	for i = 1 to n do
+	  l := ATany :: !l 
+	done ;
+	o "(" ; o id ; o " " ; print_list o type_ " " !l ; o ")"
+    | Some (ATprod tyl) -> 
+	o "(" ; o id ; o " " ; print_list o type_ " " tyl ; o ")"
+    | Some ty ->
+	o "(" ; o id ; o " " ; type_ o ty ; o ")"
 
-  and field o (id, ty) = 
+  and fields o l = 
+    match l with
+    | [] -> ()
+    | [x] -> field o x
+    | (_, ATany) :: rl -> fields o rl
+    | x :: rl -> field o x ; o " ; " ; fields o rl
+
+  and field o (id, ty) =
     o (Ident.to_string id) ; o " = " ; type_ o ty
 
-  let type_ ty = 
+  let error ty c = 
+    let o = output_string c in
+    type_ o ty ;
+    o "\n"
+
+  let debug ty = 
     let o = output_string stdout in
     type_ o ty ;
     o "\n"
 
 end
 
-module Includes = struct
- 
-  let rec type_ ty1 ty2 = 
-    match ty1, ty2 with
-    | _, ATempty -> true
-    | ATempty, _ -> false
-    | ATany, _ -> true
-    | _, ATany -> false
-    | ATalgebric (_, m1), ATalgebric (_, m2) -> 
-	IMap.fold (fun x t acc ->
-	  try type_opt (IMap.find x m1) t && acc
-	  with Not_found -> false) m2 true
-	    
-    | ATrecord m1, ATrecord m2 ->
-	IMap.fold (fun x t acc ->
-	  try type_ (IMap.find x m1) t && acc
-	  with Not_found -> false) m2 true
 
-    | ATprod tyl1, ATprod tyl2 -> 
-	List.fold_left2 (fun acc x1 x2 -> 
-	  acc && type_ x1 x2) true tyl1 tyl2
+let rec max t1 t2 = 
+  match t1, t2 with
+  | ATany, t | t, ATany -> general t
+  | ATalgebric (idl, m1), ATalgebric (_, m2) -> 
+      ATalgebric (idl, imap2 (opt2 max) m1 m2)
+  | ATrecord (idl, m1), ATrecord (_, m2) -> 
+      ATrecord (idl, imap2 max m1 m2)
+  | ATprod tl1, ATprod tl2 -> 
+      ATprod (List.map2 max tl1 tl2) 
+  | ATchoice tl, t 
+  | t, ATchoice tl -> List.fold_left max t tl
+  | _ -> assert false
 
-    | _ -> assert false
+and general t = 
+  match t with
+  | ATany -> ATany
 
-  and type_opt ty1 ty2 = 
-    match ty1, ty2 with
-    | None, None -> true
-    | Some ty1, Some ty2 -> type_ ty1 ty2
-    | _ -> assert false
-end
+  | ATalgebric (idl, m) ->
+      let m = List.fold_left (fun acc (x, n) ->
+	try IMap.add x (opt general (IMap.find x m)) acc
+	with Not_found -> IMap.add x (any n) acc) m idl in
+      ATalgebric (idl, m)
+
+  | ATrecord (idl, m) ->
+      let m = List.fold_left (fun acc (x, n) ->
+	try IMap.add x (general (IMap.find x m)) acc
+	with Not_found -> IMap.add x (any_field n) acc) m idl in
+      ATrecord (idl, m)
+
+  | ATprod l -> ATprod (List.map general l)
+  | ATchoice l -> List.fold_left max ATany (List.map general l)
+
+
+let rec expand_map f m gm =
+  IMap.fold (fun x t m ->
+    try IMap.add x (f t (IMap.find x gm)) m
+    with Not_found -> assert false) m m
+
+let rec expand ty gt = 
+  match ty, gt with
+  | ATany, t -> t
+  | ATalgebric (x, m), ATalgebric (_, gm) -> 
+      ATalgebric (x, expand_map (opt2 expand) m gm)
+  | ATrecord (x, m), ATrecord (_, gm) -> 
+      ATrecord (x, expand_map expand m gm)
+  | ATprod tl1, ATprod tl2 -> 
+      ATprod (List.map2 expand tl1 tl2)
+  | _ -> assert false
 
 module Break = struct
 
@@ -147,7 +207,6 @@ module Break = struct
 
   let rec type_ acc t = 
     match t with
-    | ATempty 
     | ATany as x -> x :: acc
     | ATalgebric (idl, m) -> 
 	IMap.fold (fun x t acc ->
@@ -158,12 +217,15 @@ module Break = struct
 	      List.fold_right (fun t acc ->
 		variant idl x (Some t) :: acc) l acc) m acc
 
-    | ATrecord m -> 
-	let ml = IMap.fold (fun x t acc -> 
-	  IMap.add x (type_ [] t) acc) m IMap.empty in
-	let ml = IMap.fold (fun x tl acc -> (x, tl) :: acc) ml [] in
-	let rl = record ml in
-	List.fold_right (fun x acc -> ATrecord x :: acc) rl acc
+    | ATrecord (idl, m) -> 
+	let fdl = clist_of_imap m in
+	let names = List.map fst fdl in
+	let tl = List.map snd fdl in
+	let tll = List.map (type_ []) tl in
+	let tll = prod tll in
+	List.fold_right (fun tl acc -> 
+	  let m = List.fold_right2 IMap.add names tl IMap.empty in
+	  ATrecord (idl, m) :: acc) tll acc
       
     | ATprod tl -> 
 	let tll = List.map (type_ []) tl in
@@ -195,187 +257,41 @@ module Break = struct
 	  l []
 end
 
-module Mergeable = struct
-
-  let compare x y = Compare.type_ x y = 0
-
-(* Two tuples can be merged if all their elements are equal except for *)
-(* one or less *)
-  let rec type_ ty1 ty2 = 
-    match ty1, ty2 with
-    | ATempty, _ | _, ATempty -> assert false
-    | _, ATany -> true
-    | ATany, _ -> false
-    | ATrecord m1, ATrecord m2 -> 
-	let l1 = list_of_imap m1 in
-	let l2 = list_of_imap m2 in
-	type_list l1 l2
-
-    | ATalgebric (_, m1), ATalgebric (_, m2) -> 
-	let l1, l2 = IMap.fold (fun x t1 (acc1, acc2) ->
-	  try t1 :: acc1, IMap.find x m2 :: acc2 
-	  with Not_found -> acc1, acc2) m1 ([], []) in
-	type_list (filter_opt l1) (filter_opt l2)
-
-    | ATprod tyl1, ATprod tyl2 -> type_list tyl1 tyl2
-    | _ -> false
-
-  and type_list tyl1 tyl2 = 
-    let acc = List.fold_left2 (fun acc x y -> 
-      if y = ATany 
-      then acc
-      else if x = ATany
-      then [x, x ; x, x]
-      else if compare x y 
-      then acc 
-      else (x, y) :: acc) [] tyl1 tyl2 in
-    (match acc with
-    | [] -> true
-    | [x, y] -> type_ x y
-    | _ -> false)      
-
-end
-
-module Plus = struct
-
-  let reduce_algebric l m = 
-    try List.iter (fun (x, _) ->
-      match IMap.find x m with
-      | None -> ()
-      | Some ATany -> ()
-      | _ -> raise Not_found) l ;
-      ATany
-    with Not_found -> ATalgebric (l, m)
-
-  let reduce_record m = 
-    try IMap.iter (fun _ t ->
-      if t <> ATany then raise Exit) m ;
-      ATany 
-    with Exit -> ATrecord m
-
-  let reduce_prod l = 
-    try List.iter (fun t ->
-      if t <> ATany then raise Exit) l ;
-      ATany
-    with Exit -> ATprod l
-
-  let rec plus n ty1 ty2 = 
-    match ty1, ty2 with
-    | ATempty, _ | _, ATempty -> assert false
-    | ATany, _ -> ATany
-    | t, ATany -> t
-    | ATalgebric (x, m1), ATalgebric (_, m2) ->
-	reduce_algebric x (plus_algebric n m1 m2)
-	  
-    | ATrecord m1, ATrecord m2 -> 
-	reduce_record (plus_record n m1 m2)
-
-    | ATprod tyl1, ATprod tyl2 -> 
-	reduce_prod (List.map2 (plus n) tyl1 tyl2)
-
-    | _ -> assert false
-
-  and plus_opt n ty1 ty2 =
-    match ty1, ty2 with
-    | None, None -> None
-    | Some ty1, Some ty2 -> Some (plus n ty1 ty2)
-    | _ -> assert false
-
-  and plus_algebric n m1 m2 = 
-    IMap.fold (fun x t2 acc -> 
-      try 
-	let t = plus_opt n (IMap.find x m1) t2 in
-	IMap.add x t acc
-      with Not_found -> IMap.add x t2 acc) m2 m1
-
-  and plus_record n m1 m2 = 
-    IMap.fold (fun x t2 acc -> 
-      let t1 = IMap.find x m1 in
-      IMap.add x (plus n t1 t2) acc) m2 m1
-
-  let plus ty1 ty2 = 
-    if Mergeable.type_ ty1 ty2
-    then
-      let ty = plus 0 ty1 ty2 in
-      Some ty
-    else None
-
-  let rec add_list acc x l = 
-    match l with
-    | [] -> acc @ [x]
-    | y :: rl ->
-	if Includes.type_ y x
-	then acc @ (y :: rl)
-	else match plus y x with
-	| None -> add_list (y :: acc) x rl
-	| Some x' -> 
-	    if Includes.type_ x' x
-	    then add_list [] x' (acc @ rl)
-	    else 
-	      let l = add_list acc x rl in
-	      add_list [] x' (acc @ l)
-
-  let rec integrate l (c, acc) x = 
-    match l with
-    | [] -> true, x :: acc
-    | y :: rl -> 
-	if Includes.type_ y x
-	then c, acc
-	else match plus y x with
-	| None -> integrate rl (c, acc) x
-	| Some _ -> true, add_list [] x acc
-
-  let normalize l = 
-    let l = List.fold_left Break.type_ [] l in
-    let l = List.sort Compare.type_ l in
-    List.fold_left (fun acc x -> 
-      add_list [] x acc) [] l
-
-  let add_case acc p t = 
-    let acc = 
-      if has_any t
-      then normalize acc
-      else acc in
-    let l = Break.type_ [] t in
-    let used, acc = List.fold_left (fun (c, acc) x -> 
-      integrate acc (c, acc) x) (false, acc) l in
-    if used
-    then (acc)
-    else (Error.unused p)
-	    
-end
-    
 module Pat = struct
   
-  let rec pat t ptl = ATchoice (List.map (pat_tuple t) ptl)
+  let rec pat t (_, ptl) = ATchoice (List.map (pat_tuple t) ptl)
 
   and pat_tuple t (_, pel) = 
     match pel with 
     | [x] -> pat_el t x
-    | _ -> Plus.reduce_prod (List.map (pat_el t) pel)
+    | _ -> ATprod (List.map (pat_el t) pel)
 
   and pat_el t (ty, p) = pat_ t ty p
 
   and pat_ t ty = function
     | Pany
     | Pid _ -> ATany
-    | Pvalue _ -> failwith "TODO"
+    | Pvalue _ -> failwith "TODO stastCheck value pattern"
 
     | Pvariant ((_, x), (_, [])) ->
 	ATalgebric (type_expr t ty, IMap.add x None IMap.empty)
 
-    | Pvariant ((_, x), (_, p)) -> 
+    | Pvariant ((_, x), p) -> 
 	ATalgebric (type_expr t ty, IMap.add x (Some (pat t p)) IMap.empty)
 
     | Precord pfl -> 
-	let m = List.fold_left (pat_field t) IMap.empty pfl in
-	ATrecord m
+	let idl = type_expr t ty in
+	let m = List.fold_left (fun acc (x, _ ) -> 
+	  IMap.add x ATany acc) IMap.empty idl in
+	let m = List.fold_left (pat_field t) m pfl in
+	ATrecord (idl, m)
+
 
   and pat_field t acc (_, pf) = pat_field_ t acc pf
   and pat_field_ t acc = function
     | PFany 
     | PFid _ -> acc
-    | PField ((_, x), (_, p)) -> IMap.add x (pat t p) acc
+    | PField ((_, x), p) -> IMap.add x (pat t p) acc
 
   and type_expr t (_, ty) = 
     match ty with
@@ -384,7 +300,9 @@ module Pat = struct
     | Tfun _
     | Tvar _ -> assert false
     | Tid (_, x)
-    | Tapply ((_, x), _) -> try IMap.find x t with Not_found -> assert false
+    | Tapply ((_, x), _) -> 
+	try IMap.find x t 
+	with Not_found -> assert false
 
   and value = function
     | Eunit -> Tunit
@@ -396,6 +314,7 @@ module Pat = struct
 
 end
 
+
 module Env = struct
 
   let rec make mdl = 
@@ -405,9 +324,11 @@ module Env = struct
     List.fold_left decl t md.md_decls 
 
   and decl t = function
+    | Drecord td 
     | Dalgebric td -> 
-	let m = talgebric t td in
-	IMap.add (snd td.td_id) m t
+	let l = talgebric t td in
+	IMap.add (snd td.td_id) l t
+
     | _ -> t
 	
   and talgebric t td = 
@@ -425,18 +346,16 @@ and module_ t md =
   List.iter (def t) md.md_defs
 
 and def t (x, p, e) = 
-  ignore (pat t [] p) ;
+  pat t p ;
   tuple t e 
 
-and pat t acc ((p, _), pl) = 
-  let tl = Pat.pat t pl in
-  let acc = Plus.add_case acc p tl in
-  acc
+and pat t (((pos, _), _) as p) = 
+  check_pattern t pos [p]
 
-and tuple t (_, tpl) = List.iter (tuple_pos t) tpl 
-and tuple_pos t (_, e) = expr_ t e
-and expr t (_, e) = expr_ t e
-and expr_ t = function
+and tuple t ((p, _), tpl) = List.iter (tuple_pos t p) tpl 
+and tuple_pos t p (_, e) = expr_ t p e
+and expr t ((p, _), e) = expr_ t p e
+and expr_ t pos = function
   | Eid _ -> ()
   | Evalue _ -> ()
   | Evariant (_, e) -> tuple t e
@@ -444,14 +363,12 @@ and expr_ t = function
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.iter (field t) fdl
   | Efield (e, _) -> expr t e
-  | Ematch (_, al) -> 
-      let p = List.fold_left (fun acc (p, _) -> pat t acc p) [] al in
-      o "TOTAL\n" ;
-      List.iter Print.type_ p ;
-      ignore p
+  | Ematch (_, al) ->
+      let pl = List.map fst al in
+      check_pattern t pos pl
 
   | Elet (p, e1, e2) -> 
-      ignore (pat t [] p) ;
+      pat t p ;
       tuple t e1 ;
       tuple t e2 
 
@@ -464,3 +381,28 @@ and expr_ t = function
 
 and field t (_, e) = tuple t e
 and action t (_, e) = tuple t e
+
+and check_pattern t pos pl =
+  let posl = List.map (fun x -> fst (fst x)) pl in
+  let pl = List.map (Pat.pat t) pl in
+  let gty = List.fold_left max ATany pl in
+  let set = List.fold_left (fun acc t -> 
+    TSet.add t acc) TSet.empty (Break.type_ [] gty) in
+  let set = List.fold_left2 (remove_list gty) set posl pl in
+  if TSet.is_empty set
+  then ()
+  else Error.not_exhaustive pos (Print.error (TSet.choose set))
+
+and remove_list gty set pos t = 
+  let used = ref false in
+  let tyl = Break.type_ [] t in
+  let tyl = List.map (fun t -> expand t gty) tyl in
+  let tyl = List.fold_left Break.type_ [] tyl in
+  let set = List.fold_left (fun set ty ->
+    if TSet.mem ty set
+    then (used := true ; 
+	  TSet.remove ty set)
+    else set) set tyl in
+  if not !used
+  then Error.unused pos
+  else set

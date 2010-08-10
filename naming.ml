@@ -31,8 +31,10 @@ module Env:sig
   val check_signature: Ast.decl list -> t -> unit
 
   val pattern_env: t -> t
-  val union: t -> t -> t
+  val add_env: t -> t -> t
   val check_penv: t -> t -> unit
+
+  val print_values: t -> unit
 
 end = struct
 
@@ -64,7 +66,8 @@ end = struct
   }
 
   let pattern_env t = { t with values = SMap.empty }
-  let union t1 t2 = { t1 with values = union t2.values t1.values }
+  let add_env t1 t2 = 
+    { t1 with values = map_add t1.values t2.values }
 
   let check_penv t1 t2 = 
     Printf.printf "TODO check penv\n"
@@ -148,6 +151,10 @@ end = struct
 
   let check_signature l t = 
     List.iter (check_value t) l
+
+  let print_values penv = 
+    SMap.iter (fun x _ -> o x ; o " ") penv.values ;
+    o "\n"
 end
 
 module Genv: sig
@@ -208,7 +215,7 @@ end = struct
   and type_ id env = function
     | Tabs (_, (_, ty)) -> type_ id env ty
     | Talgebric vtl -> List.fold_left variant env vtl 
-    | Trecord fdl -> List.fold_left field env fdl
+    | Trecord fdl -> List.fold_left field env (List.rev fdl)
     | _ -> env
 
   and variant env (id, _) = fst (Env.new_cstr env id)
@@ -389,7 +396,7 @@ and pat_ genv sig_ env = function
       let penv = Env.pattern_env env in
       let penv1, p1 = pat genv sig_ penv p1 in
       let penv2, p2 = pat genv sig_ penv p2 in
-      let env = Env.union penv1 penv in
+      let env = Env.add_env env penv1 in
       Env.check_penv penv1 penv2 ;
       env, Nast.Pbar (p1, p2)
 

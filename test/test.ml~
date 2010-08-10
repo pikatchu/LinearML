@@ -1,6 +1,7 @@
 
 
 module Test: sig
+
   type t = 
     | A
     | AA
@@ -48,8 +49,9 @@ module Test: sig
   val f: t -> int32
 
 
-
 end = struct
+
+
 
 
   let rec f t =
@@ -74,7 +76,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, A -> 0
     | AAAAAAAAAAAAAAAAAAA, A -> 0
     | AAAAAAAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, A -> 0
+
     | B, A -> 0
     | BB, A -> 0
     | BBB, A -> 0
@@ -95,7 +97,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, A -> 0
     | BBBBBBBBBBBBBBBBBBB, A -> 0
     | BBBBBBBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, A -> 0
+
     | A, B -> 0
     | AA, B -> 0
     | AAA, B -> 0
@@ -116,7 +118,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, B -> 0
     | AAAAAAAAAAAAAAAAAAA, B -> 0
     | AAAAAAAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, B -> 0
+
     | B, B -> 0
     | BB, B -> 0
     | BBB, B -> 0
@@ -137,7 +139,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, B -> 0
     | BBBBBBBBBBBBBBBBBBB, B -> 0
     | BBBBBBBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, B -> 0
+
     | A, BB -> 0
     | AA, BB -> 0
     | AAA, BB -> 0
@@ -158,7 +160,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BB -> 0
     | AAAAAAAAAAAAAAAAAAA, BB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BB -> 0
+
     | B, BB -> 0
     | BB, BB -> 0
     | BBB, BB -> 0
@@ -179,7 +181,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BB -> 0
     | BBBBBBBBBBBBBBBBBBB, BB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BB -> 0
+
     | A, BBB -> 0
     | AA, BBB -> 0
     | AAA, BBB -> 0
@@ -200,7 +202,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBB -> 0
+
     | B, BBB -> 0
     | BB, BBB -> 0
     | BBB, BBB -> 0
@@ -221,7 +223,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBB -> 0
+
     | A, BBBB -> 0
     | AA, BBBB -> 0
     | AAA, BBBB -> 0
@@ -242,7 +244,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBBB -> 0
+
     | B, BBBB -> 0
     | BB, BBBB -> 0
     | BBB, BBBB -> 0
@@ -263,7 +265,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBBB -> 0
+
     | A, BBBBB -> 0
     | AA, BBBBB -> 0
     | AAA, BBBBB -> 0
@@ -284,7 +286,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBBBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBBBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBBBB -> 0
+
     | B, BBBBB -> 0
     | BB, BBBBB -> 0
     | BBB, BBBBB -> 0
@@ -305,7 +307,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBBBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBBBB -> 0
+
     | A, BBBBBB -> 0
     | AA, BBBBBB -> 0
     | AAA, BBBBBB -> 0
@@ -326,7 +328,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
+
     | B, BBBBBB -> 0
     | BB, BBBBBB -> 0
     | BBB, BBBBBB -> 0
@@ -347,7 +349,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBBBBB -> 0
+
     | A, BBBBBBB -> 0
     | AA, BBBBBBB -> 0
     | AAA, BBBBBBB -> 0
@@ -368,7 +370,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
+
     | B, BBBBBBB -> 0
     | BB, BBBBBBB -> 0
     | BBB, BBBBBBB -> 0
@@ -389,7 +391,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
+
     | A, BBBBBBBB -> 0
     | AA, BBBBBBBB -> 0
     | AAA, BBBBBBBB -> 0
@@ -410,7 +412,7 @@ end = struct
     | AAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
     | AAAAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
+
     | B, BBBBBBBB -> 0
     | BB, BBBBBBBB -> 0
     | BBB, BBBBBBBB -> 0
@@ -431,7 +433,9 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
+
+
+
 
 end
 

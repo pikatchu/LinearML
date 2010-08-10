@@ -130,9 +130,9 @@ let check_bool ((p, ty), _) =
   | Tundef | Tany | Tprim Tbool -> ()
   | _ -> Error.expected_bool p
 
-let check_used uset (id, _, _) = 
-  if not (ISet.mem (snd id) uset) 
-  then Error.unused (fst id) 
+let check_used uset ((p, x), _, _) = 
+  if not (ISet.mem x uset) 
+  then Error.unused p
   else ()
 
 let filter_undef x rty acc = 
@@ -151,9 +151,12 @@ and module_ tenv md =
   let env = { env with decls = decls } in
   let acc = { mem = TMap.empty } in
   let acc = List.fold_left (decl env) acc md.md_decls in
-  let used = ISet.empty in
-  let used = IMap.fold (fun x _ acc -> ISet.add x acc) env.defs used in
-  let used = TMap.fold (fun ((_, x), _) _ y -> ISet.add x y) acc.mem used in
+  let used = List.fold_left (fun acc d -> 
+    match d with
+    | Dval ((_, x), _) -> ISet.add x acc
+    | _ -> acc) ISet.empty md.md_decls in
+  let used = TMap.fold (fun ((_, x), _) _ y -> 
+    ISet.add x y) acc.mem used in
   List.iter (check_used used) md.md_defs ;
   let mem = TMap.fold filter_undef acc.mem TMap.empty in 
   let acc = { mem = mem } in

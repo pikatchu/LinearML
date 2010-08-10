@@ -29,7 +29,16 @@ let imlfold f acc im =
   IMap.fold (fun x y (acc, im) ->
     let acc, y = f acc y in
     acc, IMap.add x y im) im (acc, IMap.empty)
-    
+
+let imap2 f m1 m2 =
+  IMap.fold (fun x t2 acc ->
+    try let t1 = IMap.find x m1 in
+    IMap.add x (f t1 t2) acc
+    with Not_found -> acc) m2 m1
+
+let imap2 f m1 m2 = 
+  imap2 f (imap2 f m1 m2) m1
+
 let lfold f acc l = 
   let acc, l = List.fold_left (fun (acc,l) x -> 
     let acc, x = f acc x in
@@ -50,7 +59,7 @@ let rec uniq cmp = function
 
 let uniq cmp l = uniq cmp (List.sort cmp l)
 
-let union t1 t2 = SMap.fold SMap.add t1 t2
+let map_add t1 t2 = SMap.fold SMap.add t2 t1
 
 let option f = function None -> None | Some x -> Some (f x)
 
@@ -67,3 +76,14 @@ let rec filter_opt l =
   | [] -> []
   | None :: rl -> filter_opt rl
   | Some x :: rl -> x :: filter_opt rl
+
+let opt f x = 
+  match x with
+  | None -> None
+  | Some x -> Some (f x)
+
+let opt2 f x y = 
+  match x, y with
+  | None, None -> None
+  | Some x, Some y -> Some (f x y)
+  | _ -> raise (Invalid_argument "Utils.opt2")

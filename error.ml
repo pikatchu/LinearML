@@ -195,3 +195,24 @@ let useless p =
   pos p ;
   err "All the fields are already captured" ;
   exit 2
+
+let not_exhaustive p f = 
+  pos p ;
+  err "This pattern-matching is not exhaustive" ;
+  err "Here is an example of a value that is not matched: " ;
+  f stderr ;
+  exit 2
+
+let not_exhaustive_no_example p = 
+  pos p ;
+  err "This pattern-matching is not exhaustive" ;
+  exit 2
+
+let pat_too_general p f = 
+  pos p ;
+  err "This pattern is too general" ;
+  err "It captures the case: " ;
+  f stderr ;
+  err "Which has been captured already" ;
+  exit 2
+  
