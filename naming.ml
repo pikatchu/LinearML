@@ -1,6 +1,34 @@
 open Utils
 open Ast
 
+let prim_types = ref SMap.empty
+let prim_type s = 
+  let id = Ident.make s in
+  prim_types := SMap.add s id !prim_types ;
+  id
+
+let prim_values = ref SMap.empty
+let prim_value s = 
+  let id = Ident.make s in
+  prim_values := SMap.add s id !prim_values ;
+  id
+
+let int8	= prim_type "int8"
+let int16	= prim_type "int16"
+let int32	= prim_type "int32"
+let int64	= prim_type "int64"
+let bool	= prim_type "bool"
+let float	= prim_type "float"
+let double	= prim_type "double"
+let tobs        = prim_type "obs"
+
+let free        = prim_value "free"
+let eunit       = prim_value "()"
+
+let prim_types  = !prim_types
+let prim_values = !prim_values
+
+
 module Env:sig
 
   type t
@@ -16,6 +44,7 @@ module Env:sig
   val cstr: t -> Ast.id -> Nast.id
 
   val new_value: t -> Ast.id -> t * Nast.id
+  val new_decl: t -> Ast.id -> t * Nast.id
   val new_field: t -> Ast.id -> t * Nast.id
   val new_type: t -> Ast.id -> t * Nast.id
   val new_tvar: t -> Ast.id -> t * Nast.id
@@ -32,7 +61,7 @@ module Env:sig
 
   val pattern_env: t -> t
   val add_env: t -> t -> t
-  val check_penv: t -> t -> unit
+  val check_penv: Pos.t -> t -> t -> unit
 
   val print_values: t -> unit
 
@@ -46,31 +75,27 @@ end = struct
       cstrs: Ident.t SMap.t ;
     }
 
-  let prim_types = [
-    "int8" ; "int16" ; "int32" ; "int64" ;
-    "bool" ; "float" ; "double" ]
-
-  let types = 
-    List.fold_left (fun acc x -> 
-      let id = Ident.make x in
-      SMap.add x id acc) 
-      SMap.empty
-      prim_types
-
   let empty = {
-    values = SMap.empty ;
+    values = prim_values ;
     fields = SMap.empty ;
-    types = types ;
+    types = prim_types ;
     tvars = SMap.empty ;
     cstrs = SMap.empty ;
   }
 
-  let pattern_env t = { t with values = SMap.empty }
+  let pattern_env t = { t with values = prim_values }
   let add_env t1 t2 = 
     { t1 with values = map_add t1.values t2.values }
 
-  let check_penv t1 t2 = 
-    Printf.printf "TODO check penv\n"
+  let check_penv p t1 t2 = 
+    SMap.iter (fun x _ ->
+      if SMap.mem x t2.values
+      then ()
+      else Error.both_side_pattern p x) t1.values ;
+    SMap.iter (fun x _ ->
+      if SMap.mem x t1.values
+      then ()
+      else Error.both_side_pattern p x) t2.values
 
   let value t (p, x) =
     try p, SMap.find x t.values
@@ -111,6 +136,11 @@ end = struct
     let id = Ident.make x in
     let values = SMap.add x id t.values in
     { t with values = values }, (p, id) 
+
+  let new_decl t x = 
+    let env = t.values in
+    let t, env, id = new_id t env x in
+    { t with values = env }, id
       
   let new_field t x = 
     let env = t.fields in
@@ -206,7 +236,7 @@ end = struct
 
   and decl env = function
     | Dtype tdef_l -> List.fold_left tdef env tdef_l
-    | Dval (id, _) -> fst (Env.new_value env id)
+    | Dval (id, _) -> fst (Env.new_decl env id)
 
   and tdef env (id, (_, ty)) = 
     let env, _ = Env.new_type env id in
@@ -283,7 +313,7 @@ and decl genv sig_ env = function
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
       env, Nast.Dval (id, ty)
 
-  | Dval ((p, _), _) -> Error.expected_function p
+  | Dval ((p, _), _) -> Error.value_function p
 
 and bind_type sig_ env (x, _) = 
   let id = Env.type_ sig_ x in
@@ -369,10 +399,10 @@ and dlet genv sig_ env acc (id, pl, e) =
   (id, pl, e) :: acc
 
 and pat genv sig_ env (pos, p) = 
-  let env, p = pat_ genv sig_ env p in
+  let env, p = pat_ genv sig_ env pos p in
   env, (pos, p)
 
-and pat_ genv sig_ env = function
+and pat_ genv sig_ env pos = function
   | Punit -> env, Nast.Pvalue Nast.Eunit
   | Pany -> env, Nast.Pany
   | Pid x -> 
@@ -392,12 +422,11 @@ and pat_ genv sig_ env = function
       let env, fl = lfold (pat_field genv sig_) env fl in
       env, Nast.Precord fl
 
-  | Pbar (p1, p2) -> 
+  | Pbar (p1, p2) ->  (* TODO this is bad *)
       let penv = Env.pattern_env env in
       let penv1, p1 = pat genv sig_ penv p1 in
-      let penv2, p2 = pat genv sig_ penv p2 in
-      let env = Env.add_env env penv1 in
-      Env.check_penv penv1 penv2 ;
+      let penv2, p2 = pat genv sig_ penv1 p2 in
+      Env.check_penv pos penv1 penv2 ;
       env, Nast.Pbar (p1, p2)
 
   | Ptuple pl -> 
@@ -424,7 +453,10 @@ and pat_field genv sig_ env (p, pf) =
 
 and pat_field_ genv sig_ env = function
   | PFany -> env, Nast.PFany
-  | PFid _ -> assert false
+  | PFid x -> 
+      let env, x = Env.new_value env x in
+      env, Nast.PFid x
+
   | PField (id, p) -> 
       let env, p = pat genv sig_ env p in
       env, Nast.PField (Env.field sig_ id, p)
@@ -440,6 +472,7 @@ and expr_ genv sig_ env e =
   | Efloat x -> Nast.Evalue (Nast.Efloat x)
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
+  | Eid (p, "obs") -> Error.obs_not_value p
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -460,7 +493,13 @@ and expr_ genv sig_ env e =
       let e = expr genv sig_ env e in
       Nast.Efun (pl, e)
 
-  | Eapply (e, el) -> Nast.Eapply (k e, List.map k el) 
+  | Eapply ((_, Eid (_, "obs")), e) ->
+      (match e with
+      | [_, Eid y] -> Nast.Eobs (Env.value env y)
+      | (p, _) :: _ -> Error.obs_expects_id p
+      | _ -> assert false)
+
+  | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
   | Erecord fdl -> Nast.Erecord (List.map (field genv sig_ env) fdl)
   | Efield (e, v) -> Nast.Efield (k e, Env.field sig_ v)
   | Eextern (md_id, id2) -> 
@@ -481,6 +520,14 @@ and expr_ genv sig_ env e =
       let id = Env.cstr sig_md id in      
       Nast.Ecstr id
 
+  | Ewith (e, fdl) -> 
+      let e = expr genv sig_ env e in
+      Nast.Ewith (e, List.map (field genv sig_ env) fdl)
+
+  | Eseq (e1, e2) -> 
+      let e1 = expr genv sig_ env e1 in
+      let e2 = expr genv sig_ env e2 in
+      Nast.Eseq (e1, e2)
 
 and field genv sig_ env (id, e) = 
   Env.field sig_ id, expr genv sig_ env e

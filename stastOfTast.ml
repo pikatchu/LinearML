@@ -3,6 +3,10 @@ open Tast
 
 type t = type_expr IMap.t
 
+module CheckType = struct
+  
+end
+
 module Env = struct
 
   let rec module_ md = 
@@ -85,11 +89,14 @@ and expr_ t = function
   | Ebinop (bop, e1, e2) -> Stast.Ebinop (bop, expr t e1, expr t e2)
   | Euop (uop, e) -> Stast.Euop (uop, expr t e)
   | Erecord (itl) -> Stast.Erecord (List.map (id_tuple t) itl)
+  | Ewith (e, itl) -> Stast.Ewith (expr t e, List.map (id_tuple t) itl)
   | Efield (e, x) -> Stast.Efield (expr t e, x)
   | Ematch (e, pal) -> Stast.Ematch (tuple t e, List.map (action t) pal)
   | Elet (p, e1, e2) -> Stast.Elet (pat t p, tuple t e1, tuple t e2)
   | Eif (e1, e2, e3) -> Stast.Eif (expr t e1, tuple t e2, tuple t e3)
   | Eapply (x, e) -> Stast.Eapply (x, tuple t e)
+  | Eseq (e1, e2) -> Stast.Eseq (expr t e1, tuple t e2)
+  | Eobs x -> Stast.Eobs x
 
 and id_tuple t (x, e) = x, tuple t e
 and action t (p, a) = pat t p, tuple t a

@@ -24,6 +24,8 @@ let _ =
     let tast = Typing.program neast in
     let stast = StastOfTast.program tast in
     StastCheck.program stast ;
+    RecordCheck.program stast ;
+    LinearCheck.program stast ;
 (*    let tast = Typing.program nast in *)
     module_l := new_module :: !module_l 
   done ;

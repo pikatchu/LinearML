@@ -39,6 +39,15 @@ let imap2 f m1 m2 =
 let imap2 f m1 m2 = 
   imap2 f (imap2 f m1 m2) m1
 
+let iimap2 f m1 m2 = 
+  IMap.fold (fun x t2 acc ->
+    try let t1 = IMap.find x m1 in
+    IMap.add x (f x t1 t2) acc
+    with Not_found -> acc) m2 m1
+
+let iimap2 f m1 m2 = 
+  iimap2 f (iimap2 f m1 m2) m1
+
 let lfold f acc l = 
   let acc, l = List.fold_left (fun (acc,l) x -> 
     let acc, x = f acc x in
@@ -87,3 +96,5 @@ let opt2 f x y =
   | None, None -> None
   | Some x, Some y -> Some (f x y)
   | _ -> raise (Invalid_argument "Utils.opt2")
+
+let soi = string_of_int 

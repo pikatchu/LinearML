@@ -2,7 +2,7 @@
 OCAMLBIN =
 OCAMLLIB = /home/pika/godi/lib
 
-OCAMLC   = ocamlc
+OCAMLC   = ocamlc.opt -dtypes
 OCAMLOPT = ocamlopt.opt
 OCAMLDEP = ocamldep
 OCAMLLEX = ocamllex
@@ -47,6 +47,8 @@ OBJECTS_ML = \
 	stast.ml\
 	stastOfTast.ml\
 	stastCheck.ml\
+	recordCheck.ml\
+	linearCheck.ml\
 	llast.ml\
 	emit.ml\
 	main.ml
@@ -89,6 +91,6 @@ depend: $(OBJECTS_ML)
 
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
-	rm -f limlc limlc.bc
+	rm -f limlc limlc.bc *.annot
 
 include .depend

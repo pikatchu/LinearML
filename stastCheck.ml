@@ -258,6 +258,10 @@ module Break = struct
 end
 
 module Pat = struct
+
+  let unit = 	
+    let v = Naming.eunit in
+    ATalgebric ([v, 0], IMap.add v None IMap.empty)
   
   let rec pat t (_, ptl) = ATchoice (List.map (pat_tuple t) ptl)
 
@@ -271,6 +275,7 @@ module Pat = struct
   and pat_ t ty = function
     | Pany
     | Pid _ -> ATany
+    | Pvalue Eunit -> unit
     | Pvalue _ -> failwith "TODO stastCheck value pattern"
 
     | Pvariant ((_, x), (_, [])) ->
@@ -299,6 +304,8 @@ module Pat = struct
     | Tany
     | Tfun _
     | Tvar _ -> assert false
+    | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> 
+	type_expr t ty
     | Tid (_, x)
     | Tapply ((_, x), _) -> 
 	try IMap.find x t 
@@ -362,6 +369,7 @@ and expr_ t pos = function
   | Ebinop (_, e1, e2) -> expr t e1 ; expr t e2
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.iter (field t) fdl
+  | Ewith (e, fdl) -> expr t e ; List.iter (field t) fdl
   | Efield (e, _) -> expr t e
   | Ematch (_, al) ->
       let pl = List.map fst al in
@@ -378,6 +386,11 @@ and expr_ t pos = function
       tuple t e3
 
   | Eapply (_, e) -> tuple t e
+  | Eseq (e1, e2) -> 
+      expr t e1 ;
+      tuple t e2
+
+  | Eobs _ -> ()
 
 and field t (_, e) = tuple t e
 and action t (_, e) = tuple t e

@@ -83,6 +83,8 @@ and expr_ =
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
+  | Ewith of expr * (id * expr) list
+  | Eseq of expr * expr
 
 and bop = 
   | Eeq
@@ -93,7 +95,6 @@ and bop =
   | Eplus
   | Eminus
   | Estar
-  | Eseq
   | Ederef
 
 and uop =

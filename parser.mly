@@ -291,6 +291,9 @@ simpl_expr:
 | STRING { fst $1, Estring $1 }
 | CHAR { fst $1, Echar $1 }
 | LCB field_l RCB dot_id { simpl_arg (Pos.btw $1 $3, Erecord $2) $4 }
+| LCB simpl_expr WITH field_l RCB dot_id { 
+  simpl_arg (Pos.btw $1 $5, Ewith ($2, $4)) $6 
+}
 | LP expr RP dot_id { simpl_arg (Pos.btw $1 $3, snd $2) $4 }
 | BEGIN expr END dot_id { simpl_arg $2 $4 }
 
@@ -332,7 +335,7 @@ expr:
 | expr PLUS expr { btw $1 $3, Ebinop (Eplus, $1, $3) }
 | expr MINUS expr { btw $1 $3, Ebinop (Eminus, $1, $3) }
 | expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
-| expr SC expr { btw $1 $3, Ebinop (Eseq, $1, $3) }
+| expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
 | simpl_expr simpl_expr_l { 
   match $2 with 

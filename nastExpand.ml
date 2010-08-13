@@ -384,6 +384,11 @@ and expr_ p = function
       let fdl = List.map (fun (x, e) -> x, tuple e) fdl in
       Neast.Erecord fdl
 
+  | Ewith (e, fdl) -> 
+      let e = simpl_expr e in
+      let fdl = List.map (fun (x, e) -> x, tuple e) fdl in
+      Neast.Ewith (e, fdl)
+
   | Elet (p, e1, e2) -> 
       let p = pat p in
       let e1 = tuple e1 in
@@ -406,6 +411,13 @@ and expr_ p = function
       let e = tuple e in
       let pel = List.map (fun (p, e) -> pat p, tuple e) pel in
       Neast.Ematch (e, pel)
+
+  | Eseq (e1, e2) -> 
+      let e1 = simpl_expr e1 in
+      let e2 = tuple e2 in
+      Neast.Eseq (e1, e2)
+
+  | Eobs x -> Neast.Eobs x
 
 and simpl_expr ((p, _) as e) = 
   match expr e [] with

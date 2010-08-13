@@ -68,11 +68,14 @@ and expr_ =
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
   | Erecord of (id * tuple) list 
+  | Ewith of expr * (id * tuple) list 
   | Efield of expr * id 
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
   | Eapply of id * tuple
+  | Eseq of expr * tuple
+  | Eobs of id
 
 and value = Nast.value =
   | Eunit

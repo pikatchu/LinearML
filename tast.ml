@@ -42,11 +42,14 @@ and expr_ =
   | Ebinop of Ast.bop * expr * expr
   | Euop of Ast.uop * expr
   | Erecord of (id * tuple) list 
+  | Ewith of expr * (id * tuple) list 
   | Efield of expr * id 
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
   | Eapply of id * tuple
+  | Eseq of expr * tuple
+  | Eobs of id
 
 and value = Nast.value
 
@@ -131,11 +134,14 @@ module Rename = struct
     | Ebinop (bop, e1, e2) -> Ebinop (bop, expr t e1, expr t e2)
     | Euop (uop, e1) -> Euop (uop, expr t e1)
     | Erecord fdl -> Erecord (List.map (field t) fdl)
+    | Ewith (e, fdl) -> Ewith (expr t e, List.map (field t) fdl)
     | Efield (e, x) -> Efield (expr t e, x) 
     | Ematch (e, al) -> Ematch (tuple t e, List.map (action t) al)
     | Elet (p, e1, e2) -> Elet (p, tuple t e1, tuple t e2)
     | Eif (e1, e2, e3) -> Eif (expr t e1, tuple t e2, tuple t e3)
     | Eapply (x, e) -> Eapply (x, tuple t e)
+    | Eseq (e1, e2) -> Eseq (expr t e1, tuple t e2)
+    | Eobs x -> Eobs (id t x)
 	  
   and field t (x, e) = x, tuple t e
   and action t (p, e) = p, tuple t e
@@ -159,7 +165,8 @@ module Fresh = struct
 
   and fresh_pat t pa = 
     let fv = FreeVars.pat pa in
-    ISet.fold (fun x acc -> IMap.add x (new_id x) acc) fv t
+    let t = ISet.fold (fun x acc -> IMap.add x (new_id x) acc) fv t in
+    t
 
   and pat t (tyl, ptl) = tyl, List.map (pat_tuple t) ptl
   and pat_tuple t (tyl, pel) = tyl, List.map (pat_el t) pel 
@@ -187,19 +194,25 @@ module Fresh = struct
   | Ebinop (bop, e1, e2) -> Ebinop (bop, expr t e1, expr t e2) 
   | Euop (uop, e) -> Euop (uop, expr t e)
   | Erecord fdl -> Erecord (List.map (field t) fdl)
+  | Ewith (e, fdl) -> Ewith (expr t e, List.map (field t) fdl)
   | Efield (e, x) -> Efield (expr t e, x) 
-  | Ematch (e, pal) -> Ematch (tuple t e, List.map (action t) pal)
+  | Ematch (e, pal) -> 
+      let e = tuple t e in
+      Ematch (e, List.map (action t) pal)
+
   | Elet (p, e1, e2) -> 
       let t = fresh_pat t p in
       let p = pat t p in
       Elet (p, tuple t e1, tuple t e2) 
 
   | Eif (e1, e2, e3) -> Eif (expr t e1, tuple t e2, tuple t e3)
-  | Eapply (x, e) -> Eapply (id t x, e) 
+  | Eapply (x, e) -> Eapply (id t x, tuple t e) 
+  | Eseq (e1, e2) -> Eseq (expr t e1, tuple t e2) 
+  | Eobs x -> Eobs (id t x)
 
   and field t (x, e) = x, tuple t e
       
-  and action t (p, e) = 
+  and action t (p, e) =
     let t = fresh_pat t p in
     let p = pat t p in
     p, tuple t e

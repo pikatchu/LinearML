@@ -1,8 +1,11 @@
 open Utils
 
 
-let err x = output_string stderr x ; output_string stderr "\n"
+let oerr = output_string stderr
+let err x = oerr x ; oerr "\n"
 let pos x = err (Pos.string x)
+
+let exit _ = raise Exit
 
 let lexing_error lb = 
   err (Pos.string (Pos.make lb)) ;
@@ -28,7 +31,7 @@ let unbound_name p id =
 
 let multiple_def p id = 
   pos p ;
-  err ("Error: "^id^" defined multiple times") ;
+  err ("Error: "^id^" is defined multiple times") ;
   exit 5
 
 let type_arity_mismatch p1 p2 (_, id) n1 n2 = 
@@ -45,9 +48,9 @@ let application_to_primitive_type p id =
   err ("Error: "^id^" is a primitive type without arguments") ;
   exit 7
 
-let expected_function p = 
+let value_function p = 
   pos p ;
-  err ("Expected Function") ;
+  err ("Every value must be a function") ;
   exit 8
 
 let undefined_sig p v = 
@@ -132,7 +135,7 @@ let not_pointer_type p_id p =
 
 let infinite_loop p = 
   pos p ;
-  err "This function call probably doesn't terminate" ;
+  err "This function call cannot be typed because it doesn't terminate" ;
   exit 2
 
 let arity p1 p2 = 
@@ -146,11 +149,21 @@ let unused p =
   err "Unused" ;
   exit 2
 
-let unify p1 p2 = 
+let unify p1 p2 fty1 fty2 = 
   pos p1 ;
-  err "This expression must have the same type as" ;
+  err "This expression has type: " ;
+  fty1 oerr ;
+  err "It should have the same type as " ;
   pos p2 ;
-  err "this expression" ;
+  err "this expression which is of type: " ;
+  fty2 oerr ;
+  exit 2
+
+let unify_proj p1 p2 = 
+  pos p2 ;
+  err "You cannot project this field" ;
+  pos p1 ;
+  err "out of this expression" ;
   exit 2
 
 let expected_numeric p =
@@ -216,3 +229,71 @@ let pat_too_general p f =
   err "Which has been captured already" ;
   exit 2
   
+let both_side_pattern p s = 
+  pos p ;
+  err ("The variable "^s^" must be defined in every branch of this pattern") ;
+  exit 2
+
+let field_no_val p = 
+  pos p ;
+  err ("You cannot capture this field because its value is undefined") ;
+  exit 2
+
+let missing_field p x = 
+  let x = Ident.to_string x in
+  pos p ;
+  err ("You must define the field "^x^" before applying or returning \
+					 from a function") ;
+  exit 2
+
+let fd_already_has_value p x = 
+  let x = Ident.to_string x in
+  pos p ;
+  err ("Cannot redefine the value of the field: "^x) ;
+  err "Because it has a non-primitive type" ;
+  exit 2
+  
+let field_defined_both_sides p1 p2 x = 
+  let x = Ident.to_string x in
+  pos p1 ;
+  err ("The field "^x^" must present in both this branch") ;
+  pos p2 ;
+  err "and in this one" ;
+  exit 2
+
+let underscore_obs p =
+  pos p ;
+  err "Underscore can only be used to match an observed value" ;
+  exit 2
+
+let obs_only_one p = 
+  pos p ;
+  err "obs expects only one argument" ;
+  exit 2
+
+let obs_expects_id p = 
+  pos p ;
+  err "obs is only applicable to a variable" ;
+  exit 2
+
+let obs_not_value p = 
+  pos p ;
+  err "Bad usage of obs" ;
+  exit 2
+
+let forgot_free p = 
+  pos p ;
+  err "This variable must be used or freed in every branch" ;
+  exit 2
+  
+let unused_variable p = 
+  pos p ;
+  err ("This variable hasn't been used or freed") ;
+  exit 2
+
+let already_used p p' = 
+  pos p ;
+  err "This variable has already been used" ;
+  pos p' ;
+  err "Previous usage was here" ;
+  exit 2

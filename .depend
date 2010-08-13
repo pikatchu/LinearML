@@ -34,15 +34,19 @@ stast.cmo: utils.cmx pos.cmx nast.cmx ident.cmi ast.cmx
 stast.cmx: utils.cmx pos.cmx nast.cmx ident.cmx ast.cmx 
 stastOfTast.cmo: utils.cmx tast.cmx stast.cmx neast.cmx 
 stastOfTast.cmx: utils.cmx tast.cmx stast.cmx neast.cmx 
-stastCheck.cmo: utils.cmx stast.cmx ident.cmi 
-stastCheck.cmx: utils.cmx stast.cmx ident.cmx 
+stastCheck.cmo: utils.cmx stast.cmx naming.cmx ident.cmi error.cmx 
+stastCheck.cmx: utils.cmx stast.cmx naming.cmx ident.cmx error.cmx 
+recordCheck.cmo: utils.cmx stast.cmx pos.cmx ident.cmi error.cmx 
+recordCheck.cmx: utils.cmx stast.cmx pos.cmx ident.cmx error.cmx 
+linearCheck.cmo: utils.cmx stast.cmx pos.cmx ident.cmi error.cmx 
+linearCheck.cmx: utils.cmx stast.cmx pos.cmx ident.cmx error.cmx 
 llast.cmo: 
 llast.cmx: 
 emit.cmo: /home/pika/godi/lib/llvm.cmi llast.cmx 
 emit.cmx: /home/pika/godi/lib/llvm.cmi llast.cmx 
-main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx pos.cmx parser.cmi \
-    nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx lexer.cmx \
-    error.cmx 
-main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx pos.cmx parser.cmx \
-    nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx lexer.cmx \
-    error.cmx 
+main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
+    parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
+    linearCheck.cmx lexer.cmx error.cmx 
+main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
+    parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
+    linearCheck.cmx lexer.cmx error.cmx 

@@ -72,6 +72,9 @@ and expr_ =
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
+  | Ewith of expr * (id * expr) list
+  | Eseq of expr * expr
+  | Eobs of id
 
 and value = 
   | Eunit

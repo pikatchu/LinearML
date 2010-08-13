@@ -7,7 +7,7 @@ module IMap = Map.Make (struct
 end)
 
 let counter = ref 0
-let trace = ref IMap.empty
+let trace = ref IMap.empty  
 
 let make x = 
   incr counter ;
@@ -33,3 +33,6 @@ let to_string x =
 let debug x =
   try IMap.find x !trace^"["^string_of_int x^"]"
   with Not_found -> "v["^string_of_int x^"]"
+
+let print x = 
+  Printf.printf "%s\n" (debug x)

@@ -33,6 +33,11 @@ and expr_ p acc = function
       let acc, fdl = lfold field acc fdl in
       acc, Erecord fdl
 
+  | Ewith (e, fdl) ->
+      let acc, e = expr acc e in
+      let acc, fdl = lfold field acc fdl in
+      acc, Ewith (e, fdl)
+
   | Efield (e, x) -> 
       let acc, e = expr acc e in
       acc, Efield (e, x)
@@ -64,6 +69,12 @@ and expr_ p acc = function
       let acc, el = lfold expr acc el in
       acc, Eapply (e, el)
 
+  | Eseq (e1, e2) -> 
+      let acc, e1 = expr acc e1 in
+      let acc, e2 = expr acc e2 in
+      acc, Eseq (e1, e2)
+
+  | Eobs _
   | Ecstr _ 
   | Evalue _ | Eid _ as e -> acc, e
 
