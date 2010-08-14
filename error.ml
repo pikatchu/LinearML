@@ -5,8 +5,6 @@ let oerr = output_string stderr
 let err x = oerr x ; oerr "\n"
 let pos x = err (Pos.string x)
 
-let exit _ = raise Exit
-
 let lexing_error lb = 
   err (Pos.string (Pos.make lb)) ;
   err "Error: Lexing error\n" ;
@@ -280,6 +278,11 @@ let obs_not_value p =
   pos p ;
   err "Bad usage of obs" ;
   exit 2
+
+let obs_not_allowed p = 
+  pos p ;
+  err "Illegal usage of observable" ;
+  exit 2 
 
 let forgot_free p = 
   pos p ;

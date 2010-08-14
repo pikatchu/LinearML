@@ -26,7 +26,7 @@ module LocalUtils = struct
   let tprim x = Pos.none, Tprim x
   let tvar x = Pos.none, Tvar (Pos.none, x)
   let tid x = Pos.none, Tid (Pos.none, x)
-  let tapply x y = Pos.none, Tapply (x, y)
+  let tapply x y = Pos.none, Tapply ((Pos.none, x), (Pos.none, y))
   let tfun x y = Pos.none, Tfun ((Pos.none, x), (Pos.none, y))
   let list l = Pos.none, l
 
@@ -309,7 +309,7 @@ module Env = struct
     | Drecord tdef -> algebric env tdef
     | Dval ((p, x), (_, ty)) -> IMap.add x (p, ty) env
 
-  and algebric env tdef = 
+  and algebric env tdef =
     IMap.fold (variant tdef.td_args tdef.td_id) tdef.td_map env
 
   and variant pl tid _ ((p, x), tyl) env = 

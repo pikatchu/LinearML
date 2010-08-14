@@ -84,6 +84,7 @@ rule token = parse
   | "->"               { ARROW }      
   | "<-"               { ASSIGN }      
   | ":"                { COLON }
+  | "::"               { COLONCOLON (Pos.make lexbuf) }
   | '('                { LP (Pos.make lexbuf) }
   | ')'                { RP (Pos.make lexbuf) }      
   | ';'                { SC }

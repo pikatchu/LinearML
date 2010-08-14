@@ -7,6 +7,13 @@ type ty =
   | Fresh of Pos.t
   | Used of Pos.t
 
+let debug = function
+  | Prim -> o "Prim"
+  | Obs _ -> o "Obs"
+  | Fresh _ -> o "Fresh"
+  | Used _ -> o "Used"
+
+
 let is_obs = function
   | _, Tapply ((_, x), _) when x = Naming.tobs -> true
   | _ -> false
@@ -35,7 +42,7 @@ and unify ty1 ty2 =
   | Used p, Used _ -> Used p
   | Used p, Fresh _
   | Fresh _, Used p -> Error.forgot_free p
-  | _ -> failwith "TODO ERROR unify"
+  | ty1, ty2 -> debug ty1 ; debug ty2 ;failwith "TODO ERROR unify"
 
 let unify t1 t2 = imap2 unify t1 t2
 
@@ -58,7 +65,8 @@ let rec program mdl =
       List.fold_left (
       fun acc decl ->
 	match decl with
-	| Dval ((_, x), _) -> IMap.add x Prim acc
+	| Dval ((_, x), _) ->
+	    IMap.add x Prim acc
 	| _ -> acc
      ) acc md.md_decls
    ) IMap.empty mdl in
@@ -76,10 +84,13 @@ and pat t (_, ptl) = List.fold_left pat_tuple t ptl
 and pat_tuple t (_, pel) = List.fold_left pat_el t pel
 and pat_el t (ty, p) = pat_ t ty p
 and pat_ t ty = function
-  | Pany -> check_observable ty ; t
+  | Pany -> (match ty with
+    | _, Tprim _ -> t
+    | _ -> check_observable ty ; t)
+
   | Pid (p, x) when is_obs ty -> IMap.add x (Obs p) t
   | Pid (p, x) -> (match snd ty with
-    | Tid _ | Tapply _ -> IMap.add x (Fresh p) t
+    | Tid _ | Tapply _ | Tvar _ -> IMap.add x (Fresh p) t
     | _ -> IMap.add x Prim t)
   | Pvalue _ -> t
   | Pvariant (_, p) -> pat t p
@@ -87,7 +98,9 @@ and pat_ t ty = function
 
 and pat_field ty t (_, pf) = pat_field_ ty t pf
 and pat_field_ ty t = function
-  | PFany -> check_observable ty ; t
+  | PFany -> (match ty with
+    | _, Tprim _ -> t
+    | _ -> check_observable ty ; t)
   | PFid (p, x) -> IMap.add x (Fresh p) t 
   | PField (_, p) -> pat t p
 
@@ -98,6 +111,7 @@ and expr_ t = function
   | Eid (p, x) -> 
       (match IMap.find x t with
       | Used p' -> Error.already_used p p'
+      | Prim -> t
       | _ -> IMap.add x (Used p) t)
 
   | Evalue _ -> t

@@ -13,6 +13,12 @@ let prim_value s =
   prim_values := SMap.add s id !prim_values ;
   id
 
+let prim_cstrs = ref SMap.empty
+let prim_cstr s = 
+  let id = Ident.make s in
+  prim_cstrs := SMap.add s id !prim_cstrs ;
+  id
+
 let int8	= prim_type "int8"
 let int16	= prim_type "int16"
 let int32	= prim_type "int32"
@@ -27,7 +33,7 @@ let eunit       = prim_value "()"
 
 let prim_types  = !prim_types
 let prim_values = !prim_values
-
+let prim_cstrs  = !prim_cstrs
 
 module Env:sig
 
@@ -80,7 +86,7 @@ end = struct
     fields = SMap.empty ;
     types = prim_types ;
     tvars = SMap.empty ;
-    cstrs = SMap.empty ;
+    cstrs = prim_cstrs ;
   }
 
   let pattern_env t = { t with values = prim_values }

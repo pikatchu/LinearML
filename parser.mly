@@ -3,6 +3,35 @@ open Ast
 
 let btw (x,_) (y,_) = Pos.btw x y
 
+let empty pos = 
+  pos, Eecstr ((pos, "List"), (pos, "Empty"))
+
+let pempty pos = 
+  pos, Pecstr ((pos, "List"), (pos, "Empty"))
+
+let cons ((pos, _) as x) rl = 
+  let cstr = (pos, Eecstr ((pos, "List"), (pos, "Cons"))) in
+  pos, Eapply (cstr, [x ; rl])
+
+let pcons ((pos, _) as x) rl = 
+  pos, Pevariant ((pos, "List"), (pos, "Cons"), (pos, Ptuple [x ; rl]))
+
+let rec make_list cons empty l = 
+  match l with
+  | [] -> assert false
+  | [pos, _ as x] -> cons x (empty pos)
+  | ((pos, _) as x) :: rl -> cons x (make_list cons empty rl)
+
+let make_elist pos l = 
+  match l with
+  | [] -> empty pos
+  | _ -> make_list cons empty l
+
+let make_plist pos l = 
+  match l with
+  | [] -> pempty pos
+  | _ -> make_list pcons pempty l
+
 let rec last = function
   | [] -> assert false
   | [x,_] -> x
@@ -101,6 +130,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 %token WHEN
 %token WHILE
 %token <Pos.t> TRUE FALSE
+%token <Pos.t> COLONCOLON
 
 %nonassoc match_
 %nonassoc let_
@@ -110,6 +140,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 %right SC
 %right COMMA
 %left EQ LT LTE GT GTE
+%right COLONCOLON
 %left PLUS MINUS 
 %left STAR
 %left apply_ DOT
@@ -235,6 +266,12 @@ simpl_pat:
 | STRING { fst $1, Pstring $1 }
 | INT { fst $1, Pint $1 }
 | LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
+| LB pat_list RB { make_plist (Pos.btw $1 $3) $2 }
+
+pat_list:
+| { [] }
+| simpl_pat { [$1] }
+| simpl_pat SC pat_list { $1 :: $3 }
 
 simpl_pat_l:
 | simpl_pat { [$1] }
@@ -242,6 +279,10 @@ simpl_pat_l:
 
 pat_:
 | simpl_pat { $1 }
+| simpl_pat COLONCOLON simpl_pat { 
+  let pos = btw $1 $3 in
+  pos, Pevariant (($2, "List"), ($2, "Cons"), (pos, Ptuple [$1 ; $3]))
+}
 | CSTR simpl_pat_l { 
   let p, tuple = Pos.list $2 in
   Pos.btw (fst $1) p, 
@@ -296,6 +337,13 @@ simpl_expr:
 }
 | LP expr RP dot_id { simpl_arg (Pos.btw $1 $3, snd $2) $4 }
 | BEGIN expr END dot_id { simpl_arg $2 $4 }
+| LB expr_list RB { make_elist (Pos.btw $1 $3) $2 }
+
+expr_list:
+| { [] }
+| simpl_expr { [$1] }
+| simpl_expr SC expr_list { $1 :: $3 }
+
 
 dot_cstr:
 | { `Null }
@@ -337,6 +385,11 @@ expr:
 | expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
+| expr COLONCOLON expr { 
+  let pos = btw $1 $3 in
+  let cons = Eecstr (($2, "List"), ($2, "Cons")) in
+  pos, Eapply (($2, cons), [$1 ; $3])
+}
 | simpl_expr simpl_expr_l { 
   match $2 with 
   | [] -> $1 
