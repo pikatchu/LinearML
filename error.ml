@@ -136,10 +136,11 @@ let infinite_loop p =
   err "This function call cannot be typed because it doesn't terminate" ;
   exit 2
 
-let arity p1 p2 = 
+let arity p1 p2 n1 n2 = 
   pos p1 ;
-  err "Arity" ;
+  err ("Arity mismatch, this expression is of arity "^soi n1) ;
   pos p2 ;
+  err ("While this one is "^soi n2) ;
   exit 2
 
 let unused p = 
@@ -286,7 +287,14 @@ let obs_not_allowed p =
 
 let forgot_free p = 
   pos p ;
-  err "This variable must be used or freed in every branch" ;
+  err "This variable must be used or freed" ;
+  exit 2
+
+let forgot_free_branch p1 p2 = 
+  pos p1 ;
+  err "You forgot to free this variable" ;
+  pos p2 ;
+  err "In this branch" ;
   exit 2
   
 let unused_variable p = 

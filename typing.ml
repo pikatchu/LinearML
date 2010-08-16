@@ -55,7 +55,7 @@ module LocalUtils = struct
     match tyl with
     | [] -> false
     | (_, Tundef _) :: _ -> true
-    | (_, Tapply (_, l)) :: rl -> tundef l || tundef_ rl
+    | (_, Tapply (_, l)) :: rl -> tundef l || tundef_ rl 
     | _ :: rl -> tundef_ rl
 
   let check_numeric p ty = 
@@ -85,7 +85,7 @@ open LocalUtils
 module Print = struct
 
   let id o (_, x) =
-    let x = Ident.to_string x in
+    let x = Ident.debug x in
     o x
 
   let def_list o = function
@@ -98,8 +98,8 @@ module Print = struct
     type_expr_ o ty
 
   and type_expr_ o = function
-    | Tany 
-    | Tundef -> o "'a"
+    | Tany -> o "ANY"
+    | Tundef -> o "UNDEF"
     | Tprim ty -> type_prim o ty
     | Tvar x | Tid x -> id o x
     | Tdef m -> 
@@ -151,12 +151,14 @@ module Unify = struct
     else if tundef l2
     then acc, l1
     else if List.length tyl1 <> List.length tyl2
-    then Error.arity p1 p2
+    then Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
     else try
       let acc, tyl = lfold2 (unify_el_ env) acc tyl1 tyl2 in
       acc, (p1, tyl)
     with Exit -> 
-      Error.unify p1 p2 (Print.type_expr_list l1) (Print.type_expr_list l2)
+      let pp1 = Print.type_expr_list l1 in
+      let pp2 = Print.type_expr_list l2 in 
+      Error.unify p1 p2 pp1 pp2
 	
   and unify_el env acc ty1 ty2 = 
     try unify_el_ env acc ty1 ty2
@@ -220,19 +222,24 @@ end
 module Instantiate = struct
 
   let rec inst_list env acc subst (p1, tyl1) (p2, tyl2) = 
-    if List.length tyl1 <> List.length tyl2
-    then Error.arity p1 p2
+    let size1 = List.length tyl1 in
+    let size2 = List.length tyl2 in
+    if size1 <> size2
+    then Error.arity p1 p2 size1 size2
     else List.fold_left2 (inst env) (acc, subst) tyl1 tyl2
         
   and inst env (acc, subst) (pl1, ty1) (pl2, ty2) = 
     match ty1, ty2 with
-    | (Tany | Tundef), _
-    | _, (Tany | Tundef) -> acc, subst
+    | (Tany | Tundef), _ -> acc, subst
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> acc, subst
     | Tvar (_, x), Tvar (_, y) when x = y -> acc, subst
     | Tvar v, _ -> inst_var env acc subst v (pl2, ty2)
 
     | Tid (_, x), Tid (_, y) when x = y -> acc, subst
+    | Tapply ((_, x), tyl1), (Tany | Tundef as any)->
+	let tyl2 = List.map (fun _ -> pl2, any) (snd tyl1) in
+	inst_list env acc subst tyl1 (pl2, tyl2)
+
     | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
 	inst_list env acc subst tyl1 tyl2
 
@@ -249,6 +256,8 @@ module Instantiate = struct
 	acc, subst
 
     | ty1, ty2 -> 
+	Print.debug [Pos.none, ty1] ;
+	Print.debug [Pos.none, ty2] ;
 	let ty1 = Print.type_expr_ ty1 in
 	let ty2 = Print.type_expr_ ty2 in
 	Error.unify pl1 pl2 ty1 ty2
@@ -354,8 +363,9 @@ and module_ tenv md =
   let used = TMap.fold (fun ((_, x), _) _ y -> 
     ISet.add x y) acc.mem used in
   List.iter (check_used used) md.md_defs ;
-  let mem = TMap.fold filter_undef acc.mem TMap.empty in 
-  let acc = { mem = mem } in
+  TMap.iter (fun ((_, x), ty1) ty -> Ident.print x ; Print.debug (snd ty1) ; Print.debug (snd ty)) acc.mem ;
+  let mem = TMap.fold filter_undef acc.mem TMap.empty in
+  let acc = { mem = mem } in 
   let env = { env with phase2 = true } in
   let acc = List.fold_left (decl env) acc md.md_decls in
   let ads = acc, [], IMap.empty in
@@ -390,7 +400,7 @@ and get_decl acc = function
       TMap.add (fid, tyl) true acc
   | _ -> acc
 
-and typed_def env ((p, f), tyl) rty (acc, defs, subst) = 
+and typed_def env ((p, f), tyl) rty (acc, defs, subst) =
   let (fid, args, e) = IMap.find f env.defs in
   let env, acc, args = pat env acc args tyl in
   let acc, ((rty2, _) as e) = tuple env acc e in
@@ -412,8 +422,16 @@ and pat env acc (p1, pl) (p2, tyl) =
   match pl with
   | [] -> assert false
   | [(p1, l_) as l] -> 
-      if List.length l_ <> List.length tyl
-      then Error.arity p1 p2 ;
+      let tyl = 
+	if tundef (p2, tyl)
+	then List.map (
+	  fun (p, _) -> p, Tundef
+	 ) l_
+	else tyl in
+      let size1 = List.length l_ in
+      let size2 = List.length tyl in
+      if size1 <> size2
+      then Error.arity p1 p2 size1 size2 ;
       let env, acc, (tyl, pl) = pat_tuple env acc l tyl in
       env, acc, (tyl, [pl])
 
@@ -709,7 +727,8 @@ and apply_def_list env acc pl idl tyl rty =
     
 and apply_def env acc pl fid tyl rty = 
   try 
-    let rty = TMap.find (fid, tyl) acc.mem in 
+    let mem_rty = TMap.find (fid, tyl) acc.mem in 
+    let acc, rty = Unify.unify_list env acc rty mem_rty in
     if env.phase2 && tundef rty
     then Error.infinite_loop pl ;
     acc, rty 

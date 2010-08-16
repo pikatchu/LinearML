@@ -13,7 +13,6 @@ let debug = function
   | Fresh _ -> o "Fresh"
   | Used _ -> o "Used"
 
-
 let is_obs = function
   | _, Tapply ((_, x), _) when x = Naming.tobs -> true
   | _ -> false
@@ -23,10 +22,10 @@ let union t t' = IMap.fold IMap.add t' t
 let rec unify_map m1 m2 = 
   unify_map_ (unify_map_ m1 m2) m1
 
-and unify_map_ m1 m2 =
-  IMap.fold (fun x t2 acc -> try
+and unify_map_ (p1, m1) (p2, m2) =
+  p1, IMap.fold (fun x t2 acc -> try
     let t1 = IMap.find x m1 in
-    IMap.add x (unify t1 t2) acc
+    IMap.add x (unify (p1, t1) (p2, t2)) acc
     with Not_found -> 
       match t2 with
       | Prim
@@ -34,17 +33,16 @@ and unify_map_ m1 m2 =
       | Used _ -> acc
       | Fresh p -> Error.forgot_free p) m2 m1
 
-and unify ty1 ty2 = 
+and unify (p1, ty1) (p2, ty2) = 
   match ty1, ty2 with
   | Prim, Prim -> Prim
   | Obs p, Obs _ -> Obs p
   | Fresh p, Fresh _ -> Fresh p
   | Used p, Used _ -> Used p
-  | Used p, Fresh _
-  | Fresh _, Used p -> Error.forgot_free p
-  | ty1, ty2 -> debug ty1 ; debug ty2 ;failwith "TODO ERROR unify"
-
-let unify t1 t2 = imap2 unify t1 t2
+  | Used _, Fresh p -> Error.forgot_free_branch p p2
+  | Fresh p, Used _ -> Error.forgot_free_branch p p1
+  | Used p, Obs p2 -> Error.pos p ; Error.pos p2 ; assert false
+  | ty1, ty2 -> debug ty1 ; debug ty2 ; failwith "TODO ERROR unify"
 
 let check_observable ty = 
   if is_obs ty
@@ -110,8 +108,9 @@ and expr t (_, e) = expr_ t e
 and expr_ t = function
   | Eid (p, x) -> 
       (match IMap.find x t with
+      | Prim
+      | Obs _ -> t
       | Used p' -> Error.already_used p p'
-      | Prim -> t
       | _ -> IMap.add x (Used p) t)
 
   | Evalue _ -> t
@@ -124,7 +123,9 @@ and expr_ t = function
   | Ematch (e, al) -> 
       let t = tuple t e in
       let tl = List.map (action t) al in
-      let t' = List.fold_left unify_map t tl in
+      let tl = List.map2 (fun (_, ((p, _), _)) x -> (p, x)) al tl in
+      let t' = List.fold_left unify_map (List.hd tl) (List.tl tl) in
+      let t' = snd t' in
       union t t'
 
   | Elet (p, e1, e2) -> 
@@ -135,8 +136,11 @@ and expr_ t = function
   | Eif (e1, e2, e3) -> 
       let t = expr t e1 in
       let t' = tuple t e2 in
+      let t' = fst (fst e2), t' in
       let t'' = tuple t e3 in
+      let t'' = fst (fst e3), t'' in
       let sub = unify_map t' t'' in
+      let sub = snd sub in
       union t sub
 
   | Eobs (p, x) -> 

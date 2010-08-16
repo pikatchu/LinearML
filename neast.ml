@@ -110,9 +110,10 @@ module CompareType = struct
 
   and ty (_, ty1) (_, ty2) () = 
     match ty1, ty2 with
-    | Tany, Tany -> 0
-    | Tany, _ -> -1
-    | _, Tany -> 1
+    | Tany, _ -> 0
+    | _, Tany -> 0
+    | _, Tundef -> 0
+    | Tundef, _ -> 0
 
     | Tprim ty1, Tprim ty2 -> prim ty1 ty2
     | Tprim _, _ -> -1
@@ -143,10 +144,6 @@ module CompareType = struct
 	let set1 = IMap.fold add s1 ISet.empty in
 	let set2 = IMap.fold add s2 ISet.empty in
 	ISet.compare set1 set2
-    | Tdef _, _ -> -1
-    | _, Tdef _ -> 1
-
-    | Tundef, Tundef -> 0
 
   and prim ty1 ty2 = 
     match ty1, ty2 with
@@ -171,7 +168,7 @@ module FreeVars = struct
   let rec type_expr t (_, ty) = type_expr_ t ty
 
   and type_expr_ t = function
-    | Tundef _
+    | Tundef
     | Tany
     | Tprim _ 
     | Tid _ -> t
