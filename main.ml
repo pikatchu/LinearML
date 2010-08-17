@@ -10,7 +10,6 @@ let parse fn =
   with 
   | Lexer.Lexical_error _ -> Error.lexing_error lb 
   | Parsing.Parse_error -> Error.syntax_error lb 
-
     
 let _ = 
   let last_arg = (Array.length Sys.argv) - 1  in

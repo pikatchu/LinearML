@@ -42,6 +42,7 @@ OBJECTS_ML = \
 	neast.ml\
 	nastExtractFuns.ml\
 	nastExpand.ml\
+	neastArity.ml\
 	tast.ml\
 	typing.ml\
 	stast.ml\

@@ -47,7 +47,7 @@ module Unify = struct
   and unify_ ty1 ty2 = 
     match ty1, ty2 with
     | A, A -> A
-    | A, _ | _, A -> assert false
+    | A, t | t, A -> t
     | Rid _ as ty, _
     | _, (Rid _ as ty) -> ty
     | R m1, R m2 -> R (iimap2 unify_fields m1 m2)

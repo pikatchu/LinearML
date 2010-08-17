@@ -65,7 +65,6 @@ and id_type t (x, tyl) =
 and type_expr t (p, ty) = p, type_expr_ t ty
 and type_expr_ t = function
     | Neast.Tany -> Stast.Tany
-    | Neast.Tundef -> assert false
     | Neast.Tdef x -> local_def t x 
     | Neast.Tprim ty -> Stast.Tprim ty
     | Neast.Tvar x -> Stast.Tvar x

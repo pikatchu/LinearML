@@ -25,7 +25,6 @@ and tdef = {
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
-  | Tundef
   | Tdef of Pos.t IMap.t
   | Tprim of type_prim
   | Tvar of id 
@@ -110,10 +109,9 @@ module CompareType = struct
 
   and ty (_, ty1) (_, ty2) () = 
     match ty1, ty2 with
-    | Tany, _ -> 0
-    | _, Tany -> 0
-    | _, Tundef -> 0
-    | Tundef, _ -> 0
+    | Tany, Tany -> 0
+    | Tany, _ -> -1
+    | _, Tany -> 1
 
     | Tprim ty1, Tprim ty2 -> prim ty1 ty2
     | Tprim _, _ -> -1
@@ -168,7 +166,6 @@ module FreeVars = struct
   let rec type_expr t (_, ty) = type_expr_ t ty
 
   and type_expr_ t = function
-    | Tundef
     | Tany
     | Tprim _ 
     | Tid _ -> t

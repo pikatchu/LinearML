@@ -93,7 +93,6 @@ module Rename = struct
   and type_expr t (p, ty) = (p, type_expr_ t ty)
   and type_expr_ t = function
     | Neast.Tany -> Neast.Tany
-    | Neast.Tundef -> Neast.Tundef
     | Neast.Tdef m ->
 	let f x p acc = IMap.add (ident t x) p acc in
 	let m = IMap.fold f m IMap.empty in
