@@ -25,7 +25,9 @@ let _ =
     StastCheck.program stast ;
     RecordCheck.program stast ;
     LinearCheck.program stast ;
-(*    let tast = Typing.program nast in *)
+    let ist = IstOfStast.program stast in
+    let _ = IstPatterns.program ist in
+
     module_l := new_module :: !module_l 
   done ;
   !module_l

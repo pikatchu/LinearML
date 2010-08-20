@@ -135,6 +135,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 %nonassoc match_
 %nonassoc let_
 %nonassoc if_
+%right COLEQ
 %left BAR
 %right ARROW
 %right SC
@@ -395,3 +396,4 @@ expr:
   | [] -> $1 
   | _ -> Pos.btw (fst $1) (last $2), Eapply ($1, $2)
 }
+

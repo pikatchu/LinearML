@@ -291,7 +291,6 @@ module Pat = struct
 	let m = List.fold_left (pat_field t) m pfl in
 	ATrecord (idl, m)
 
-
   and pat_field t acc (_, pf) = pat_field_ t acc pf
   and pat_field_ t acc = function
     | PFany 

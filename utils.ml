@@ -6,6 +6,7 @@ module IMap = Map.Make (Ident)
 module ISet = Set.Make (Ident)
 
 let o = output_string stdout
+let on() = o "\n"
 
 let imap_of_list l = 
   List.fold_left 
@@ -58,6 +59,12 @@ let lfold2 f acc l1 l2 =
   let acc, l = List.fold_left2 (fun (acc, l) x1 x2 -> 
     let acc, x = f acc x1 x2 in
     acc, x :: l) (acc, []) l1 l2 in
+  acc, List.rev l
+
+let ilfold2 f acc l1 l2 = 
+  let acc, _, l = List.fold_left2 (fun (acc, n, l) x1 x2 -> 
+    let acc, x = f n acc x1 x2 in
+    acc, n+1, x :: l) (acc, 0, []) l1 l2 in
   acc, List.rev l
 
 let rec uniq cmp = function

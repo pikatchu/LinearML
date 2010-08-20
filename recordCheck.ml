@@ -3,6 +3,7 @@ open Stast
 
 type ty = ty_ list
 and ty_ =
+  | P
   | A
   | Rid of Ident.t
   | R of (field * ty) IMap.t
@@ -18,7 +19,8 @@ let get_record_type x t =
 
 let rec is_pointer l = List.fold_left is_pointer_ false l
 and is_pointer_ b = function
-  | A -> b
+  | P -> b
+  | A
   | Rid _ 
   | R _ -> true
 
@@ -46,8 +48,9 @@ module Unify = struct
   let rec unify tyl1 tyl2 = List.map2 unify_ tyl1 tyl2
   and unify_ ty1 ty2 = 
     match ty1, ty2 with
-    | A, A -> A
-    | A, t | t, A -> t
+    | P, P -> P
+    | P, t | t, P -> t
+    | A, _ | _, A -> A
     | Rid _ as ty, _
     | _, (Rid _ as ty) -> ty
     | R m1, R m2 -> R (iimap2 unify_fields m1 m2)
@@ -71,7 +74,8 @@ end
 
 let rec check_type pos tyl = List.iter (check_type_ pos) tyl 
 and check_type_ pos = function
-  | A -> ()
+  | A
+  | P
   | Rid _ -> ()
   | R m -> IMap.iter (check_field pos) m 
 
@@ -85,7 +89,7 @@ let rec type_expr_list (_, tyl) = List.map type_expr tyl
 and type_expr (_, ty) = type_expr_ ty
 and type_expr_ = function
   | Tany | Tprim _ 
-  | Tvar _ | Tfun _ -> A
+  | Tvar _ | Tfun _ -> P
   | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> type_expr ty
   | Tid (_, x)
   | Tapply ((_, x), _) -> Rid x
@@ -140,7 +144,8 @@ and pat_ t p ty =
   | Precord pfl -> pat_record t pfl ty
 
 and pat_record t pfl = function
-  | A -> assert false
+  | A
+  | P -> assert false
   | R m -> 
       let t, m = List.fold_left pat_field (t, m) pfl in
       let t = List.fold_left (pat_rest m) t pfl in
@@ -177,7 +182,7 @@ and expr_ t pos ty = function
   | Eid (_, x) -> IMap.find x t
   | Evalue _ 
   | Ebinop _
-  | Euop _ -> [A]
+  | Euop _ -> [P]
   | Evariant _ -> List.map type_expr ty
   | Ematch (e, al) -> 
       let pl = List.map (fun (_, ((p, _), _)) -> p) al in

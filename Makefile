@@ -50,6 +50,9 @@ OBJECTS_ML = \
 	stastCheck.ml\
 	recordCheck.ml\
 	linearCheck.ml\
+	ist.ml\
+	istOfStast.ml\
+	istPatterns.ml\
 	llast.ml\
 	emit.ml\
 	main.ml

@@ -78,6 +78,8 @@ and local_def t x =
   match l with
   | [] -> assert false 
   | x :: _ -> 
+      (* TODO bug fix on   let rec f x = f f *)
+      (* TODO bug fix on (fun x -> x x) (fun x -> x x) must check for loops *)
       (* This could probably be memoized ... not sure it is worth it *)
       type_expr_ t (snd (IMap.find x t))
 

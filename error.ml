@@ -241,8 +241,7 @@ let field_no_val p =
 let missing_field p x = 
   let x = Ident.to_string x in
   pos p ;
-  err ("You must define the field "^x^" before applying or returning \
-					 from a function") ;
+  err ("You must define the field: "^x) ;
   exit 2
 
 let fd_already_has_value p x = 

@@ -7,8 +7,6 @@ type env = {
     tenv: type_expr IMap.t ;
     defs: def IMap.t ;
     decls: bool TMap.t ;
-    phase2: bool ;
-    arities: int IMap.t ;
     apply_def_list: apply_def_list ;
   }
 
@@ -78,11 +76,6 @@ module LocalUtils = struct
     | Tany | Tprim Tbool -> ()
     | _ -> Error.expected_bool p
 
-  let check_used uset ((p, x), _, _) = 
-    if not (ISet.mem x uset) 
-    then Error.unused p
-    else ()
-
   let filter_undef ((x, tyl) as call) rty acc = 
     if partial_tundef tyl
     then acc
@@ -99,13 +92,35 @@ module LocalUtils = struct
 	p, Tapply (id, (p, List.map (fun (_, x) -> p, x) argl)) 
     | _, x -> p, x
 
+  let get_decl acc = function
+    | Dval (fid, (_, Tfun (tyl, _))) -> 
+	TMap.add (fid, tyl) true acc
+    | _ -> acc
+
+
 end
 open LocalUtils
+
+module NormalizeType = struct
+
+  let rec type_expr (p, ty) = p, type_expr_ ty
+  and type_expr_ = function
+  | Tany 
+  | Tdef _
+  | Tid _
+  | Tprim _ as x -> x
+  | Tvar _ -> Tany
+  | Tapply (x, tyl) -> Tapply (x, type_expr_list tyl)
+  | Tfun (tyl1, tyl2) -> Tfun (type_expr_list tyl1, type_expr_list tyl2)
+
+  and type_expr_list (p, tyl) = p, List.map type_expr tyl
+
+end
 
 module Print = struct
 
   let id o (_, x) =
-    let x = Ident.debug x in
+    let x = Ident.to_string x in
     o x
 
   let def_list o = function
@@ -118,7 +133,7 @@ module Print = struct
     type_expr_ o ty
 
   and type_expr_ o = function
-    | Tany -> o "ANY"
+    | Tany -> o "_"
     | Tprim ty -> type_prim o ty
     | Tvar x | Tid x -> id o x
     | Tdef m -> 
@@ -195,13 +210,15 @@ module Unify = struct
 	let acc, rty = env.apply_def_list env acc p idl tyl rty in
 	acc, (p, Tfun (tyl, rty))
 
-    | (p, Tapply ((_, x) as id, tyl1)), (_, Tapply ((_, y), tyl2)) when x = y -> 
+    | (p1, Tapply ((_, x) as id, tyl1)), (p2, Tapply ((_, y), tyl2)) when x = y -> 
+	let tyl1 = p1, snd tyl1 in
+	let tyl2 = p2, snd tyl2 in
 	let acc, tyl = unify_list env acc tyl1 tyl2 in 
-	acc, (p, Tapply (id, tyl))
+	acc, (p1, Tapply (id, tyl))
 
     | (p, Tfun (tyl1, tyl2)), (_, Tfun (tyl3, tyl4)) ->
-	let acc, tyl1 = unify_list env acc tyl1 tyl3 in
-	let acc, tyl2 = unify_list env acc tyl2 tyl4 in
+	let acc, tyl1 = unify_list_ env acc tyl1 tyl3 in
+	let acc, tyl2 = unify_list_ env acc tyl2 tyl4 in
 	acc, (p, Tfun (tyl1, tyl2))
 	  
     | (p, _), _ -> 
@@ -359,45 +376,69 @@ module Env = struct
     else Tany
 end
 
+module Usage = struct
+
+  let check_used uset ((p, x), _, _) = 
+    if not (ISet.mem x uset) 
+    then Error.unused p
+    else ()
+
+  let add_decl acc d =
+    match d with
+    | Dval ((_, x), _) -> ISet.add x acc
+    | _ -> acc
+
+  let add_call ((_, x), _) _ y =
+    ISet.add x y
+
+  let check acc md = 
+    let used = List.fold_left add_decl ISet.empty md.md_decls in
+    let used = TMap.fold add_call acc.mem used in
+    List.iter (check_used used) md.md_defs ;
+end
+
+let empty_env tenv app = {
+  tenv = tenv ; 
+  defs = IMap.empty ; 
+  decls = TMap.empty ;
+  apply_def_list = app ;
+} 
+
 let rec program mdl = 
   let tenv = Env.make mdl in
-  List.map (module_ tenv IMap.empty) mdl
+  List.map (module_ tenv) mdl
   
-and module_ tenv arities md = 
-  let env = { 
-    tenv = tenv ; 
-    defs = IMap.empty ; 
-    phase2 = false ; 
-    decls = TMap.empty ;
-    arities = arities ;
-    apply_def_list = apply_def_list ;
-  } in
+and module_ tenv md = 
+  let env = empty_env tenv apply_def_list in
   let env = List.fold_left def env md.md_defs in
   let decls = List.fold_left get_decl TMap.empty md.md_decls in
   let env = { env with decls = decls } in
   let acc = { mem = TMap.empty } in
-  let acc = List.fold_left (decl env) acc md.md_decls in
-  let used = List.fold_left (fun acc d -> 
-    match d with
-    | Dval ((_, x), _) -> ISet.add x acc
-    | _ -> acc) ISet.empty md.md_decls in
-  let used = TMap.fold (fun ((_, x), _) _ y -> 
-    ISet.add x y) acc.mem used in
-  List.iter (check_used used) md.md_defs ;
-(*  let mem = TMap.fold filter_undef acc.mem TMap.empty in 
-  let acc = { mem = mem } in *)
-(*   let env = { env with phase2 = true } in  *)
-  let acc = List.fold_left (decl env) acc md.md_decls in
+  let acc = List.fold_left (decl env) acc md.md_decls in (* Typing *)
+  Usage.check acc md ;
+  fresh_module env acc md 
+
+and fresh_module env acc md = 
   let ads = acc, [], IMap.empty in
-  let _, defs, subst = TMap.fold (typed_def env) acc.mem ads in 
+  let mem = TMap.fold (
+    fun (x, tyl) rty acc -> 
+      let tyl = NormalizeType.type_expr_list tyl in
+      let rty = NormalizeType.type_expr_list rty in
+      TMap.add (x, tyl) rty acc
+   ) acc.mem TMap.empty in
+  TMap.iter (fun (x, tyl) rty -> 
+    Ident.print (snd x) ;
+    Print.debug (snd tyl) ;
+    Print.debug (snd rty)) mem ;
+  let _, defs, subst = TMap.fold (typed_def env) mem ads in 
   let md = { 
     Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
     Tast.md_defs = defs ;
-  } in
+  } in 
   Tast.Rename.module_ subst md
 
-and def env (((p, x), al, b) as d) =
+and def env (((p, x), _, _) as d) =
   let tenv = IMap.add x (p, Tdef (IMap.add x p IMap.empty)) env.tenv in
   let defs = IMap.add x d env.defs in
   { env with tenv = tenv ; defs = defs }
@@ -407,25 +448,16 @@ and decl env acc = function
       let (_, args, e) = IMap.find (snd fid) env.defs in      
       let env, acc, _ = pat env acc args tyl in
       let acc, (rty2, _) = tuple env acc e in
-      if env.phase2 && tundef rty2
-      then Error.infinite_loop (fst rty2) ;
       let acc, rty = Unify.unify_list env acc rty2 rty in
       let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
       acc
   | Dval _ -> assert false
   | _ -> acc
 
-and get_decl acc = function
-  | Dval (fid, (_, Tfun (tyl, _))) -> 
-      TMap.add (fid, tyl) true acc
-  | _ -> acc
-
 and typed_def env ((p, f), tyl) rty (acc, defs, subst) =
   let (fid, args, e) = IMap.find f env.defs in
   let env, acc, args = pat env acc args tyl in
   let acc, ((rty2, _) as e) = tuple env acc e in
-(*  if tundef rty2
-  then Error.infinite_loop (fst rty2) ; *)
   let acc, rty = Unify.unify_list env acc rty2 rty in
   let def = fid, args, e in
   if TMap.mem (fid, tyl) env.decls 
@@ -523,10 +555,10 @@ and pat_field is_obs pty (env, acc) (p, pf) =
 and pat_variant is_obs env acc x args pty =
   let argty, rty = match IMap.find (snd x) env.tenv with
   | _, Tfun (tyl, rty) -> tyl, rty
-  | _ -> assert false in
-  let pty = fst pty, [pty] in 
+  | _ -> assert false (* TODO error no argument expected *) in
+  let pty = fst pty, [pty] in
   let acc, subst = Instantiate.inst_list env acc IMap.empty rty pty in
-  let acc, tyl = Instantiate.replace_list subst env acc argty in
+  let acc, tyl = Instantiate.replace_list subst env acc argty in 
   let obs_tyl = 
     if is_obs 
     then fst tyl, List.map make_observed (snd tyl) 
@@ -729,12 +761,10 @@ and apply env acc p (fp, x) tyl =
   | (_, Tfun (tyl1, tyl2)) -> 
       let acc, subst = Instantiate.inst_list env acc IMap.empty tyl1 tyl in
       let acc, rty = Instantiate.replace_list subst env acc tyl2 in
-      if env.phase2 && tundef rty
-      then Error.infinite_loop p ;
       acc, rty
 
   | (_, Tdef ids) -> 
-      let rty = p, [p, Tany] in (* TODO check that this is necessary *)
+      let rty = p, [p, Tany] in
       let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
       apply_def_list env acc p idl tyl rty
 
@@ -753,15 +783,10 @@ and apply_def env acc pl fid tyl rty =
   try 
     let mem_rty = TMap.find (fid, tyl) acc.mem in 
     let acc, rty = Unify.unify_list env acc rty mem_rty in
-    if env.phase2 && tundef rty
-    then Error.infinite_loop pl ;
     acc, rty 
   with Not_found -> 
-(*     let undef = pl, [pl, Tany] in *)
-(*    let acc' = { mem = TMap.add (fid, tyl) undef acc.mem } in
-    let _, rty = apply_def_ env acc' fid tyl rty in *) (* typing *)
     let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
-    let acc, rty = apply_def_ env acc fid tyl rty in (* retyping *)
+    let acc, rty = apply_def_ env acc fid tyl rty in
     acc, rty
     
 and apply_def_ env acc fid tyl rty = 
