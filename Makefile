@@ -52,7 +52,10 @@ OBJECTS_ML = \
 	linearCheck.ml\
 	ist.ml\
 	istOfStast.ml\
-	istPatterns.ml\
+	est.ml\
+	estSubst.ml\
+	estPp.ml\
+	estOfIst.ml\
 	llast.ml\
 	emit.ml\
 	main.ml

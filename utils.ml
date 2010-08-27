@@ -78,6 +78,7 @@ let uniq cmp l = uniq cmp (List.sort cmp l)
 let map_add t1 t2 = SMap.fold SMap.add t2 t1
 
 let option f = function None -> None | Some x -> Some (f x)
+let maybe f = function None -> () | Some x -> f x
 
 let fold_right f acc l = List.fold_right (fun x acc -> f acc x) l acc
 
@@ -105,3 +106,5 @@ let opt2 f x y =
   | _ -> raise (Invalid_argument "Utils.opt2")
 
 let soi = string_of_int 
+
+let lone = function [x] -> x | _ -> assert false

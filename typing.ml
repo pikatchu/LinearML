@@ -415,22 +415,16 @@ and module_ tenv md =
   let env = { env with decls = decls } in
   let acc = { mem = TMap.empty } in
   let acc = List.fold_left (decl env) acc md.md_decls in (* Typing *)
+  TMap.iter (fun ((_, x), args) rty ->
+    Ident.print x ;
+    Print.debug (snd args) ;
+    Print.debug (snd rty) ; ) acc.mem ;
   Usage.check acc md ;
   fresh_module env acc md 
 
 and fresh_module env acc md = 
   let ads = acc, [], IMap.empty in
-  let mem = TMap.fold (
-    fun (x, tyl) rty acc -> 
-      let tyl = NormalizeType.type_expr_list tyl in
-      let rty = NormalizeType.type_expr_list rty in
-      TMap.add (x, tyl) rty acc
-   ) acc.mem TMap.empty in
-  TMap.iter (fun (x, tyl) rty -> 
-    Ident.print (snd x) ;
-    Print.debug (snd tyl) ;
-    Print.debug (snd rty)) mem ;
-  let _, defs, subst = TMap.fold (typed_def env) mem ads in 
+  let _, defs, subst = TMap.fold (typed_def env) acc.mem ads in 
   let md = { 
     Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
@@ -768,6 +762,11 @@ and apply env acc p (fp, x) tyl =
       let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
       apply_def_list env acc p idl tyl rty
 
+  | (_, Tany) -> 
+      let rty = p, [p, Tany] in
+      let tyl = make_undef p (List.length (snd tyl)) in
+      apply_def env acc p (fp, x) (p, tyl) rty
+      
   | p2, ty -> 
       Print.debug [p2, ty] ;
       Error.expected_function fp (* TODO *)

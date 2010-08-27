@@ -55,7 +55,7 @@ and phi = type_ * (id * label) list
 and equation = id * instruction
 and instruction = 
   | Br of label * label
-  | Switch of (value * label) list
+  | Switch of (value * label) list * label
   | Binop of binop * type_ * id * id
   | Extract_value of type_ * idx
   | Insert of type_ * type_ * idx

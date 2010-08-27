@@ -46,15 +46,21 @@ ist.cmo: utils.cmx nast.cmx ident.cmi ast.cmx
 ist.cmx: utils.cmx nast.cmx ident.cmx ast.cmx 
 istOfStast.cmo: utils.cmx stast.cmx ist.cmx 
 istOfStast.cmx: utils.cmx stast.cmx ist.cmx 
-istPatterns.cmo: utils.cmx ist.cmx ident.cmi 
-istPatterns.cmx: utils.cmx ist.cmx ident.cmx 
+est.cmo: utils.cmx ist.cmx ident.cmi ast.cmx 
+est.cmx: utils.cmx ist.cmx ident.cmx ast.cmx 
+estSubst.cmo: utils.cmx est.cmx 
+estSubst.cmx: utils.cmx est.cmx 
+estPp.cmo: utils.cmx ist.cmx ident.cmi est.cmx ast.cmx 
+estPp.cmx: utils.cmx ist.cmx ident.cmx est.cmx ast.cmx 
+estOfIst.cmo: utils.cmx ist.cmx ident.cmi estSubst.cmx est.cmx 
+estOfIst.cmx: utils.cmx ist.cmx ident.cmx estSubst.cmx est.cmx 
 llast.cmo: 
 llast.cmx: 
 emit.cmo: /home/pika/godi/lib/llvm.cmi llast.cmx 
 emit.cmx: /home/pika/godi/lib/llvm.cmi llast.cmx 
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istPatterns.cmx istOfStast.cmx error.cmx 
+    linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx estOfIst.cmx error.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istPatterns.cmx istOfStast.cmx error.cmx 
+    linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx estOfIst.cmx error.cmx 

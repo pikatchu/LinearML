@@ -26,7 +26,8 @@ let _ =
     RecordCheck.program stast ;
     LinearCheck.program stast ;
     let ist = IstOfStast.program stast in
-    let _ = IstPatterns.program ist in
+    let est = EstOfIst.program ist in
+    EstPp.program est ;
 
     module_l := new_module :: !module_l 
   done ;
