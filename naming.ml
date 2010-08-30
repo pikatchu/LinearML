@@ -30,6 +30,8 @@ let tobs        = prim_type "obs"
 
 let free        = prim_value "free"
 let eunit       = prim_value "()"
+let get         = prim_value "array_get"
+let length      = prim_value "array_length"
 
 let prim_types  = !prim_types
 let prim_values = !prim_values

@@ -369,54 +369,44 @@ and expr_ p = function
   | Efield (e, x) -> 
       let e = simpl_expr e in
       Neast.Efield (e, x)
-
   | Ebinop (bop, e1, e2) ->
       let e1 = simpl_expr e1 in
       let e2 = simpl_expr e2 in
       Neast.Ebinop (bop, e1, e2)
-
   | Euop (uop, e) ->
       let e = simpl_expr e in
       Neast.Euop (uop, e)
-
   | Etuple _ -> assert false
   | Erecord fdl -> 
       let fdl = List.map (fun (x, e) -> x, tuple e) fdl in
       Neast.Erecord fdl
-
   | Ewith (e, fdl) -> 
       let e = simpl_expr e in
       let fdl = List.map (fun (x, e) -> x, tuple e) fdl in
       Neast.Ewith (e, fdl)
-
   | Elet (p, e1, e2) -> 
       let p = pat p in
       let e1 = tuple e1 in
       let e2 = tuple e2 in
       Neast.Elet (p, e1, e2)
-
   | Eif (e1, e2, e3) -> 
       let e1 = simpl_expr e1 in
       let e2 = tuple e2 in
       let e3 = tuple e3 in
       Neast.Eif (e1, e2, e3)
-
   | Efun _ -> assert false
   | Eapply (e, el) -> 
       let p, el = Pos.list el in
       let el = List.fold_right expr el [] in
       apply (simpl_expr e) (p, el)
-
   | Ematch (e, pel) -> 
       let e = tuple e in
       let pel = List.map (fun (p, e) -> pat p, tuple e) pel in
       Neast.Ematch (e, pel)
-
   | Eseq (e1, e2) -> 
       let e1 = simpl_expr e1 in
       let e2 = tuple e2 in
       Neast.Eseq (e1, e2)
-
   | Eobs x -> Neast.Eobs x
 
 and simpl_expr ((p, _) as e) = 

@@ -179,7 +179,7 @@ and tuple_pos t ((p, tyl), e) = expr_ t p tyl e
 and expr t ((p, _) as ty, e) = expr_ t p [ty] e 
 and expr_ t pos ty = function
   | Eobs (_, x)
-  | Eid (_, x) -> IMap.find x t
+  | Eid (_, x) -> (try IMap.find x t with Not_found -> [P])
   | Evalue _ 
   | Ebinop _
   | Euop _ -> [P]

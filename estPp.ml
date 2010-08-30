@@ -84,7 +84,7 @@ and expr = function
   | Efield (x, y) -> tid x ; o "." ; id y
   | Ematch (xl, al) -> 
       o "match " ; idl xl ; push() ; nl() ;List.iter action al ; pop()
-  | Eapply (x, l) -> o "call " ; id x ; idl l
+  | Eapply (x, l) -> o "call " ; id x ; o " " ; idl l
   | Eseq _ -> failwith "TODO seq"
   | Ecall x -> o "lcall " ; o (Ident.debug x)
   | Eif (x, l1, l2) -> 
@@ -114,7 +114,6 @@ and binop = function
   | Ast.Eplus -> o "plus"
   | Ast.Eminus -> o "minus"
   | Ast.Estar -> o "star"
-  | Ast.Ederef -> o "deref"
 
 and unop = function
   | Ast.Euminus -> o "uminus"

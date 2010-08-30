@@ -291,11 +291,11 @@ and expr_ t tyl = function
       let t' = { t with eqs = [] } in
       let t', idl1 = tuple t' e2 in
       let bl1 = block t'.eqs idl1 in
-      let t = { t with blocks = bl1 :: t.blocks } in
+      let t = { t with blocks = bl1 :: t'.blocks } in
       let t = { t with eqs = [] } in
       let t', idl2 = tuple t e3 in
       let bl2 = block t'.eqs idl2 in
-      let t = { t with blocks = bl2 :: t.blocks } in
+      let t = { t with blocks = bl2 :: t'.blocks } in
       let t = { t with eqs = eqs } in
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in

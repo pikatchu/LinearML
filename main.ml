@@ -25,6 +25,7 @@ let _ =
     StastCheck.program stast ;
     RecordCheck.program stast ;
     LinearCheck.program stast ;
+    BoundCheck.program stast ;
     let ist = IstOfStast.program stast in
     let est = EstOfIst.program ist in
     EstPp.program est ;

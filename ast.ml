@@ -95,7 +95,6 @@ and bop =
   | Eplus
   | Eminus
   | Estar
-  | Ederef
 
 and uop =
   | Euminus

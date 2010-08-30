@@ -58,17 +58,7 @@ let check_alive t =
  ) t
 
 let rec program mdl = 
-  let t = List.fold_left (
-    fun acc md ->
-      List.fold_left (
-      fun acc decl ->
-	match decl with
-	| Dval ((_, x), _) ->
-	    IMap.add x Prim acc
-	| _ -> acc
-     ) acc md.md_decls
-   ) IMap.empty mdl in
-  List.iter (module_ t) mdl
+  List.iter (module_ IMap.empty) mdl
 
 and module_ t md = 
   List.iter (def t) md.md_defs
@@ -107,11 +97,12 @@ and tuple_pos t (_, e) = expr_ t e
 and expr t (_, e) = expr_ t e
 and expr_ t = function
   | Eid (p, x) -> 
-      (match IMap.find x t with
+      (try match IMap.find x t with
       | Prim
       | Obs _ -> t
       | Used p' -> Error.already_used p p'
-      | _ -> IMap.add x (Used p) t)
+      | _ -> IMap.add x (Used p) t
+      with Not_found -> IMap.add x Prim t)
 
   | Evalue _ -> t
   | Evariant (_, e) -> tuple t e

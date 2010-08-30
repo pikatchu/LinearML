@@ -42,7 +42,6 @@ OBJECTS_ML = \
 	neast.ml\
 	nastExtractFuns.ml\
 	nastExpand.ml\
-	neastArity.ml\
 	tast.ml\
 	typing.ml\
 	stast.ml\
@@ -50,6 +49,7 @@ OBJECTS_ML = \
 	stastCheck.ml\
 	recordCheck.ml\
 	linearCheck.ml\
+	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
 	est.ml\
