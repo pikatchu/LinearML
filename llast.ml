@@ -5,7 +5,11 @@ and id = string
 and label = string
 and value = string
 and idx = int
-and module_ = string * function_ list
+and module_ = string * def list
+
+and def = 
+  | Type of string * type_
+  | Fun of function_
 
 and function_ = {
     flink: int ;
@@ -13,9 +17,13 @@ and function_ = {
     fargs: type_ list ;
     fbody: block list ;
     frett: type_ ;
+    fvret: string ;
   }
 
 and type_ = 
+  | Any
+  | Id of string
+  | Void
   | Int1 | Int8 
   | Int16 | Int32 
   | Int64 | ConstInt
@@ -23,6 +31,7 @@ and type_ =
   | Array of type_
   | Pointer of type_
   | Struct of type_ list
+  | Union of type_ list
   | Function of type_ list * type_ list
 
 and binop = 

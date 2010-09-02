@@ -8,3 +8,4 @@ val compare: t -> t -> int
 val to_string: t -> string
 val debug: t -> string
 val print: t -> unit
+val expand_name: t -> t -> unit

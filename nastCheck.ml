@@ -174,4 +174,4 @@ end = struct
     IMap.add id (pos, snd ty) acc
 end
 
-let program p = ()
+let program p = ModuleTypes.check p

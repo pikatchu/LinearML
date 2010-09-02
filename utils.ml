@@ -5,7 +5,7 @@ module SSet = Set.Make (Sid)
 module IMap = Map.Make (Ident)
 module ISet = Set.Make (Ident)
 
-let o = output_string stdout
+let o s = output_string stdout s ; flush stdout 
 let on() = o "\n"
 
 let imap_of_list l = 

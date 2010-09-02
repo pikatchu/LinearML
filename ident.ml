@@ -8,6 +8,7 @@ end)
 
 let counter = ref 0
 let trace = ref IMap.empty  
+let origin = ref IMap.empty
 
 let make x = 
   incr counter ;
@@ -30,6 +31,10 @@ let to_string x =
   try IMap.find x !trace
   with Not_found -> "v"^string_of_int x
 
+let expand_name md x = 
+  let md_name = IMap.find md !trace in
+  origin := IMap.add x md_name !origin
+ 
 let debug x =
   try IMap.find x !trace^"["^string_of_int x^"]"
   with Not_found -> "v["^string_of_int x^"]"

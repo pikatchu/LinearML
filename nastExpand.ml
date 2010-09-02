@@ -291,15 +291,24 @@ and type_expr_ = function
   | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 
-  | Tapply (((_, Tid x) | (_, Tpath (_, x))), tyl) -> 
+  | Tapply ((_, Tpath (md, x)), tyl) -> 
+      Ident.expand_name (snd md) (snd x) ;
       let p, tyl = Pos.list tyl in
       let tyl = List.map type_expr tyl in
       let tyl = p, tyl in
       Neast.Tapply (x, tyl)
-
-  | Tpath (x, y) -> Neast.Tid y
-  | Tfun (ty1, ty2) -> Neast.Tfun (type_expr_tuple ty1, type_expr_tuple ty2)
-
+  | Tapply ((_, Tid x), tyl) -> 
+      let p, tyl = Pos.list tyl in
+      let tyl = List.map type_expr tyl in
+      let tyl = p, tyl in
+      Neast.Tapply (x, tyl)
+  | Tpath (x, y) -> 
+      Ident.expand_name (snd x) (snd y) ;
+      Neast.Tid y
+  | Tfun (ty1, ty2) -> 
+      let ty1 = type_expr_tuple ty1 in
+      let ty2 = type_expr_tuple ty2 in
+      Neast.Tfun (ty1, ty2)
   | Tapply _ 
   | Ttuple _ 
   | Talgebric _ 

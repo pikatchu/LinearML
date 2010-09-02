@@ -13,6 +13,8 @@ let debug = function
   | Fresh _ -> o "Fresh"
   | Used _ -> o "Used"
 
+let get x t = try IMap.find x t with Not_found -> Prim
+
 let is_obs = function
   | _, Tapply ((_, x), _) when x = Naming.tobs -> true
   | _ -> false
@@ -97,12 +99,11 @@ and tuple_pos t (_, e) = expr_ t e
 and expr t (_, e) = expr_ t e
 and expr_ t = function
   | Eid (p, x) -> 
-      (try match IMap.find x t with
+      (match get x t with
       | Prim
       | Obs _ -> t
       | Used p' -> Error.already_used p p'
-      | _ -> IMap.add x (Used p) t
-      with Not_found -> IMap.add x Prim t)
+      | _ -> IMap.add x (Used p) t)
 
   | Evalue _ -> t
   | Evariant (_, e) -> tuple t e
@@ -135,7 +136,7 @@ and expr_ t = function
       union t sub
 
   | Eobs (p, x) -> 
-      (match IMap.find x t with
+      (match get x t with
       | Used p' -> Error.already_used p p'
       | _ -> t)
 
