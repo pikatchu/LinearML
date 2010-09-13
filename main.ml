@@ -28,8 +28,11 @@ let _ =
     BoundCheck.program stast ;
     let ist = IstOfStast.program stast in
     let est = EstOfIst.program ist in
-    let llast = LlastOfEst.program est in
-    let _ = Emit.program llast in
+(*     EstPp.program est ;   *)
+    let est = EstCompile.program est in
+     EstPp.program est ;  
+(*    let llast = LlastOfEst.program est in
+    let _ = Emit.program llast in *)
     module_l := new_module :: !module_l 
   done ;
   !module_l

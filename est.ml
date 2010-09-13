@@ -34,11 +34,18 @@ and pfield = id * pat
 
 and block = {
     bl_id: label ;
+    bl_phi: phi list ;
     bl_eqs: equation list ;
     bl_ret: ty_idl ;
   }
 
-and equation = ty_idl * expr
+and phi = id * (id * label) list
+
+and equation = 
+  | Eq of ty_idl * expr
+  | If of ty_id * label * label
+  | Return of ty_idl
+  | Jump of label
 
 and expr = 
   | Eid of id
@@ -54,5 +61,4 @@ and expr =
   | Eapply of id * ty_idl
   | Eseq of ty_id * ty_idl
   | Eif of ty_id * label * label
-
 

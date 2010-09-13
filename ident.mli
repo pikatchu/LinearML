@@ -9,3 +9,5 @@ val to_string: t -> string
 val debug: t -> string
 val print: t -> unit
 val expand_name: t -> t -> unit
+val origin: t -> string
+val to_ustring: t -> string

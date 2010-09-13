@@ -12,22 +12,28 @@ and def =
   | Fun of function_
 
 and function_ = {
-    flink: int ;
+    flink: Llvm.Linkage.t ;
+    fcc:   int ;
     fname: string ;
-    fargs: type_ list ;
+    fargs: id list ;
+    ftargs: type_ list ;
     fbody: block list ;
     frett: type_ ;
-    fvret: string ;
   }
 
 and type_ = 
   | Any
   | Id of string
+  | Path of string * string
   | Void
-  | Int1 | Int8 
-  | Int16 | Int32 
-  | Int64 | ConstInt
-  | Float | Double
+  | Int1 
+  | Int8 
+  | Int16 
+  | Int32 
+  | Int64 
+  | ConstInt
+  | Float 
+  | Double
   | Array of type_
   | Pointer of type_
   | Struct of type_ list
@@ -47,30 +53,46 @@ and icmp =
   | Slt | Sle
 
 and fcmp =
-  | Oeq | Ogt | Oge | Olt
-  | Ole | One | Ord | Ueq
-  | Ugt | Uge | Ult | Ule
-  | Une | Uno
+  | FOeq | FOgt | FOge | FOlt
+  | FOle | FOne | FOrd | FUeq
+  | FUgt | FUge | FUlt | FUle
+  | FUne | FUno
 
 and block = {
     bname: string ;
     bdecl: phi list ;
-    bbody: equation list ;
-    bret: id ;
+    bbody: instruction list ;
+    bret: block_return ;
   }
+
+and block_return = 
+  | Return of id list
+  | Jmp of id
+  | Noreturn
 
 and phi = type_ * (id * label) list
 
-and equation = id * instruction
 and instruction = 
-  | Br of label * label
-  | Switch of (value * label) list * label
-  | Binop of binop * type_ * id * id
-  | Extract_value of type_ * idx
-  | Insert of type_ * type_ * idx
-  | Alloca of type_ 
-  | Load of type_ * id
-  | Store of type_ * id * id (* value * pointer *)
-  | Get_element_ptr of int
-  | Icmp of icmp * type_ * id * id
-  | Fcmp of fcmp * type_ * id * id
+  | Alias of id * id
+  | Const of id * type_ * const
+  | Br of id * label * label
+  | Switch of id * (value * label) list * label
+  | Binop of id * binop * type_ * id * id
+  | Extract_value of id * type_ * idx
+  | Insert of id * type_ * type_ * idx
+  | Alloca of id * type_ 
+  | Load of id * type_ * id
+  | Store of id * id
+  | Get_element_ptr of id * id * int
+  | Get_field of id * id * int
+  | Icmp of id * icmp * type_ * id * id
+  | Fcmp of id * fcmp * type_ * id * id
+  | Alloc of id * type_
+  | VAlloc of id * type_ * type_
+  | Cast of id * id * type_
+  | Call of bool * id * id * id list
+
+and const = 
+  | Const_int of string
+  | Const_float of string
+  | Const_enum of int

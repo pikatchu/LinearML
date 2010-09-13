@@ -41,3 +41,9 @@ let debug x =
 
 let print x = 
   Printf.printf "%s\n" (debug x)
+
+let origin x = 
+  IMap.find x !origin
+
+let to_ustring x = to_string x ^ string_of_int x
+  

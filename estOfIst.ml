@@ -217,6 +217,7 @@ and make_params = function
       List.map (
       fun (ty, x) -> 
 	match x with
+	| Pvalue (Eunit)
 	| Pany -> (ty, new_id())
 	| Pid x -> ty, x
 	| _ -> assert false) l
@@ -224,6 +225,7 @@ and make_params = function
 
 and block eqs retl = {
   Est.bl_id = new_label() ;
+  Est.bl_phi = [] ;
   Est.bl_eqs = List.rev eqs ;
   Est.bl_ret = retl ;
 }
@@ -359,7 +361,7 @@ and action (p, e) (t, acc) =
   
 
 and equation t idl e = {
-  t with eqs = (idl, e) :: t.eqs
+  t with eqs = Est.Eq (idl, e) :: t.eqs
 }
 
 

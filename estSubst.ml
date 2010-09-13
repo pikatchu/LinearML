@@ -15,11 +15,16 @@ and ty_idl t l = List.map (ty_id t) l
 
 and block t bl = {
   Est.bl_id = bl.bl_id ;
+  Est.bl_phi = [] ;
   Est.bl_eqs = List.map (equation t) bl.bl_eqs ;
   Est.bl_ret = ty_idl t bl.bl_ret ;
 }
 
-and equation t (idl, e) = ty_idl t idl, expr t e
+and equation t eq = 
+  match eq with
+  | Eq (idl, e) ->
+      Eq (ty_idl t idl, expr t e)
+  | _ -> assert false
 
 and expr t = function
   | Eid x -> Eid (id t x)

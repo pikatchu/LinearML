@@ -62,16 +62,32 @@ and block bl =
   nl() ;
   push() ; 
   nl() ;
+  if bl.bl_phi <> [] then (o "phi: " ; nl() ; List.iter phi bl.bl_phi ; nl()) ;
   List.iter equation bl.bl_eqs ;
-  o "return " ; List.iter (fun (_, x) -> id x ; o " ") bl.bl_ret  ;
+  if bl.bl_ret <> [] then (o "return " ; List.iter (fun (_, x) -> id x ; o " ") bl.bl_ret)  ;
   pop() ;
   nl()
 
-and equation (idl, e) = 
-  List.iter (fun (_, x) -> id x) idl ; 
-  o " = " ;
-  expr e ;
+and phi (x, l) = 
+  id x ; o " <- " ; 
+  List.iter (fun (x, lbl) -> o "(" ; id x ; o ", " ; label lbl ; o ") ; ") l ;
   nl()
+
+and equation = function
+  | Eq (idl, e) ->
+      List.iter (fun (_, x) -> id x) idl ; 
+      o " = " ;
+      expr e ;
+      nl()
+  | If (x, l1, l2) ->
+      o "Iif " ; tid x ; o " then jump " ; label l1 ; 
+      o " else jump " ; label l2 ;
+      nl()
+  | Return idl ->
+      o "Ireturn " ; List.iter (fun (_, x) -> id x ; o " ") idl ;
+      nl()
+  | Jump l -> o "jump " ; id l ; nl()
+
 
 and expr = function
   | Eid x -> id x
