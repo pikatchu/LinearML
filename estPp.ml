@@ -64,7 +64,17 @@ and block bl =
   nl() ;
   if bl.bl_phi <> [] then (o "phi: " ; nl() ; List.iter phi bl.bl_phi ; nl()) ;
   List.iter equation bl.bl_eqs ;
-  if bl.bl_ret <> [] then (o "return " ; List.iter (fun (_, x) -> id x ; o " ") bl.bl_ret)  ;
+  (match bl.bl_ret with
+  | Lreturn l -> (o "lreturn " ; List.iter (fun (_, x) -> id x ; o " ") l)  ;
+  | Return l -> (o "return " ; List.iter (fun (_, x) -> id x ; o " ") l)  ;
+  | Jump x -> o "jump " ; id x
+  | If (x, l1, l2) ->
+      o "Iif " ; tid x ; o " then jump " ; label l1 ; 
+      o " else jump " ; label l2 ;
+  | Match (xl, al) -> 
+      o "match " ; idl xl ; push() ; nl() ; List.iter maction al ; pop()
+
+  ) ;
   pop() ;
   nl()
 
@@ -73,21 +83,11 @@ and phi (x, l) =
   List.iter (fun (x, lbl) -> o "(" ; id x ; o ", " ; label lbl ; o ") ; ") l ;
   nl()
 
-and equation = function
-  | Eq (idl, e) ->
-      List.iter (fun (_, x) -> id x) idl ; 
-      o " = " ;
-      expr e ;
-      nl()
-  | If (x, l1, l2) ->
-      o "Iif " ; tid x ; o " then jump " ; label l1 ; 
-      o " else jump " ; label l2 ;
-      nl()
-  | Return idl ->
-      o "Ireturn " ; List.iter (fun (_, x) -> id x ; o " ") idl ;
-      nl()
-  | Jump l -> o "jump " ; id l ; nl()
-
+and equation (idl, e) = 
+  List.iter (fun (_, x) -> id x) idl ; 
+  o " = " ;
+  expr e ;
+  nl()
 
 and expr = function
   | Eid x -> id x
@@ -110,6 +110,9 @@ and expr = function
 and field (x, l) = id x ; o " = " ; idl l
 and action (p, e) = 
   pat p ; o " -> " ; expr e ; nl()
+
+and maction (p, lbl) = 
+  pat p ; o " -> jump " ; id lbl ; nl()
 
 and tid (_, x) = id x
 

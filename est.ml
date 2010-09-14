@@ -36,16 +36,19 @@ and block = {
     bl_id: label ;
     bl_phi: phi list ;
     bl_eqs: equation list ;
-    bl_ret: ty_idl ;
+    bl_ret: ret ;
   }
+
+and ret =   
+  | Lreturn of ty_idl
+  | Return of ty_idl
+  | Jump of label
+  | If of ty_id * label * label
+  | Match of ty_idl * (pat * label) list
 
 and phi = id * (id * label) list
 
-and equation = 
-  | Eq of ty_idl * expr
-  | If of ty_id * label * label
-  | Return of ty_idl
-  | Jump of label
+and equation = ty_idl * expr
 
 and expr = 
   | Eid of id

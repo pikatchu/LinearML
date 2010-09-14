@@ -56,11 +56,7 @@ OBJECTS_ML = \
 	estSubst.ml\
 	estPp.ml\
 	estOfIst.ml\
-	estOptim.ml\
 	estCompile.ml\
-	llastOfEst.ml\
-	llast.ml\
-	emit.ml\
 	main.ml
 # 	id.ml\
 # 	ast.ml\

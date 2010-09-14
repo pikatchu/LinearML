@@ -17,14 +17,17 @@ and block t bl = {
   Est.bl_id = bl.bl_id ;
   Est.bl_phi = [] ;
   Est.bl_eqs = List.map (equation t) bl.bl_eqs ;
-  Est.bl_ret = ty_idl t bl.bl_ret ;
+  Est.bl_ret = ret t bl.bl_ret ;
 }
 
-and equation t eq = 
-  match eq with
-  | Eq (idl, e) ->
-      Eq (ty_idl t idl, expr t e)
-  | _ -> assert false
+and ret t = function
+  | Lreturn l -> Lreturn (ty_idl t l)
+  | Return l -> Return (ty_idl t l)
+  | Jump x -> Jump x
+  | If (c, l1, l2) -> If (ty_id t c, l1, l2)
+  | Match (cl, al) -> Match (ty_idl t cl, al)
+
+and equation t (idl, e) = ty_idl t idl, expr t e
 
 and expr t = function
   | Eid x -> Eid (id t x)

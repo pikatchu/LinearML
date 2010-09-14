@@ -200,7 +200,7 @@ and def (x, p, e) =
   let t = empty in
   let idl1 = make_params p in
   let t, idl2 = tuple t e in
-  let fblock = block t.eqs idl2 in 
+  let fblock = block t.eqs (Est.Return idl2) in 
   let def = {
   Est.df_id = x ;
   Est.df_args = idl1 ;
@@ -270,7 +270,10 @@ and expr t (tyl, e) =
   t, id
 
 and expr_ t tyl = function
-  | Eid x -> t, [lone tyl, x] 
+  | Eid x -> 
+      let idl = make_idl tyl in
+      let t = equation t idl (Est.Eid x) in
+      t, idl
   | Efield (e, x) -> 
       let idl = make_idl tyl in
       let t, id = expr t e in
@@ -292,11 +295,11 @@ and expr_ t tyl = function
       let eqs = t.eqs in
       let t' = { t with eqs = [] } in
       let t', idl1 = tuple t' e2 in
-      let bl1 = block t'.eqs idl1 in
+      let bl1 = block t'.eqs (Est.Lreturn idl1) in
       let t = { t with blocks = bl1 :: t'.blocks } in
       let t = { t with eqs = [] } in
       let t', idl2 = tuple t e3 in
-      let bl2 = block t'.eqs idl2 in
+      let bl2 = block t'.eqs (Est.Lreturn idl2) in
       let t = { t with blocks = bl2 :: t'.blocks } in
       let t = { t with eqs = eqs } in
       let ridl = make_idl tyl in
@@ -347,22 +350,23 @@ and field t (x, e) =
   t, (x, idl)
 
 and action (p, e) (t, acc) = 
-  let eqs = t.eqs in
-  let t = { t with eqs = [] } in
-  let t, idl = tuple t e in
-  let bl = block t.eqs idl in
-  let t = { t with blocks = bl :: t.blocks } in
-  let t = { t with eqs = eqs } in
-  let label = Est.Ecall bl.Est.bl_id in
+  let t, label = make_block t e in
   let pll = SplitPat.pat p in
   let pll = List.fold_right (fun p acc -> pat [p] label :: acc) pll [] in
   let pl = List.flatten pll in
-  t, pl @ acc
-  
+  t, pl @ acc  
 
 and equation t idl e = {
-  t with eqs = Est.Eq (idl, e) :: t.eqs
+  t with eqs = (idl, e) :: t.eqs
 }
 
-
-
+and make_block t e = 
+  let eqs = t.eqs in
+  let t = { t with eqs = [] } in
+  let t, idl = tuple t e in
+  let bl = block t.eqs (Est.Lreturn idl) in
+  let t = { t with blocks = bl :: t.blocks } in
+  let t = { t with eqs = eqs } in
+  let label = Est.Ecall bl.Est.bl_id in
+  t, label
+            
