@@ -77,21 +77,27 @@ module BreakPat = struct
   let make_idl = List.map (fun (ty, _) -> ty, Ident.tmp())
 
   let rec partition id s = function
-    | [] -> s, []
+    | [] -> s, None, []
     | ([], _) :: rl2 -> partition id s rl2
     | ((ty, Pvariant (x, l1)) :: rl1, a) :: rl2 -> 
-	let s, p = partition id s rl2 in
-	s, (match p with
+	let s, todo, p = partition id s rl2 in
+	s, todo, (match p with
 	| [] -> [ty, `V x, [l1], [rl1, a]]
 	| (_, `V y, subpl, pl) :: rl when x = y -> 
 	    (ty, `V x, l1 :: subpl, (rl1, a) :: pl) :: rl
-	| l -> (ty, `V x, [l1], [rl1, a]) :: l)
+	| l -> 
+	    let rest = match todo with
+	    | None -> []
+	    | Some a -> 
+		let l = List.map (fun (x, _) -> x, Pany) rl1 in
+		[l, a] in
+	    (ty, `V x, [l1], (rl1, a) :: rest) :: l)
     | ([ty, Pany], a) :: rl2 ->
-	let s, p = partition id s rl2 in
-	s, (ty, `U, [[]], [[], a]) :: p
+	let s, _, p = partition id s rl2 in
+	s, None, (ty, `U, [[]], [[], a]) :: p
     | ((ty, Pany) :: rl1, a) :: rl2 ->
-	let s, p = partition id s rl2 in
-	s, (match p with
+	let s, _, p = partition id s rl2 in
+	s, Some a, (match p with
 	| [] -> [ty, `U, [[]], [rl1, a]]
 	| part ->
 	    List.map (
@@ -99,13 +105,13 @@ module BreakPat = struct
 	      ty, x, subpl, (rl1, a) :: pl
 	   ) part) 
     | ([ty, Pid x], a) :: rl2 -> 
-	let s, p = partition id s rl2 in
+	let s, _, p = partition id s rl2 in
 	let s = IMap.add x id s in
-	s, (ty, `U, [[]], [[], a]) :: p
+	s, None, (ty, `U, [[]], [[], a]) :: p
     | ((ty, Pid x) :: rl1, a) :: rl2 -> 
-	let s, p = partition id s rl2 in
+	let s, _, p = partition id s rl2 in
 	let s = IMap.add x id s in
-	s, (match p with
+	s, Some a, (match p with
 	| [] -> [ty, `U, [[]], [rl1, a]]
 	| part ->
 	    List.map (
@@ -118,7 +124,7 @@ module BreakPat = struct
     match idl with
     | [] -> assert false
     | id :: rl -> 
-	let subst, pal = partition (snd id) subst pal in
+	let subst, _, pal = partition (snd id) subst pal in
 	let subst, al = 
 	  lfold (
 	  fun subst (ty, x, subpl, al) -> 
@@ -167,7 +173,7 @@ module PatOpt = struct
 	let pal = List.map (fun (x, y) -> x, expr y) pal in
 	(match pal with
 	| ((_, Pany) :: _, e) :: _ -> e
-	| _ -> Ematch (x, pal))
+	| _ -> Ematch (x, pal)) 
     | x -> x
 end
 
