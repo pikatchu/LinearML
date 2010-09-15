@@ -86,11 +86,11 @@ and pat_ t ty = function
   | Pvariant (_, p) -> pat t p
   | Precord pfl -> List.fold_left (pat_field ty) t pfl 
 
-and pat_field ty t (_, pf) = pat_field_ ty t pf
-and pat_field_ ty t = function
+and pat_field ty t (p, pf) = pat_field_ ty t p pf
+and pat_field_ ty t p = function
   | PFany -> (match ty with
     | _, Tprim _ -> t
-    | _ -> check_observable ty ; t)
+    | _ -> check_observable (p, snd ty) ; t)
   | PFid (p, x) -> IMap.add x (Fresh p) t 
   | PField (_, p) -> pat t p
 
@@ -111,7 +111,7 @@ and expr_ t = function
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.fold_left field t fdl 
   | Ewith (e, fdl) -> List.fold_left field (expr t e) fdl 
-  | Efield (e, _) -> expr t e 
+  | Efield (_, _) -> t (* Accessing a field doesn't consume *)
   | Ematch (e, al) -> 
       let t = tuple t e in
       let tl = List.map (action t) al in

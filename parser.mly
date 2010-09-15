@@ -256,7 +256,7 @@ pat_field_l:
 
 simpl_pat:
 | ID { fst $1, Pid $1 }
-| CSTR { fst $1, Pcstr $1 }
+| CSTR { fst $1, Pcstr $1 } 
 | LP RP { Pos.btw $1 $2, Punit }
 | LP pat RP { $2 }
 | UNDERSCORE { $1, Pany }

@@ -46,7 +46,7 @@ module Test: sig
     | BBBBBBBBBBBBBBBBBBBB
     | BBBBBBBBBBBBBBBBBBBBB
 
-  val f: t -> int32
+  val f: t obs -> int32
 
 
 end = struct
@@ -431,7 +431,7 @@ end = struct
     | BBBBBBBBBBBBBBBBBB, _, BBBBBBBB -> 0
     | _, BBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
     | BBBBBBBBBBBBBBBBBBBB, BBBBBBBB, _ -> 0
-
+    | _, _, _ -> 1
 
 end
 

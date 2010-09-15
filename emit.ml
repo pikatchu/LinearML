@@ -1,5 +1,7 @@
 open Utils
 open Llvm
+open Llvm_target
+open Llvm_scalar_opts
 open Llast
 
 module Type = struct
@@ -103,7 +105,7 @@ type env = {
     builder: llbuilder ;
     types: lltype SMap.t ;
     malloc: llvalue ;
-    bls: Llast.block SMap.t ;
+    bls: llbasicblock SMap.t ;
   }
 
 let pervasives ctx = 
@@ -114,6 +116,7 @@ let pervasives ctx =
   let malloc = declare_function "malloc" fty md in
   set_linkage Linkage.External malloc ; 
   dump_module md ;
+  Llvm_analysis.assert_valid_module md ;
   malloc
 
 let rec program mdl = 
@@ -123,6 +126,23 @@ let rec program mdl =
 
 and module_ mds ctx t (md_id, md) = 
   let (md, tys, fs, dl) = SMap.find md_id t in
+  let pm = PassManager.create () in
+  (* Promote allocas to registers. *)
+(*   add_memory_to_register_promotion pm;  *)
+  (* reassociate expressions. *)
+(*    add_reassociation pm;  *)
+  (* Eliminate Common SubExpressions. *)
+(*    add_gvn pm;  *)
+  (* Simplify the control flow graph (deleting unreachable blocks, etc). *)
+  (* Do simple "peephole" optimizations and bit-twiddling optzn. *)
+(*  add_tail_call_elimination pm ; *)
+(*       add_cfg_simplification pm;     *)
+(*        add_instruction_combination pm;    *)
+(*  add_memory_to_register_demotion pm ;
+  add_cfg_simplification pm; *)
+  (* Set up the optimizer pipeline.  Start with registering info about how he                                                                                                
+   * target lays out data structures. *)
+(*  add_jump_threading pm ; *)
   let builder = builder ctx in
   let malloc = pervasives ctx in
   let env = 
@@ -135,6 +155,7 @@ and module_ mds ctx t (md_id, md) =
       bls = SMap.empty ;
     } in
   List.iter (def env) dl ;
+  ignore (PassManager.run_module md pm) ;
   dump_module md ; o "\n" ;
 
 and def env = function
@@ -146,47 +167,65 @@ and function_ env f =
   let params = params proto in
   let params = Array.to_list params in
   let ins = List.fold_left2 param env.fmap f.fargs params in 
-  body env proto ins f.fbody
+  ignore (body env proto ins f.fbody) ;
+  ()
 
 and param acc x v = 
   SMap.add x v acc
 
 and body env proto params bll = 
-  match bll with
-  | [] -> assert false
-  | x :: rl ->
-      let bls = List.fold_left (
-	fun acc bl ->
-	  SMap.add bl.bname bl acc
-       ) SMap.empty rl in
-      let env = { env with bls = bls } in
-      block env proto params x
+  let bls = List.fold_left (
+    fun acc bl ->
+      let bb = append_block env.ctx bl.bname proto in
+      SMap.add bl.bname bb acc
+   ) SMap.empty bll in
+  let env = { env with bls = bls } in
+  List.fold_left (block env proto) params bll
+
+and make_phi env acc (x, ty, lbls) = 
+  let lbls = List.map (
+    fun (x, l) ->
+      let bb = SMap.find l env.bls in
+      SMap.find x acc, 
+      bb
+   ) lbls in
+  let v = build_phi lbls x env.builder in
+  SMap.add x v acc
 
 and block env proto acc bl = 
-  let bb = append_block env.ctx bl.bname proto in
-  position_at_end bb env.builder ;
+  let bb = SMap.find bl.bname env.bls in
+  position_at_end bb env.builder ;  
+  let acc = List.fold_left (make_phi env) acc bl.bdecl in
   let acc = List.fold_left (instruction proto bb env) acc bl.bbody in
-  let acc = match bl.bret with
-  | Noreturn -> acc
+  (match bl.bret with
   | Return [] -> assert false
   | Return [x] -> 
-(* TODO get rid of try *)      
-      (try 
-       ignore (build_ret (SMap.find x acc) env.builder) ; 
-	acc
-      with _ -> acc)
+       ignore (build_ret (SMap.find x acc) env.builder)
   | Return l ->
       let l = List.map (fun x -> SMap.find x acc) l in
       let t = Array.of_list l in
-      ignore (build_aggregate_ret t env.builder)  ;
-      acc
+      ignore (build_aggregate_ret t env.builder)
   | Jmp lbl -> 
       let target = SMap.find lbl env.bls in
-      let acc, sub = block env proto acc target in
-      position_at_end bb env.builder ;
-      ignore (build_br sub env.builder) ;
-      acc in 
-  acc, bb
+      ignore (build_br target env.builder) 
+  | Br (x, l1, l2) -> 
+      let b1 = SMap.find l1 env.bls in
+      let b2 = SMap.find l2 env.bls in
+      let x = SMap.find x acc in
+      ignore (build_cond_br x b1 b2 env.builder)
+  | Switch (x, cases, default) -> 
+      let x = SMap.find x acc in
+      let default = SMap.find default env.bls in
+      let n = List.length cases in
+      let sw = build_switch x default n env.builder in
+      List.iter (
+      fun (v, lbl) -> 
+	let v = SMap.find v acc in
+	let lbl = SMap.find lbl env.bls in
+	ignore (add_case sw v lbl)
+     ) cases
+  );
+  acc
 
 and instruction proto bb env acc = function
   | Alias (x, y) -> 
@@ -236,17 +275,9 @@ and instruction proto bb env acc = function
   | Cast (x, y, ty) -> 
       let ty = Type.type_ env.mds env.types env.ctx ty in      
       let y = SMap.find y acc in
+      dump_value y ;
       let v = build_bitcast y ty x env.builder in
       SMap.add x v acc
-  | Br (x, l1, l2) -> 
-      let b1 = SMap.find l1 env.bls in
-      let b2 = SMap.find l2 env.bls in
-      let acc, b1 = block env proto acc b1 in 
-      let acc, b2 = block env proto acc b2 in
-      position_at_end bb env.builder ;
-      let x = SMap.find x acc in
-      ignore (build_cond_br x b1 b2 env.builder) ;
-      acc
   | Call (tail, x, f, l) -> 
       let f = SMap.find f acc in
       let l = List.map (fun v -> SMap.find v acc) l in
@@ -261,7 +292,6 @@ and instruction proto bb env acc = function
       let v = build_icmp cmp v1 v2 x env.builder in
       SMap.add x v acc
 
-  | Switch _ -> failwith "TODO Switch in emit.ml"
   | Extract_value _ -> failwith "TODO Extract_value in emit.ml"
   | Insert _ -> failwith "TODO Insert in emit.ml"
   | Alloca _ -> failwith "TODO Alloca in emit.ml"
@@ -309,8 +339,9 @@ and const env ty = function
   | Const_float s -> 
       const_float_of_string ty s
   | Const_enum i ->
-      let i = const_int (i16_type env.ctx) i in
-      const_union ty i
+(*      let i = const_int (i32_type env.ctx) i in
+      const_union ty i *)
+      const_int (i32_type env.ctx) i
 
 and icmp = function
   | Llast.Eq -> Llvm.Icmp.Eq 

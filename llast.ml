@@ -68,15 +68,14 @@ and block = {
 and block_return = 
   | Return of id list
   | Jmp of id
-  | Noreturn
+  | Br of id * label * label
+  | Switch of id * (value * label) list * label
 
-and phi = type_ * (id * label) list
+and phi = id * type_ * (id * label) list
 
 and instruction = 
   | Alias of id * id
   | Const of id * type_ * const
-  | Br of id * label * label
-  | Switch of id * (value * label) list * label
   | Binop of id * binop * type_ * id * id
   | Extract_value of id * type_ * idx
   | Insert of id * type_ * type_ * idx

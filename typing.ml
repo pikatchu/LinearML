@@ -49,6 +49,10 @@ module LocalUtils = struct
     | Tapply ((_, x), _) when x = Naming.tobs -> p, ty
     | _ -> p, Tapply ((p, Naming.tobs), (p, [p, ty]))
 
+  let unobserve = function
+    | (_, Tapply ((_, x), (_, [y]))) when x = Naming.tobs -> y
+    | x -> x
+
   let rec tundef (_, tyl) = tundef_ tyl
   and tundef_ tyl = 
     match tyl with
@@ -544,7 +548,8 @@ and pat_el env acc (pos, p) (_, ty) =
 and pat_field is_obs pty (env, acc) (p, pf) = 
   let pty = p, snd pty in
   match pf with 
-  | PFany -> (env, acc), (pty, (p, Tast.PFany))
+  | PFany -> 
+      (env, acc), (pty, (p, Tast.PFany))
   | PFid ((_, x) as id) -> 
       let pty = if is_obs then make_observed pty else pty in
       let env = { env with tenv = IMap.add x pty env.tenv } in
@@ -705,19 +710,17 @@ and variant env acc (x, el) =
   | _ -> assert false
 
 and proj env acc ty fty = 
-  match ty, fty with
+  match unobserve ty, fty with
   | (p1, Tid (_, x1)), (p2, Tfun ((_, ty), (_, [_, Tid (_, x2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
       acc, (p1, ty)
-
   | (p1, Tapply ((_, x1), argl1)), 
     (p2, Tfun (ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
       let acc, subst = Instantiate.inst_list env acc IMap.empty argl2 argl1 in
       Instantiate.replace_list subst env acc ty
-
   | (p1, _), (p2, _) -> Error.unify_proj p1 p2
 
 and binop env acc bop p ty1 ty2 = 

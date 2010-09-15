@@ -52,389 +52,385 @@ module Test: sig
 end = struct
 
 
-
-
   let rec f t =
-    match t, t with
-    | A, A -> 0
-    | AA, A -> 0
-    | AAA, A -> 0
-    | AAAA, A -> 0
-    | AAAAA, A -> 0
-    | AAAAAA, A -> 0
-    | AAAAAAA, A -> 0
-    | AAAAAAAA, A -> 0
-    | AAAAAAAAA, A -> 0
-    | AAAAAAAAAA, A -> 0
-    | AAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAAAAA, A -> 0
-    | AAAAAAAAAAAAAAAAAAAA, A -> 0
+    match t, t, t with
+    | A, _, A -> 0
+    | _, AA, A -> 0
+    | AAA, A, _ -> 0
+    | AAAA, _, A -> 0
+    | _, AAAAA, A -> 0
+    | AAAAAA, A, _ -> 0
+    | AAAAAAA, _, A -> 0
+    | _, AAAAAAAA, A -> 0
+    | AAAAAAAAA, A, _ -> 0
+    | AAAAAAAAAA, _, A -> 0
+    | _, AAAAAAAAAAA, A -> 0
+    | AAAAAAAAAAAA, A, _ -> 0
+    | AAAAAAAAAAAAA, _, A -> 0
+    | _, AAAAAAAAAAAAAA, A -> 0
+    | AAAAAAAAAAAAAAA, A, _ -> 0
+    | AAAAAAAAAAAAAAAA, _, A -> 0
+    | _, AAAAAAAAAAAAAAAAA, A -> 0
+    | AAAAAAAAAAAAAAAAAA, A, _ -> 0
+    | AAAAAAAAAAAAAAAAAAA, _, A -> 0
+    | _, AAAAAAAAAAAAAAAAAAAA, A -> 0
 
-    | B, A -> 0
-    | BB, A -> 0
-    | BBB, A -> 0
-    | BBBB, A -> 0
-    | BBBBB, A -> 0
-    | BBBBBB, A -> 0
-    | BBBBBBB, A -> 0
-    | BBBBBBBB, A -> 0
-    | BBBBBBBBB, A -> 0
-    | BBBBBBBBBB, A -> 0
-    | BBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBBBBB, A -> 0
-    | BBBBBBBBBBBBBBBBBBBB, A -> 0
+    | B, A, _ -> 0
+    | BB, _, A -> 0
+    | _, BBB, A -> 0
+    | BBBB, A, _ -> 0
+    | BBBBB, _, A -> 0
+    | _, BBBBBB, A -> 0
+    | BBBBBBB, A, _ -> 0
+    | BBBBBBBB, _, A -> 0
+    | _, BBBBBBBBB, A -> 0
+    | BBBBBBBBBB, A, _ -> 0
+    | BBBBBBBBBBB, _, A -> 0
+    | _, BBBBBBBBBBBB, A -> 0
+    | BBBBBBBBBBBBB, A, _ -> 0
+    | BBBBBBBBBBBBBB, _, A -> 0
+    | _, BBBBBBBBBBBBBBB, A -> 0
+    | BBBBBBBBBBBBBBBB, A, _ -> 0
+    | BBBBBBBBBBBBBBBBB, _, A -> 0
+    | _, BBBBBBBBBBBBBBBBBB, A -> 0
+    | BBBBBBBBBBBBBBBBBBB, A, _ -> 0
+    | BBBBBBBBBBBBBBBBBBBB, _, A -> 0
 
-    | A, B -> 0
-    | AA, B -> 0
-    | AAA, B -> 0
-    | AAAA, B -> 0
-    | AAAAA, B -> 0
-    | AAAAAA, B -> 0
-    | AAAAAAA, B -> 0
-    | AAAAAAAA, B -> 0
-    | AAAAAAAAA, B -> 0
-    | AAAAAAAAAA, B -> 0
-    | AAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAAAAA, B -> 0
-    | AAAAAAAAAAAAAAAAAAAA, B -> 0
+    | _, A, B -> 0
+    | AA, B, _ -> 0
+    | AAA, _, B -> 0
+    | _, AAAA, B -> 0
+    | AAAAA, B, _ -> 0
+    | AAAAAA, _, B -> 0
+    | _, AAAAAAA, B -> 0
+    | AAAAAAAA, B, _ -> 0
+    | AAAAAAAAA, _, B -> 0
+    | _, AAAAAAAAAA, B -> 0
+    | AAAAAAAAAAA, B, _ -> 0
+    | AAAAAAAAAAAA, _, B -> 0
+    | _, AAAAAAAAAAAAA, B -> 0
+    | AAAAAAAAAAAAAA, B, _ -> 0
+    | AAAAAAAAAAAAAAA, _, B -> 0
+    | _, AAAAAAAAAAAAAAAA, B -> 0
+    | AAAAAAAAAAAAAAAAA, B, _ -> 0
+    | AAAAAAAAAAAAAAAAAA, _, B -> 0
+    | _, AAAAAAAAAAAAAAAAAAA, B -> 0
+    | AAAAAAAAAAAAAAAAAAAA, B, _ -> 0
 
-    | B, B -> 0
-    | BB, B -> 0
-    | BBB, B -> 0
-    | BBBB, B -> 0
-    | BBBBB, B -> 0
-    | BBBBBB, B -> 0
-    | BBBBBBB, B -> 0
-    | BBBBBBBB, B -> 0
-    | BBBBBBBBB, B -> 0
-    | BBBBBBBBBB, B -> 0
-    | BBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBBBBB, B -> 0
-    | BBBBBBBBBBBBBBBBBBBB, B -> 0
+    | B, _, B -> 0
+    | _, BB, B -> 0
+    | BBB, B, _ -> 0
+    | BBBB, _, B -> 0
+    | _, BBBBB, B -> 0
+    | BBBBBB, B, _ -> 0
+    | BBBBBBB, _, B -> 0
+    | _, BBBBBBBB, B -> 0
+    | BBBBBBBBB, B, _ -> 0
+    | BBBBBBBBBB, _, B -> 0
+    | _, BBBBBBBBBBB, B -> 0
+    | BBBBBBBBBBBB, B, _ -> 0
+    | BBBBBBBBBBBBB, _, B -> 0
+    | _, BBBBBBBBBBBBBB, B -> 0
+    | BBBBBBBBBBBBBBB, B, _ -> 0
+    | BBBBBBBBBBBBBBBB, _, B -> 0
+    | _, BBBBBBBBBBBBBBBBB, B -> 0
+    | BBBBBBBBBBBBBBBBBB, B, _ -> 0
+    | BBBBBBBBBBBBBBBBBBB, _, B -> 0
+    | _, BBBBBBBBBBBBBBBBBBBB, B -> 0
 
-    | A, BB -> 0
-    | AA, BB -> 0
-    | AAA, BB -> 0
-    | AAAA, BB -> 0
-    | AAAAA, BB -> 0
-    | AAAAAA, BB -> 0
-    | AAAAAAA, BB -> 0
-    | AAAAAAAA, BB -> 0
-    | AAAAAAAAA, BB -> 0
-    | AAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BB -> 0
+    | A, BB, _ -> 0
+    | AA, _, BB -> 0
+    | _, AAA, BB -> 0
+    | AAAA, BB, _ -> 0
+    | AAAAA, _, BB -> 0
+    | _, AAAAAA, BB -> 0
+    | AAAAAAA, BB, _ -> 0
+    | AAAAAAAA, _, BB -> 0
+    | _, AAAAAAAAA, BB -> 0
+    | AAAAAAAAAA, BB, _ -> 0
+    | AAAAAAAAAAA, _, BB -> 0
+    | _, AAAAAAAAAAAA, BB -> 0
+    | AAAAAAAAAAAAA, BB, _ -> 0
+    | AAAAAAAAAAAAAA, _, BB -> 0
+    | _, AAAAAAAAAAAAAAA, BB -> 0
+    | AAAAAAAAAAAAAAAA, BB, _ -> 0
+    | AAAAAAAAAAAAAAAAA, _, BB -> 0
+    | _, AAAAAAAAAAAAAAAAAA, BB -> 0
+    | AAAAAAAAAAAAAAAAAAA, BB, _ -> 0
+    | AAAAAAAAAAAAAAAAAAAA, _, BB -> 0
 
-    | B, BB -> 0
-    | BB, BB -> 0
-    | BBB, BB -> 0
-    | BBBB, BB -> 0
-    | BBBBB, BB -> 0
-    | BBBBBB, BB -> 0
-    | BBBBBBB, BB -> 0
-    | BBBBBBBB, BB -> 0
-    | BBBBBBBBB, BB -> 0
-    | BBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BB -> 0
+    | _, B, BB -> 0
+    | BB, BB, _ -> 0
+    | BBB, _, BB -> 0
+    | _, BBBB, BB -> 0
+    | BBBBB, BB, _ -> 0
+    | BBBBBB, _, BB -> 0
+    | _, BBBBBBB, BB -> 0
+    | BBBBBBBB, BB, _ -> 0
+    | BBBBBBBBB, _, BB -> 0
+    | _, BBBBBBBBBB, BB -> 0
+    | BBBBBBBBBBB, BB, _ -> 0
+    | BBBBBBBBBBBB, _, BB -> 0
+    | _, BBBBBBBBBBBBB, BB -> 0
+    | BBBBBBBBBBBBBB, BB, _ -> 0
+    | BBBBBBBBBBBBBBB, _, BB -> 0
+    | _, BBBBBBBBBBBBBBBB, BB -> 0
+    | BBBBBBBBBBBBBBBBB, BB, _ -> 0
+    | BBBBBBBBBBBBBBBBBB, _, BB -> 0
+    | _, BBBBBBBBBBBBBBBBBBB, BB -> 0
+    | BBBBBBBBBBBBBBBBBBBB, BB, _ -> 0
 
-    | A, BBB -> 0
-    | AA, BBB -> 0
-    | AAA, BBB -> 0
-    | AAAA, BBB -> 0
-    | AAAAA, BBB -> 0
-    | AAAAAA, BBB -> 0
-    | AAAAAAA, BBB -> 0
-    | AAAAAAAA, BBB -> 0
-    | AAAAAAAAA, BBB -> 0
-    | AAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBB -> 0
+    | A, _, BBB -> 0
+    | _, AA, BBB -> 0
+    | AAA, BBB, _ -> 0
+    | AAAA, _, BBB -> 0
+    | _, AAAAA, BBB -> 0
+    | AAAAAA, BBB, _ -> 0
+    | AAAAAAA, _, BBB -> 0
+    | _, AAAAAAAA, BBB -> 0
+    | AAAAAAAAA, BBB, _ -> 0
+    | AAAAAAAAAA, _, BBB -> 0
+    | _, AAAAAAAAAAA, BBB -> 0
+    | AAAAAAAAAAAA, BBB, _ -> 0
+    | AAAAAAAAAAAAA, _, BBB -> 0
+    | _, AAAAAAAAAAAAAA, BBB -> 0
+    | AAAAAAAAAAAAAAA, BBB, _ -> 0
+    | AAAAAAAAAAAAAAAA, _, BBB -> 0
+    | _, AAAAAAAAAAAAAAAAA, BBB -> 0
+    | AAAAAAAAAAAAAAAAAA, BBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAAA, _, BBB -> 0
+    | _, AAAAAAAAAAAAAAAAAAAA, BBB -> 0
 
-    | B, BBB -> 0
-    | BB, BBB -> 0
-    | BBB, BBB -> 0
-    | BBBB, BBB -> 0
-    | BBBBB, BBB -> 0
-    | BBBBBB, BBB -> 0
-    | BBBBBBB, BBB -> 0
-    | BBBBBBBB, BBB -> 0
-    | BBBBBBBBB, BBB -> 0
-    | BBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBB -> 0
+    | B, BBB, _ -> 0
+    | BB, _, BBB -> 0
+    | _, BBB, BBB -> 0
+    | BBBB, BBB, _ -> 0
+    | BBBBB, _, BBB -> 0
+    | _, BBBBBB, BBB -> 0
+    | BBBBBBB, BBB, _ -> 0
+    | BBBBBBBB, _, BBB -> 0
+    | _, BBBBBBBBB, BBB -> 0
+    | BBBBBBBBBB, BBB, _ -> 0
+    | BBBBBBBBBBB, _, BBB -> 0
+    | _, BBBBBBBBBBBB, BBB -> 0
+    | BBBBBBBBBBBBB, BBB, _ -> 0
+    | BBBBBBBBBBBBBB, _, BBB -> 0
+    | _, BBBBBBBBBBBBBBB, BBB -> 0
+    | BBBBBBBBBBBBBBBB, BBB, _ -> 0
+    | BBBBBBBBBBBBBBBBB, _, BBB -> 0
+    | _, BBBBBBBBBBBBBBBBBB, BBB -> 0
+    | BBBBBBBBBBBBBBBBBBB, BBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBBBB, _, BBB -> 0
 
-    | A, BBBB -> 0
-    | AA, BBBB -> 0
-    | AAA, BBBB -> 0
-    | AAAA, BBBB -> 0
-    | AAAAA, BBBB -> 0
-    | AAAAAA, BBBB -> 0
-    | AAAAAAA, BBBB -> 0
-    | AAAAAAAA, BBBB -> 0
-    | AAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBBB -> 0
+    | _, A, BBBB -> 0
+    | AA, BBBB, _ -> 0
+    | AAA, _, BBBB -> 0
+    | _, AAAA, BBBB -> 0
+    | AAAAA, BBBB, _ -> 0
+    | AAAAAA, _, BBBB -> 0
+    | _, AAAAAAA, BBBB -> 0
+    | AAAAAAAA, BBBB, _ -> 0
+    | AAAAAAAAA, _, BBBB -> 0
+    | _, AAAAAAAAAA, BBBB -> 0
+    | AAAAAAAAAAA, BBBB, _ -> 0
+    | AAAAAAAAAAAA, _, BBBB -> 0
+    | _, AAAAAAAAAAAAA, BBBB -> 0
+    | AAAAAAAAAAAAAA, BBBB, _ -> 0
+    | AAAAAAAAAAAAAAA, _, BBBB -> 0
+    | _, AAAAAAAAAAAAAAAA, BBBB -> 0
+    | AAAAAAAAAAAAAAAAA, BBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAA, _, BBBB -> 0
+    | _, AAAAAAAAAAAAAAAAAAA, BBBB -> 0
+    | AAAAAAAAAAAAAAAAAAAA, BBBB, _ -> 0
 
-    | B, BBBB -> 0
-    | BB, BBBB -> 0
-    | BBB, BBBB -> 0
-    | BBBB, BBBB -> 0
-    | BBBBB, BBBB -> 0
-    | BBBBBB, BBBB -> 0
-    | BBBBBBB, BBBB -> 0
-    | BBBBBBBB, BBBB -> 0
-    | BBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBBB -> 0
+    | B, _, BBBB -> 0
+    | _, BB, BBBB -> 0
+    | BBB, BBBB, _ -> 0
+    | BBBB, _, BBBB -> 0
+    | _, BBBBB, BBBB -> 0
+    | BBBBBB, BBBB, _ -> 0
+    | BBBBBBB, _, BBBB -> 0
+    | _, BBBBBBBB, BBBB -> 0
+    | BBBBBBBBB, BBBB, _ -> 0
+    | BBBBBBBBBB, _, BBBB -> 0
+    | _, BBBBBBBBBBB, BBBB -> 0
+    | BBBBBBBBBBBB, BBBB, _ -> 0
+    | BBBBBBBBBBBBB, _, BBBB -> 0
+    | _, BBBBBBBBBBBBBB, BBBB -> 0
+    | BBBBBBBBBBBBBBB, BBBB, _ -> 0
+    | BBBBBBBBBBBBBBBB, _, BBBB -> 0
+    | _, BBBBBBBBBBBBBBBBB, BBBB -> 0
+    | BBBBBBBBBBBBBBBBBB, BBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBBB, _, BBBB -> 0
+    | _, BBBBBBBBBBBBBBBBBBBB, BBBB -> 0
 
-    | A, BBBBB -> 0
-    | AA, BBBBB -> 0
-    | AAA, BBBBB -> 0
-    | AAAA, BBBBB -> 0
-    | AAAAA, BBBBB -> 0
-    | AAAAAA, BBBBB -> 0
-    | AAAAAAA, BBBBB -> 0
-    | AAAAAAAA, BBBBB -> 0
-    | AAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBBBB -> 0
+    | A, BBBBB, _ -> 0
+    | AA, _, BBBBB -> 0
+    | _, AAA, BBBBB -> 0
+    | AAAA, BBBBB, _ -> 0
+    | AAAAA, _, BBBBB -> 0
+    | _, AAAAAA, BBBBB -> 0
+    | AAAAAAA, BBBBB, _ -> 0
+    | AAAAAAAA, _, BBBBB -> 0
+    | _, AAAAAAAAA, BBBBB -> 0
+    | AAAAAAAAAA, BBBBB, _ -> 0
+    | AAAAAAAAAAA, _, BBBBB -> 0
+    | _, AAAAAAAAAAAA, BBBBB -> 0
+    | AAAAAAAAAAAAA, BBBBB, _ -> 0
+    | AAAAAAAAAAAAAA, _, BBBBB -> 0
+    | _, AAAAAAAAAAAAAAA, BBBBB -> 0
+    | AAAAAAAAAAAAAAAA, BBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAA, _, BBBBB -> 0
+    | _, AAAAAAAAAAAAAAAAAA, BBBBB -> 0
+    | AAAAAAAAAAAAAAAAAAA, BBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAAAA, _, BBBBB -> 0
 
-    | B, BBBBB -> 0
-    | BB, BBBBB -> 0
-    | BBB, BBBBB -> 0
-    | BBBB, BBBBB -> 0
-    | BBBBB, BBBBB -> 0
-    | BBBBBB, BBBBB -> 0
-    | BBBBBBB, BBBBB -> 0
-    | BBBBBBBB, BBBBB -> 0
-    | BBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBBBB -> 0
+    | _, B, BBBBB -> 0
+    | BB, BBBBB, _ -> 0
+    | BBB, _, BBBBB -> 0
+    | _, BBBB, BBBBB -> 0
+    | BBBBB, BBBBB, _ -> 0
+    | BBBBBB, _, BBBBB -> 0
+    | _, BBBBBBB, BBBBB -> 0
+    | BBBBBBBB, BBBBB, _ -> 0
+    | BBBBBBBBB, _, BBBBB -> 0
+    | _, BBBBBBBBBB, BBBBB -> 0
+    | BBBBBBBBBBB, BBBBB, _ -> 0
+    | BBBBBBBBBBBB, _, BBBBB -> 0
+    | _, BBBBBBBBBBBBB, BBBBB -> 0
+    | BBBBBBBBBBBBBB, BBBBB, _ -> 0
+    | BBBBBBBBBBBBBBB, _, BBBBB -> 0
+    | _, BBBBBBBBBBBBBBBB, BBBBB -> 0
+    | BBBBBBBBBBBBBBBBB, BBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBB, _, BBBBB -> 0
+    | _, BBBBBBBBBBBBBBBBBBB, BBBBB -> 0
+    | BBBBBBBBBBBBBBBBBBBB, BBBBB, _ -> 0
 
-    | A, BBBBBB -> 0
-    | AA, BBBBBB -> 0
-    | AAA, BBBBBB -> 0
-    | AAAA, BBBBBB -> 0
-    | AAAAA, BBBBBB -> 0
-    | AAAAAA, BBBBBB -> 0
-    | AAAAAAA, BBBBBB -> 0
-    | AAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
+    | A, _, BBBBBB -> 0
+    | _, AA, BBBBBB -> 0
+    | AAA, BBBBBB, _ -> 0
+    | AAAA, _, BBBBBB -> 0
+    | _, AAAAA, BBBBBB -> 0
+    | AAAAAA, BBBBBB, _ -> 0
+    | AAAAAAA, _, BBBBBB -> 0
+    | _, AAAAAAAA, BBBBBB -> 0
+    | AAAAAAAAA, BBBBBB, _ -> 0
+    | AAAAAAAAAA, _, BBBBBB -> 0
+    | _, AAAAAAAAAAA, BBBBBB -> 0
+    | AAAAAAAAAAAA, BBBBBB, _ -> 0
+    | AAAAAAAAAAAAA, _, BBBBBB -> 0
+    | _, AAAAAAAAAAAAAA, BBBBBB -> 0
+    | AAAAAAAAAAAAAAA, BBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAA, _, BBBBBB -> 0
+    | _, AAAAAAAAAAAAAAAAA, BBBBBB -> 0
+    | AAAAAAAAAAAAAAAAAA, BBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAAA, _, BBBBBB -> 0
+    | _, AAAAAAAAAAAAAAAAAAAA, BBBBBB -> 0
 
-    | B, BBBBBB -> 0
-    | BB, BBBBBB -> 0
-    | BBB, BBBBBB -> 0
-    | BBBB, BBBBBB -> 0
-    | BBBBB, BBBBBB -> 0
-    | BBBBBB, BBBBBB -> 0
-    | BBBBBBB, BBBBBB -> 0
-    | BBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBBBBB -> 0
+    | B, BBBBBB, _ -> 0
+    | BB, _, BBBBBB -> 0
+    | _, BBB, BBBBBB -> 0
+    | BBBB, BBBBBB, _ -> 0
+    | BBBBB, _, BBBBBB -> 0
+    | _, BBBBBB, BBBBBB -> 0
+    | BBBBBBB, BBBBBB, _ -> 0
+    | BBBBBBBB, _, BBBBBB -> 0
+    | _, BBBBBBBBB, BBBBBB -> 0
+    | BBBBBBBBBB, BBBBBB, _ -> 0
+    | BBBBBBBBBBB, _, BBBBBB -> 0
+    | _, BBBBBBBBBBBB, BBBBBB -> 0
+    | BBBBBBBBBBBBB, BBBBBB, _ -> 0
+    | BBBBBBBBBBBBBB, _, BBBBBB -> 0
+    | _, BBBBBBBBBBBBBBB, BBBBBB -> 0
+    | BBBBBBBBBBBBBBBB, BBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBB, _, BBBBBB -> 0
+    | _, BBBBBBBBBBBBBBBBBB, BBBBBB -> 0
+    | BBBBBBBBBBBBBBBBBBB, BBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBBBB, _, BBBBBB -> 0
 
-    | A, BBBBBBB -> 0
-    | AA, BBBBBBB -> 0
-    | AAA, BBBBBBB -> 0
-    | AAAA, BBBBBBB -> 0
-    | AAAAA, BBBBBBB -> 0
-    | AAAAAA, BBBBBBB -> 0
-    | AAAAAAA, BBBBBBB -> 0
-    | AAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
+    | _, A, BBBBBBB -> 0
+    | AA, BBBBBBB, _ -> 0
+    | AAA, _, BBBBBBB -> 0
+    | _, AAAA, BBBBBBB -> 0
+    | AAAAA, BBBBBBB, _ -> 0
+    | AAAAAA, _, BBBBBBB -> 0
+    | _, AAAAAAA, BBBBBBB -> 0
+    | AAAAAAAA, BBBBBBB, _ -> 0
+    | AAAAAAAAA, _, BBBBBBB -> 0
+    | _, AAAAAAAAAA, BBBBBBB -> 0
+    | AAAAAAAAAAA, BBBBBBB, _ -> 0
+    | AAAAAAAAAAAA, _, BBBBBBB -> 0
+    | _, AAAAAAAAAAAAA, BBBBBBB -> 0
+    | AAAAAAAAAAAAAA, BBBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAA, _, BBBBBBB -> 0
+    | _, AAAAAAAAAAAAAAAA, BBBBBBB -> 0
+    | AAAAAAAAAAAAAAAAA, BBBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAA, _, BBBBBBB -> 0
+    | _, AAAAAAAAAAAAAAAAAAA, BBBBBBB -> 0
+    | AAAAAAAAAAAAAAAAAAAA, BBBBBBB, _ -> 0
 
-    | B, BBBBBBB -> 0
-    | BB, BBBBBBB -> 0
-    | BBB, BBBBBBB -> 0
-    | BBBB, BBBBBBB -> 0
-    | BBBBB, BBBBBBB -> 0
-    | BBBBBB, BBBBBBB -> 0
-    | BBBBBBB, BBBBBBB -> 0
-    | BBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
+    | B, _, BBBBBBB -> 0
+    | _, BB, BBBBBBB -> 0
+    | BBB, BBBBBBB, _ -> 0
+    | BBBB, _, BBBBBBB -> 0
+    | _, BBBBB, BBBBBBB -> 0
+    | BBBBBB, BBBBBBB, _ -> 0
+    | BBBBBBB, _, BBBBBBB -> 0
+    | _, BBBBBBBB, BBBBBBB -> 0
+    | BBBBBBBBB, BBBBBBB, _ -> 0
+    | BBBBBBBBBB, _, BBBBBBB -> 0
+    | _, BBBBBBBBBBB, BBBBBBB -> 0
+    | BBBBBBBBBBBB, BBBBBBB, _ -> 0
+    | BBBBBBBBBBBBB, _, BBBBBBB -> 0
+    | _, BBBBBBBBBBBBBB, BBBBBBB -> 0
+    | BBBBBBBBBBBBBBB, BBBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBB, _, BBBBBBB -> 0
+    | _, BBBBBBBBBBBBBBBBB, BBBBBBB -> 0
+    | BBBBBBBBBBBBBBBBBB, BBBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBBB, _, BBBBBBB -> 0
+    | _, BBBBBBBBBBBBBBBBBBBB, BBBBBBB -> 0
 
-    | A, BBBBBBBB -> 0
-    | AA, BBBBBBBB -> 0
-    | AAA, BBBBBBBB -> 0
-    | AAAA, BBBBBBBB -> 0
-    | AAAAA, BBBBBBBB -> 0
-    | AAAAAA, BBBBBBBB -> 0
-    | AAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
-    | AAAAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
+    | A, BBBBBBBB, _ -> 0
+    | AA, _, BBBBBBBB -> 0
+    | _, AAA, BBBBBBBB -> 0
+    | AAAA, BBBBBBBB, _ -> 0
+    | AAAAA, _, BBBBBBBB -> 0
+    | _, AAAAAA, BBBBBBBB -> 0
+    | AAAAAAA, BBBBBBBB, _ -> 0
+    | AAAAAAAA, _, BBBBBBBB -> 0
+    | _, AAAAAAAAA, BBBBBBBB -> 0
+    | AAAAAAAAAA, BBBBBBBB, _ -> 0
+    | AAAAAAAAAAA, _, BBBBBBBB -> 0
+    | _, AAAAAAAAAAAA, BBBBBBBB -> 0
+    | AAAAAAAAAAAAA, BBBBBBBB, _ -> 0
+    | AAAAAAAAAAAAAA, _, BBBBBBBB -> 0
+    | _, AAAAAAAAAAAAAAA, BBBBBBBB -> 0
+    | AAAAAAAAAAAAAAAA, BBBBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAA, _, BBBBBBBB -> 0
+    | _, AAAAAAAAAAAAAAAAAA, BBBBBBBB -> 0
+    | AAAAAAAAAAAAAAAAAAA, BBBBBBBB, _ -> 0
+    | AAAAAAAAAAAAAAAAAAAA, _, BBBBBBBB -> 0
 
-    | B, BBBBBBBB -> 0
-    | BB, BBBBBBBB -> 0
-    | BBB, BBBBBBBB -> 0
-    | BBBB, BBBBBBBB -> 0
-    | BBBBB, BBBBBBBB -> 0
-    | BBBBBB, BBBBBBBB -> 0
-    | BBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-    | BBBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
-
-
+    | _, B, BBBBBBBB -> 0
+    | BB, BBBBBBBB, _ -> 0
+    | BBB, _, BBBBBBBB -> 0
+    | _, BBBB, BBBBBBBB -> 0
+    | BBBBB, BBBBBBBB, _ -> 0
+    | BBBBBB, _, BBBBBBBB -> 0
+    | _, BBBBBBB, BBBBBBBB -> 0
+    | BBBBBBBB, BBBBBBBB, _ -> 0
+    | BBBBBBBBB, _, BBBBBBBB -> 0
+    | _, BBBBBBBBBB, BBBBBBBB -> 0
+    | BBBBBBBBBBB, BBBBBBBB, _ -> 0
+    | BBBBBBBBBBBB, _, BBBBBBBB -> 0
+    | _, BBBBBBBBBBBBB, BBBBBBBB -> 0
+    | BBBBBBBBBBBBBB, BBBBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBB, _, BBBBBBBB -> 0
+    | _, BBBBBBBBBBBBBBBB, BBBBBBBB -> 0
+    | BBBBBBBBBBBBBBBBB, BBBBBBBB, _ -> 0
+    | BBBBBBBBBBBBBBBBBB, _, BBBBBBBB -> 0
+    | _, BBBBBBBBBBBBBBBBBBB, BBBBBBBB -> 0
+    | BBBBBBBBBBBBBBBBBBBB, BBBBBBBB, _ -> 0
 
 
 end

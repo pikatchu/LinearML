@@ -78,7 +78,7 @@ and block bl =
   pop() ;
   nl()
 
-and phi (x, l) = 
+and phi (x, _, l) = 
   id x ; o " <- " ; 
   List.iter (fun (x, lbl) -> o "(" ; id x ; o ", " ; label lbl ; o ") ; ") l ;
   nl()

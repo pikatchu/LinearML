@@ -35,11 +35,6 @@ type env = {
     blocks: Est.block IMap.t ;
   }
 
-type acc = {
-    eqs: Llast.instruction list ;
-    bls: Llast.block list ;
-  }
-
 let tmp() = 
   Ident.to_ustring (Ident.tmp())
 
@@ -87,8 +82,8 @@ and struct_ tyl =
 
 and union td =
   let id = Ident.to_ustring td.td_id in
-  let tyl = [Llast.Int32; Llast.Any] in
-  Llast.Type (id, Llast.Union tyl)
+(*   let tyl = [Llast.Int32; Llast.Any] in *) (* TODO *)
+  Llast.Type (id, Llast.Int32)
 
 and variants td acc = 
   IMap.fold variant td.td_map acc
@@ -146,7 +141,7 @@ and def env acc df =
   then Llvm.Linkage.External
   else Llvm.Linkage.Internal in
   let cc = if public 
-  then Llvm.CallConv.c
+  then Llvm.CallConv.fast (* TODO make a decision *)
   else Llvm.CallConv.fast in
   let name = Ident.to_ustring df.df_id in
   let argl = List.map snd df.df_args in
@@ -169,83 +164,59 @@ and def env acc df =
 
 and body env = function
   | [] -> assert false
-  | x :: rl  -> 
-      let bs = List.fold_left (fun acc x -> 
-	IMap.add x.bl_id x acc) IMap.empty rl in
-      let env = { env with blocks = bs } in
-      let acc = { eqs = [] ; bls = [] } in
-      let acc = block env acc x `Ret in
-      acc.bls
+  | l -> List.map (block env) l
 
 and id_list l = 
   let l = List.map snd l in
   List.map Ident.to_ustring l
 
-and block env acc bl rkind =  
-  let ret = id_list bl.bl_ret in
+and block env bl =  
   let bl_id = Ident.to_ustring bl.bl_id in
-  let acc, rkind, eqs = equation env rkind ret bl.bl_eqs acc [] in
-  let bls = 
-    { Llast.bname = bl_id ;
-      Llast.bdecl = [] (* TODO *) ;
-      Llast.bbody = eqs ;
-      Llast.bret = return rkind ret ;
-    } :: acc.bls in
-  { acc with bls = bls }  
+  let eqs, ret = return env bl.bl_ret in
+  let eqs = List.fold_right (equation env) bl.bl_eqs eqs in
+  { Llast.bname = bl_id ;
+    Llast.bdecl = List.map phi bl.bl_phi ;
+    Llast.bbody = eqs ;
+    Llast.bret = ret ;
+  }
 
-and return rkind ret = 
-  match rkind with
-  | `None -> Llast.Noreturn
-  | `Ret -> Llast.Return ret
-  | `Jmp id -> Llast.Jmp id
-  | `Replace (k, idl) -> return k idl
+and phi (x, ty, l) = 
+  let x = Ident.to_ustring x in
+  let l = List.map (fun (x, y) -> Ident.to_ustring x, Ident.to_ustring y) l in
+  x, type_expr ty, l
 
-and equation env rkind ret eql acc eqs = raise Exit
-(*  match eql with
-  | [] -> acc, rkind, []
-  | [(_, Eif (c, l1, l2))] ->
+and return env = function
+  | Lreturn _ -> assert false
+  | Return idl -> [], Llast.Return (id_list idl)
+  | Jump lbl -> [], Llast.Jmp (Ident.to_ustring lbl) 
+  | If (c, l1, l2) -> 
       let c = Ident.to_ustring (snd c) in
-      let b1 = IMap.find l1 env.blocks in
-      let b2 = IMap.find l2 env.blocks in
       let l1 = Ident.to_ustring l1 in
       let l2 = Ident.to_ustring l2 in
-      let acc = block env acc b1 rkind in
-      let acc = block env acc b2 rkind in
-      acc, `None, Llast.Br (c, l1, l2) :: eqs
-  | (_, Eif (c, l1, l2)) :: rl -> 
-      let acc, rk, beqs = equation env rkind ret rl acc [] in
-      let bl_id = tmp() in
-      let bls = 
-	{ Llast.bname = bl_id ;
-	  Llast.bdecl = [] (* TODO *) ;
-	  Llast.bbody = beqs ;
-	  Llast.bret = return rk ret ;
-	} :: acc.bls in
-      let acc = { acc with bls = bls } in
-      let c = Ident.to_ustring (snd c) in
-      let b1 = IMap.find l1 env.blocks in
-      let b2 = IMap.find l2 env.blocks in
-      let l1 = Ident.to_ustring l1 in
-      let l2 = Ident.to_ustring l2 in
-      let acc = block env acc b1 (`Jmp bl_id) in
-      let acc = block env acc b2 (`Jmp bl_id) in
-      acc, `None, Llast.Br (c, l1, l2) :: eqs
-  | [[_, x], Eapply (f, idl)] -> 
-      let idl = List.map snd idl in
+      [], Llast.Br (c, l1, l2)
+  | Match ([_, x], al) -> 
       let x = Ident.to_ustring x in
-      let f = Ident.to_ustring f in
-      let idl = List.map Ident.to_ustring idl in
-      (match rkind with 
-      | `Ret -> acc, `None, Llast.Call (true, x, f, idl) :: eqs
-      | _ -> acc, rkind, Llast.Call (false, x, f, idl) :: eqs)
-   | [_, Ecall lbl] -> 
-      let bl = IMap.find lbl env.blocks in
-      let ret = id_list bl.bl_ret in
-      equation env (`Replace (rkind, ret)) ret bl.bl_eqs acc eqs 
-  | (idl, e) :: rl -> 
-      let acc, rkind, eqs = equation env rkind ret rl acc eqs in
-      acc, rkind, equation_ env (idl, e) :: eqs
-  
+      let tmp = tmp() in
+      let eqs, cases, default = split_match env al in
+      let eqs = Llast.Cast (tmp, x, Llast.Int32) :: eqs in
+      eqs, Llast.Switch (tmp, cases, default)
+  | Match _ -> assert false (* ill-formed match *)
+
+and split_match env = function
+  | [] -> assert false
+  | [_, lbl] -> [], [], Ident.to_ustring lbl
+  | ([ty, Pvariant (y, [])], lbl) :: rl -> 
+      let eqs, cases, default = split_match env rl in
+      let x = tmp() in
+      let y = IMap.find y env.names in
+      let ty = type_expr ty in
+      let v = Llast.Const (x, ty, Llast.Const_enum y) in
+      v :: eqs, (x, Ident.to_ustring lbl) :: cases, default
+  | _ -> failwith "TODO rest of Patterns in llastOfEst"
+
+and equation env (idl, e) acc = 
+  equation_ env (idl, e) :: acc
+			    
 and equation_ env (idl, e) = 
   match idl, e with
   | [_, x], Eid y -> 
@@ -275,7 +246,7 @@ and equation_ env (idl, e) =
       let idl = List.map Ident.to_ustring idl in
       Llast.Call (false, x, f, idl)
   | _ -> failwith "TODO rest of equation in llastOfEst"
-*) 
+
 (*  
   | Euop of Ast.uop * ty_id
   | Erecord of (id * ty_idl) list 

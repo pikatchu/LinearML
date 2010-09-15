@@ -307,3 +307,19 @@ let already_used p p' =
   pos p' ;
   err "Previous usage was here" ;
   exit 2
+
+let missing_record_name p = 
+  pos p ;
+  err "Pattern-matching on a record requires a name (Ex: { y ; myfield = x })";
+  exit 2
+
+let multiple_record_name p1 p2 = 
+  pos p1 ;
+  err "Multiple names for the same record";
+  pos p2 ;
+  err "Was previously defined here" ;
+  exit 2
+
+let internal s = 
+  err s ;
+  exit 3

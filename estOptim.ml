@@ -17,16 +17,21 @@ module BlockOccs = struct
     let t = ret t bl.bl_ret in
     t
       
-  and equation t = function
-    | Eq (_, e) -> expr t e 
+  and equation t (_, e) = expr t e 
+
+  and ret t = function
+    | Lreturn _ -> assert false
+    | Return _ -> t
+    | Jump lbl -> add t lbl 
     | If (_, lbl1, lbl2) -> 
 	let t = add t lbl1 in
 	let t = add t lbl2 in
 	t
-
-  and ret t = function
-    | Return _ -> t
-    | Jump lbl -> add t lbl 
+    | Match (_, al) -> 
+	List.fold_left (
+	fun t (_, l) ->
+	  add t l
+       ) t al
 	  
   and expr t = function
     | Eif (_, lbl1, lbl2) -> 

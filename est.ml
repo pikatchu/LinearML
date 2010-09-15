@@ -46,7 +46,7 @@ and ret =
   | If of ty_id * label * label
   | Match of ty_idl * (pat * label) list
 
-and phi = id * (id * label) list
+and phi = id * Ist.type_expr * (id * label) list
 
 and equation = ty_idl * expr
 

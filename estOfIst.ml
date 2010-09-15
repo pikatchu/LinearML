@@ -86,12 +86,15 @@ module BreakPat = struct
 	| (_, `V y, subpl, pl) :: rl when x = y -> 
 	    (ty, `V x, l1 :: subpl, (rl1, a) :: pl) :: rl
 	| l -> 
-	    let rest = match todo with
-	    | None -> []
-	    | Some a -> 
-		let l = List.map (fun (x, _) -> x, Pany) rl1 in
-		[l, a] in
-	    (ty, `V x, [l1], (rl1, a) :: rest) :: l)
+	    let rest1, rest2 = 
+	      match todo with
+	      | None -> [], []
+	      | Some a -> 
+		  let rest1 = List.map (fun (ty, _) -> ty, Pany) l1 in
+		  let l = List.map (fun (x, _) -> x, Pany) rl1 in
+		  [rest1], [l, a]  
+	    in 
+	    (ty, `V x, l1 :: rest1, (rl1, a) :: rest2) :: l)
     | ([ty, Pany], a) :: rl2 ->
 	let s, _, p = partition id s rl2 in
 	s, None, (ty, `U, [[]], [[], a]) :: p
@@ -167,14 +170,20 @@ end
 module PatOpt = struct
   open Est
 
-  let rec expr e = 
+  let rec dummy e = 
     match e with
     | Ematch (x, pal) -> 
-	let pal = List.map (fun (x, y) -> x, expr y) pal in
+	let pal = List.map (fun (x, y) -> x, dummy y) pal in
 	(match pal with
-	| ((_, Pany) :: _, e) :: _ -> e
+	| ((_, Pany) :: _, e) :: _ -> e 
 	| _ -> Ematch (x, pal)) 
     | x -> x
+
+  let rec exhaustive t e = e
+
+  let expr t e = 
+    let e = dummy e in 
+    e
 end
 
 
@@ -248,6 +257,7 @@ and pat_ = function
   | Pvariant _ -> assert false
   | Precord pfl -> 
       let id_opt = get_rid pfl in
+      let pfl = List.filter (function PField _ -> true | _ -> false) pfl in
       let pfl = List.map (
 	function 
 	  | PField (x, [p]) -> x, List.map pat_el p
@@ -276,10 +286,10 @@ and expr t (tyl, e) =
   t, id
 
 and expr_ t tyl = function
-  | Eid x -> 
-      let idl = make_idl tyl in
+  | Eid x -> t, [lone tyl, x]
+(*      let idl = make_idl tyl in
       let t = equation t idl (Est.Eid x) in
-      t, idl
+      t, idl *)
   | Efield (e, x) -> 
       let idl = make_idl tyl in
       let t, id = expr t e in
@@ -291,7 +301,8 @@ and expr_ t tyl = function
       let t, al = List.fold_right action al (t, []) in
       let subst, e = BreakPat.pmatch t.subst eidl al in
       let t = { t with subst = subst } in
-      let e = PatOpt.expr e in
+      let e = PatOpt.expr t e in
+      let t, e = ematch 0 t tyl e in
       let t = equation t idl e in
       t, idl
   | Elet (p, e1, e2) -> 
@@ -376,3 +387,20 @@ and make_block t e =
   let label = Est.Ecall bl.Est.bl_id in
   t, label
             
+and ematch depth t tyl e = 
+  match e with
+  | Est.Ecall _ -> t, e
+  | Est.Ematch (c, al) ->
+      let t, al = lfold (fun t (p, a) -> 
+	let t, a = ematch (depth+1) t tyl a in
+	t, (p, a)) t al in
+      let idl = make_idl tyl in
+      let ematch = Est.Ematch (c, al) in
+      if depth = 0
+      then t, ematch
+      else
+	let bl = block [idl, ematch] (Est.Lreturn idl) in
+	let t = { t with blocks = bl :: t.blocks } in
+	t, Est.Ecall bl.Est.bl_id
+  | _ -> assert false
+      

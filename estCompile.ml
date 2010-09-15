@@ -47,23 +47,31 @@ and equation bls ret acc eq =
       let acc = block bls acc b1 in
       acc, If (c, l1, l2), []
   | (idl, Ecall lbl) :: rl -> 
-      let acc, ret, rl = equation bls ret acc rl in
+      let acc, ret, eqs = equation bls ret acc rl in
       let b = IMap.find lbl bls in
-      let idl2 = match b.bl_ret with Lreturn l -> l | _ -> assert false in
-      let rl = List.fold_right2 (
-	fun x (_, y) acc -> ([x], Eid y) :: acc
-       ) idl idl2 rl in
-      let acc, _, rl' = equation bls ret acc b.bl_eqs in
-      acc, ret, rl' @ rl
+      let idl' = match b.bl_ret with Lreturn l -> l | _ -> assert false in
+      let eqs = List.fold_right2 (
+	fun x1 (_, x2) acc ->
+	  ([x1], Eid x2) :: acc
+       ) idl idl' eqs in
+      let btarget = Ident.tmp() in
+      let rest = { 
+	bl_id = btarget ;
+	bl_phi = [] ;
+	bl_eqs = eqs ; 
+	bl_ret = ret ;
+      } in
+      let acc = rest :: acc in
+      let b = { b with bl_ret = Jump btarget } in
+      let acc = block bls acc b in
+      acc, Jump lbl, []
   | (idl, Ematch (cl, al)) :: rl -> 
       let acc, ret, rl = equation bls ret acc rl in
       let al = List.map (
-	fun (p, e) -> 
-	  match e with 
-	  | Ecall l -> p, l
-	  | _ -> assert false
+	function (p, Ecall l) -> p, l | _ -> assert false
        ) al in
-      let bl = List.map (fun (_, l) -> IMap.find l bls) al in
+      let bl = List.map (fun (_, l) -> l) al in
+      let bl = List.map (fun x -> IMap.find x bls) bl in
       let btarget = Ident.tmp() in
       let retll = List.map (fun b -> 
 	match b.bl_ret with 
@@ -93,15 +101,15 @@ and make_phi l bl1 l1 bl2 l2 =
   | [], _, _
   | _, [], _
   | _, _, [] -> assert false
-  | (_, x) :: rl, (_, x1) :: rl1, (_, x2) :: rl2 ->
+  | (ty, x) :: rl, (_, x1) :: rl1, (_, x2) :: rl2 ->
       let phi1 = x1, bl1 in
       let phi2 = x2, bl2 in
-      (x, [phi1 ; phi2]) :: make_phi rl bl1 rl1 bl2 rl2
+      (x, ty, [phi1 ; phi2]) :: make_phi rl bl1 rl1 bl2 rl2
 
 and make_phil l bl = 
   match l with
   | [] -> []
-  | (_, x) :: rl -> 
+  | (ty, x) :: rl -> 
       let l', bl = List.fold_right (
 	fun l (acc1, acc2) ->
 	  match l with
@@ -109,7 +117,7 @@ and make_phil l bl =
 	  | x :: rl -> x :: acc1, rl :: acc2
        ) bl ([], []) in
       let phil = make_phil rl bl in
-      (x, l') :: phil
+      (x, ty, l') :: phil
 
 (*and expr = 
   | Eid of id

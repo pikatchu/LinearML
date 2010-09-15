@@ -428,6 +428,13 @@ and pat_ genv sig_ env pos = function
 
   | Precord fl -> 
       let env, fl = lfold (pat_field genv sig_) env fl in
+      let fid = List.filter (
+	function _, Nast.PField _ -> false | _ -> true
+       ) fl in
+      (match fid with
+      | [] -> Error.missing_record_name pos
+      | [_] -> ()
+      | (p1, _) :: (p2, _) :: _ -> Error.multiple_record_name p1 p2) ;
       env, Nast.Precord fl
 
   | Pbar (p1, p2) ->  (* TODO this is bad *)
@@ -454,7 +461,6 @@ and pat_ genv sig_ env pos = function
       let id = Env.cstr md_sig id in
       env, Nast.Pecstr (md_id, id)
       
-
 and pat_field genv sig_ env (p, pf) = 
   let env, pf = pat_field_ genv sig_ env pf in
   env, (p, pf)
@@ -464,11 +470,9 @@ and pat_field_ genv sig_ env = function
   | PFid x -> 
       let env, x = Env.new_value env x in
       env, Nast.PFid x
-
   | PField (id, p) -> 
       let env, p = pat genv sig_ env p in
       env, Nast.PField (Env.field sig_ id, p)
-
 
 and expr genv sig_ env (p, e) = p, expr_ genv sig_ env e
 and expr_ genv sig_ env e = 
@@ -489,24 +493,20 @@ and expr_ genv sig_ env e =
   | Ematch (e, pel) -> 
       let pel = List.map (pat_expr genv sig_ env) pel in
       Nast.Ematch (k e, pel) 
-
   | Elet (p, e1, e2) -> 
       let env, p = pat genv sig_ env p in
       let e2 = expr genv sig_ env e2 in
       Nast.Elet (p, k e1, e2)
-
   | Eif (e1, e2, e3) -> Nast.Eif (k e1, k e2, k e3) 
   | Efun (pl, e) -> 
       let env, pl = lfold (pat genv sig_) env pl in
       let e = expr genv sig_ env e in
       Nast.Efun (pl, e)
-
   | Eapply ((_, Eid (_, "obs")), e) ->
       (match e with
       | [_, Eid y] -> Nast.Eobs (Env.value env y)
       | (p, _) :: _ -> Error.obs_expects_id p
       | _ -> assert false)
-
   | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
   | Erecord fdl -> Nast.Erecord (List.map (field genv sig_ env) fdl)
   | Efield (e, v) -> Nast.Efield (k e, Env.field sig_ v)
@@ -515,23 +515,19 @@ and expr_ genv sig_ env e =
       let sig_md = Genv.sig_ genv md_id in
       let id2 = Env.value sig_md id2 in
       Nast.Eid id2
-
   | Eefield (e, id1, id2) -> 
       let id1 = Genv.module_id genv id1 in
       let sig_ = Genv.sig_ genv id1 in
       let id2 = Env.field sig_ id2 in
       Nast.Efield (k e, id2)
-
   | Eecstr (md_id, id) ->
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
       let id = Env.cstr sig_md id in      
       Nast.Ecstr id
-
   | Ewith (e, fdl) -> 
       let e = expr genv sig_ env e in
       Nast.Ewith (e, List.map (field genv sig_ env) fdl)
-
   | Eseq (e1, e2) -> 
       let e1 = expr genv sig_ env e1 in
       let e2 = expr genv sig_ env e2 in

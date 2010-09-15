@@ -12,12 +12,13 @@ CC = g++
 
 LLVM_LIBS = \
 	llvm.cma \
-	llvm_analysis.cma 
-#	llvm_bitwriter.cma \
+	llvm_analysis.cma \
+	llvm_bitwriter.cma \
 	llvm_bitreader.cma \
-	llvm_executionengine.cma \
 	llvm_scalar_opts.cma \
 	llvm_target.cma
+
+#	llvm_executionengine.cma
 
 LIBS = unix.cma $(LLVM_LIBS)
 LIBSOPT = $(LIBS:.cma=.cmxa)
@@ -56,7 +57,11 @@ OBJECTS_ML = \
 	estSubst.ml\
 	estPp.ml\
 	estOfIst.ml\
+	estOptim.ml\
 	estCompile.ml\
+	llast.ml\
+	llastOfEst.ml\
+	emit.ml\
 	main.ml
 # 	id.ml\
 # 	ast.ml\
