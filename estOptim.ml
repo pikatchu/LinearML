@@ -43,13 +43,14 @@ module BlockOccs = struct
 
 end
 
-(*module Redirect = struct
+module Redirect = struct
   
   let add_block t bl = 
-    if bl.bl_eqs = []
+    if bl.bl_eqs = [] && bl.bl_phi = []
     then 
       match bl.bl_ret with
-      | Jump lbl -> IMap.add bl.bl_id lbl t
+      | Jump lbl -> 
+	  IMap.add bl.bl_id lbl t
       | _ -> t
     else t
 
@@ -63,17 +64,26 @@ end
     { df with df_body = body }
 
   and block t bl = 
-    let eqs = equation t bl.bl_eqs in
-    { bl with bl_eqs = eqs }
+    let ret = return t bl.bl_ret in
+    { bl with 
+      bl_phi = List.map (phi t) bl.bl_phi ;
+      bl_ret = ret ;
+    }
+
+  and phi t (x, ty, l) = 
+    x, ty, List.map (fun (x, lbl) -> x, get lbl t) l
  
-  and equation t = function
-    | [] -> []
-    | [Jump lbl] -> [Jump (get lbl t)]
-    | [If (x, lbl1, lbl2)] ->
-	[If (x, get lbl1 t, get lbl2 t)]
-    | x :: rl -> x :: equation t rl
+  and return t = function
+    | Jump lbl -> Jump (get lbl t)
+    | If (x, lbl1, lbl2) ->
+	If (x, get lbl1 t, get lbl2 t)
+    | Match (e, al) -> Match (e, List.map (action t) al) 
+    | x -> x
+
+  and action t (p, lbl) = p, get lbl t
+
 end
-*)
+
 
 (*module InlineBlocks = struct
 
@@ -119,7 +129,7 @@ end
 *)
 
 let rec def df = 
-(*  let df = InlineBlocks.def df in
   let df = Redirect.def df in
+(*  let df = InlineBlocks.def df in
   let df = Remove.def df in *)
   df

@@ -56,21 +56,29 @@ estPp.cmo: utils.cmx ist.cmx ident.cmi est.cmx ast.cmx
 estPp.cmx: utils.cmx ist.cmx ident.cmx est.cmx ast.cmx 
 estOfIst.cmo: utils.cmx ist.cmx ident.cmi estSubst.cmx est.cmx 
 estOfIst.cmx: utils.cmx ist.cmx ident.cmx estSubst.cmx est.cmx 
-estCompile.cmo: utils.cmx ident.cmi est.cmx 
-estCompile.cmx: utils.cmx ident.cmx est.cmx 
+estOptim.cmo: utils.cmx est.cmx 
+estOptim.cmx: utils.cmx est.cmx 
+estCompile.cmo: utils.cmx ident.cmi estOptim.cmx est.cmx 
+estCompile.cmx: utils.cmx ident.cmx estOptim.cmx est.cmx 
 llast.cmo: /home/pika/godi/lib/llvm.cmi 
 llast.cmx: /home/pika/godi/lib/llvm.cmi 
 llastOfEst.cmo: utils.cmx naming.cmx /home/pika/godi/lib/llvm.cmi llast.cmx \
     ist.cmx ident.cmi est.cmx ast.cmx 
 llastOfEst.cmx: utils.cmx naming.cmx /home/pika/godi/lib/llvm.cmi llast.cmx \
     ist.cmx ident.cmx est.cmx ast.cmx 
-emit.cmo: utils.cmx /home/pika/godi/lib/llvm.cmi llast.cmx 
-emit.cmx: utils.cmx /home/pika/godi/lib/llvm.cmi llast.cmx 
+emit.cmo: utils.cmx /home/pika/godi/lib/llvm_target.cmi \
+    /home/pika/godi/lib/llvm_scalar_opts.cmi \
+    /home/pika/godi/lib/llvm_analysis.cmi /home/pika/godi/lib/llvm.cmi \
+    llast.cmx 
+emit.cmx: utils.cmx /home/pika/godi/lib/llvm_target.cmi \
+    /home/pika/godi/lib/llvm_scalar_opts.cmi \
+    /home/pika/godi/lib/llvm_analysis.cmi /home/pika/godi/lib/llvm.cmi \
+    llast.cmx 
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    llastOfEst.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx \
-    estOfIst.cmx estCompile.cmx error.cmx emit.cmx boundCheck.cmx 
+    llastOfEst.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estOfIst.cmx \
+    estCompile.cmx error.cmx emit.cmx boundCheck.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    llastOfEst.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx \
-    estOfIst.cmx estCompile.cmx error.cmx emit.cmx boundCheck.cmx 
+    llastOfEst.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estOfIst.cmx \
+    estCompile.cmx error.cmx emit.cmx boundCheck.cmx 

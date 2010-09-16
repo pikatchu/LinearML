@@ -205,6 +205,7 @@ and return env = function
 and split_match env = function
   | [] -> assert false
   | [_, lbl] -> [], [], Ident.to_ustring lbl
+  | ([_, Pany], lbl) :: _ -> [], [], Ident.to_ustring lbl
   | ([ty, Pvariant (y, [])], lbl) :: rl -> 
       let eqs, cases, default = split_match env rl in
       let x = tmp() in

@@ -174,10 +174,16 @@ module PatOpt = struct
     match e with
     | Ematch (x, pal) -> 
 	let pal = List.map (fun (x, y) -> x, dummy y) pal in
+	let pal = truncate pal in
 	(match pal with
 	| ((_, Pany) :: _, e) :: _ -> e 
 	| _ -> Ematch (x, pal)) 
     | x -> x
+
+  and truncate = function
+    | [] -> []
+    | ((_, Pany) :: _, _) as last :: _ -> [last]
+    | x :: rl  -> x :: truncate rl
 
   let rec exhaustive t e = e
 

@@ -12,8 +12,16 @@ and def df =
     fun acc bl ->
       IMap.add bl.bl_id bl acc
    ) IMap.empty df.df_body in
-  let df = { df with df_body = block bls [] (List.hd df.df_body) } in
-(*   let df = EstOptim.def df in  *)
+  let bll = block bls [] (List.hd df.df_body) in
+  let _, bll = List.fold_left (
+    fun (s, acc) x ->
+      if ISet.mem x.bl_id s 
+      then s, acc
+      else ISet.add x.bl_id s, x :: acc
+   ) (ISet.empty, []) bll in 
+  let bll = List.rev bll in
+  let df = { df with df_body = bll } in
+   let df = EstOptim.def df in  
   df
 
 and block bls acc bl = 

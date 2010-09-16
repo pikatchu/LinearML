@@ -106,6 +106,7 @@ type env = {
     types: lltype SMap.t ;
     malloc: llvalue ;
     bls: llbasicblock SMap.t ;
+    bldone: SSet.t ;
   }
 
 let pervasives ctx = 
@@ -127,22 +128,15 @@ let rec program mdl =
 and module_ mds ctx t (md_id, md) = 
   let (md, tys, fs, dl) = SMap.find md_id t in
   let pm = PassManager.create () in
-  (* Promote allocas to registers. *)
-(*   add_memory_to_register_promotion pm;  *)
-  (* reassociate expressions. *)
-(*    add_reassociation pm;  *)
-  (* Eliminate Common SubExpressions. *)
-(*    add_gvn pm;  *)
-  (* Simplify the control flow graph (deleting unreachable blocks, etc). *)
-  (* Do simple "peephole" optimizations and bit-twiddling optzn. *)
-(*  add_tail_call_elimination pm ; *)
-(*       add_cfg_simplification pm;     *)
-(*        add_instruction_combination pm;    *)
-(*  add_memory_to_register_demotion pm ;
-  add_cfg_simplification pm; *)
-  (* Set up the optimizer pipeline.  Start with registering info about how he                                                                                                
-   * target lays out data structures. *)
-(*  add_jump_threading pm ; *)
+  add_reassociation pm;   
+  add_gvn pm;    
+  add_tail_call_elimination pm ; 
+(*  add_cfg_simplification pm;     *)
+(*  add_instruction_combination pm;    *)
+(*  add_memory_to_register_demotion pm ; 
+  add_memory_to_register_promotion pm ; *)
+  add_jump_threading pm ; 
+(*  add_cfg_simplification pm;   *)
   let builder = builder ctx in
   let malloc = pervasives ctx in
   let env = 
@@ -153,6 +147,7 @@ and module_ mds ctx t (md_id, md) =
       types = tys ;
       malloc = malloc ;
       bls = SMap.empty ;
+      bldone = SSet.empty ;
     } in
   List.iter (def env) dl ;
   ignore (PassManager.run_module md pm) ;
