@@ -122,6 +122,7 @@ module BreakPat = struct
 	      ty, x, subpl, (rl1, a) :: pl
 	   ) part) 
     | ((_, Precord _) :: _, _) :: _ -> assert false
+	 
 
   let rec pmatch subst idl pal =
     match idl with

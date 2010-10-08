@@ -428,4 +428,9 @@ and apply e1 e2 =
   | Neast.Evariant (x, (_, [])) -> Neast.Evariant (x, e2)
   | Neast.Evariant _ -> assert false
   | Neast.Eid id -> Neast.Eapply (id, e2)
-  | _ -> Error.expected_function (fst e1)
+  | e1_ -> 
+      let x = Ident.make "fun" in
+      let p = fst e1 in
+      let e1 = p, [p, e1_] in
+      let pat = (p, [p, [p, Neast.Pid (p, x)]]) in
+      Neast.Elet (pat, e1, (p, [p, Neast.Eapply ((p, x), e2)]))

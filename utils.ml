@@ -108,3 +108,20 @@ let opt2 f x y =
 let soi = string_of_int 
 
 let lone = function [x] -> x | _ -> assert false
+
+module L = struct
+  
+  let rec foldl f env acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> 
+	let acc = f acc x in
+	foldl f env acc rl
+
+  let lfold f env acc l = 
+    let acc, l = List.fold_left (fun (acc,l) x -> 
+      let acc, x = f env acc x in
+      acc, x :: l) (acc, []) l in
+    acc, List.rev l
+
+end

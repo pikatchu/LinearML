@@ -11,7 +11,7 @@ CC = g++
 
 
 LLVM_LIBS = \
-	llvm.cma \
+#	llvm.cma \
 	llvm_analysis.cma \
 	llvm_bitwriter.cma \
 	llvm_bitreader.cma \
@@ -53,6 +53,7 @@ OBJECTS_ML = \
 	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
+	istRecords.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\
@@ -60,9 +61,10 @@ OBJECTS_ML = \
 	estOptim.ml\
 	estCompile.ml\
 	llast.ml\
-	llastOfEst.ml\
-	emit.ml\
 	main.ml
+#	llastOfEst.ml\
+	emit.ml\
+
 # 	id.ml\
 # 	ast.ml\
 # 	astOfCst.ml\
