@@ -425,7 +425,6 @@ and pat_ genv sig_ env pos = function
   | Pvariant (id, p) -> 
       let env, p = pat genv sig_ env p in
       env, Nast.Pvariant (Env.cstr sig_ id, p)
-
   | Precord fl -> 
       let env, fl = lfold (pat_field genv sig_) env fl in
       let fid = List.filter (
@@ -436,30 +435,30 @@ and pat_ genv sig_ env pos = function
       | [_] -> ()
       | (p1, _) :: (p2, _) :: _ -> Error.multiple_record_name p1 p2) ;
       env, Nast.Precord fl
-
   | Pbar (p1, p2) ->  (* TODO this is bad *)
       let penv = Env.pattern_env env in
       let penv1, p1 = pat genv sig_ penv p1 in
       let penv2, p2 = pat genv sig_ penv1 p2 in
       Env.check_penv pos penv1 penv2 ;
       env, Nast.Pbar (p1, p2)
-
   | Ptuple pl -> 
       let env, pl = lfold (pat genv sig_) env pl in
       env, Nast.Ptuple pl
-
   | Pevariant (id1, id2, arg) -> 
       let md_id = Genv.module_id genv id1 in
       let md_sig = Genv.sig_ genv md_id in
       let id2 = Env.cstr md_sig id2 in
       let env, arg = pat genv sig_ env arg in
       env, Nast.Pevariant (md_id, id2, arg)
-
   | Pecstr (md_id, id) -> 
       let md_id = Genv.module_id genv md_id in
       let md_sig = Genv.sig_ genv md_id in
       let id = Env.cstr md_sig id in
       env, Nast.Pecstr (md_id, id)
+  | Pas (x, p) -> 
+      let env, p = pat genv sig_ env p in
+      let env, x = Env.new_value env x in
+      env, Nast.Pas (x, p)
       
 and pat_field genv sig_ env (p, pf) = 
   let env, pf = pat_field_ genv sig_ env pf in
@@ -533,8 +532,14 @@ and expr_ genv sig_ env e =
       let e2 = expr genv sig_ env e2 in
       Nast.Eseq (e1, e2)
 
-and field genv sig_ env (id, e) = 
-  Env.field sig_ id, expr genv sig_ env e
+and field genv sig_ env = function
+  | Eflocl (id, e) -> 
+      Env.field sig_ id, expr genv sig_ env e
+  | Efextr (md_id, id, e) -> 
+      let md_id = Genv.module_id genv md_id in
+      let sig_md = Genv.sig_ genv md_id in
+      let id = Env.field sig_md id in      
+      id, expr genv sig_ env e
 
 and pat_expr genv sig_ env (p, e) = 
   let env, p = pat genv sig_ env p in

@@ -142,6 +142,9 @@ and pat_ t p ty =
   | Pid (_, x) -> IMap.add x [ty] t
   | Pvariant (_, ((tyl, _) as p)) -> pat t p (type_expr_list tyl)
   | Precord pfl -> pat_record t pfl ty
+  | Pas ((_, x), p) -> 
+      let t = IMap.add x [ty] t in
+      pat t p [ty]
 
 and pat_record t pfl = function
   | A

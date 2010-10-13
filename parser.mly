@@ -74,6 +74,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 
 %token AND
 %token ARROW 
+%token AS
 %token ASSIGN
 %token BAR
 %token BEGIN
@@ -136,6 +137,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 %nonassoc let_
 %nonassoc if_
 %right COLEQ
+%nonassoc AS
 %left BAR
 %right ARROW
 %right SC
@@ -247,9 +249,9 @@ field_type:
 pat_field:
 | ID { fst $1, PFid $1 }
 | ID EQ pat { btw $1 $3, PField ($1, $3) }
+| UNDERSCORE { ($1, PFany) }
 
 pat_field_l:
-| UNDERSCORE { [$1, PFany] }
 | pat_field { [$1] }
 | pat_field SC { [$1] }
 | pat_field SC pat_field_l { $1 :: $3 }
@@ -304,6 +306,7 @@ pat_l:
 }
 
 pat:
+| pat AS ID { btw $1 $3, Pas ($3, $1) }
 | pat BAR pat { btw $1 $3, Pbar ($1,$3) }
 | pat_l { let x, y, z = $1 in Pos.btw x y, Ptuple z }
 
@@ -315,7 +318,8 @@ pat_action:
 | pat ARROW expr { $1, $3 }
 
 field:
-| ID EQ expr { $1, $3 }
+| ID EQ expr { Eflocl ($1, $3) }
+| CSTR DOT ID EQ expr { Efextr ($1, $3, $5) }
 
 field_l:
 | field { [$1] }

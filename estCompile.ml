@@ -21,7 +21,7 @@ and def df =
    ) (ISet.empty, []) bll in 
   let bll = List.rev bll in
   let df = { df with df_body = bll } in
-   let df = EstOptim.def df in  
+(*    let df = EstOptim.def df in  *)
   df
 
 and block bls acc bl = 

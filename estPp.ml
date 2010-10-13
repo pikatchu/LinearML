@@ -49,6 +49,7 @@ and pat_ = function
   | Pvariant (x, p) -> id x ; o "(" ; pat p ; o ")"
   | Precord (ido, pfl) -> 
       o "{ " ; maybe id ido ; List.iter pfield pfl ; o " }"
+  | Pas (x, p) -> o "(" ; id x ; o " as " ; pat_ (snd p) ; o ")"
 
 and pfield (x, p) = 
   id x ; o " = " ; pat p ; o " ; "

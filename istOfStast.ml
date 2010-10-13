@@ -48,6 +48,7 @@ and pat_ = function
   | Pvalue x -> Ist.Pvalue (value x)
   | Pvariant (x, p) -> Ist.Pvariant (id x, pat p)
   | Precord x -> Ist.Precord (List.map pat_field x)
+  | Pas (x, p) -> Ist.Pas (id x, pat p)
 
 and pat_field (_, pf) = 
   match pf with

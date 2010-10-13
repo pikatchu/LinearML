@@ -99,6 +99,7 @@ and pat_ t = function
   | Pvalue v -> Stast.Pvalue v
   | Pvariant (x, p) -> Stast.Pvariant (x, pat t p)
   | Precord pfl -> Stast.Precord (List.map (pat_field t) pfl)
+  | Pas (x, p) -> Stast.Pas (x, pat t p)
 
 and pat_field t (p, pa) = p, pat_field_ t pa
 and pat_field_ t = function

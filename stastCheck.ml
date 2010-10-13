@@ -14,33 +14,25 @@ module Cmp = struct
 
   let rec compare t1 t2 = 
     match t1, t2 with
-
     | ATalgebric (_, m1), ATalgebric (_, m2) -> 
 	IMap.compare compare_opt m1 m2
-
     | ATalgebric _, _ -> -1
     | _, ATalgebric _ -> 1
-
     | ATrecord (_, m1), ATrecord (_, m2) -> 
 	let l1 = list_of_imap m1 in 
 	let l2 = list_of_imap m2 in 
 	compare (ATprod l1) (ATprod l2)
-
     | ATrecord _, _ -> -1
     | _, ATrecord _ -> 1
-
     | ATprod tyl1, ATprod tyl2 -> 
 	List.fold_left2 (fun c x y ->
 	  if c = 0
 	  then compare x y
 	  else c) 0 tyl1 tyl2
-
     | ATprod _, _ -> -1
     | _, ATprod _ -> 1
-
     | ATchoice _, _ 
     | _, ATchoice _ -> assert false
-
     | ATany, ATany -> 0
 
   and compare_opt ty1 ty2 = 
@@ -76,27 +68,24 @@ module Print = struct
   let rec is_any = function
   | ATany -> true
   | ATalgebric (_, m) -> IMap.is_empty m
-
   | ATrecord (_, m) -> 
-      IMap.fold (fun _ t acc -> 
-	is_any t || acc) m false
-
+      IMap.fold (
+      fun _ t acc -> 
+	is_any t || acc
+      ) m false
   | ATchoice tyl
   | ATprod tyl -> 
       List.fold_left (fun acc t ->
 	acc || is_any t) false tyl
 
-
   let rec type_ o = function
     | ATany -> o "_"
-
     | ATalgebric (idl, m) -> 
 	let l = clist_of_imap m in
 	(match l with
 	| [] -> o "_"
 	| [x] -> variant idl o x
 	| l -> o "(" ; print_list o (variant idl) " | " l ; o ")")
-
     | ATrecord (_, m) -> 
 	let l = clist_of_imap m in
 	let c = ref false in
@@ -105,10 +94,8 @@ module Print = struct
 	if !c
 	then (o " ; _") ;
 	o " }"
-
     | ATprod tl -> 
 	o "(" ; print_list o type_ ", " tl ; o ")"
-
     | ATchoice tl -> 
 	print_list o type_ " || " tl
 
@@ -150,7 +137,6 @@ module Print = struct
 
 end
 
-
 let rec max t1 t2 = 
   match t1, t2 with
   | ATany, t | t, ATany -> general t
@@ -167,22 +153,18 @@ let rec max t1 t2 =
 and general t = 
   match t with
   | ATany -> ATany
-
   | ATalgebric (idl, m) ->
       let m = List.fold_left (fun acc (x, n) ->
 	try IMap.add x (opt general (IMap.find x m)) acc
 	with Not_found -> IMap.add x (any n) acc) m idl in
       ATalgebric (idl, m)
-
   | ATrecord (idl, m) ->
       let m = List.fold_left (fun acc (x, n) ->
 	try IMap.add x (general (IMap.find x m)) acc
 	with Not_found -> IMap.add x (any_field n) acc) m idl in
       ATrecord (idl, m)
-
   | ATprod l -> ATprod (List.map general l)
   | ATchoice l -> List.fold_left max ATany (List.map general l)
-
 
 let rec expand_map f m gm =
   IMap.fold (fun x t m ->
@@ -277,19 +259,19 @@ module Pat = struct
     | Pid _ -> ATany
     | Pvalue Eunit -> unit
     | Pvalue _ -> failwith "TODO stastCheck value pattern"
-
     | Pvariant ((_, x), (_, [])) ->
 	ATalgebric (type_expr t ty, IMap.add x None IMap.empty)
-
     | Pvariant ((_, x), p) -> 
 	ATalgebric (type_expr t ty, IMap.add x (Some (pat t p)) IMap.empty)
-
     | Precord pfl -> 
 	let idl = type_expr t ty in
 	let m = List.fold_left (fun acc (x, _ ) -> 
 	  IMap.add x ATany acc) IMap.empty idl in
 	let m = List.fold_left (pat_field t) m pfl in
 	ATrecord (idl, m)
+    | Pas (_, (_, [_, [p]])) ->
+	pat_el t p
+    | Pas _ -> assert false
 
   and pat_field t acc (_, pf) = pat_field_ t acc pf
   and pat_field_ t acc = function
@@ -373,22 +355,18 @@ and expr_ t pos = function
   | Ematch (_, al) ->
       let pl = List.map fst al in
       check_pattern t pos pl
-
   | Elet (p, e1, e2) -> 
       pat t p ;
       tuple t e1 ;
       tuple t e2 
-
   | Eif (e1, e2, e3) -> 
       expr t e1 ;
       tuple t e2 ;
       tuple t e3
-
   | Eapply (_, e) -> tuple t e
   | Eseq (e1, e2) -> 
       expr t e1 ;
       tuple t e2
-
   | Eobs _ -> ()
 
 and field t (_, e) = tuple t e

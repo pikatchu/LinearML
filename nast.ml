@@ -50,6 +50,7 @@ and pat_ =
   | Precord of pat_field list
   | Pbar of pat * pat
   | Ptuple of pat list
+  | Pas of id * pat
 
 and pat_field = Pos.t * pat_field_
 and pat_field_ = 

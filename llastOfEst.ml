@@ -272,6 +272,7 @@ and pat_ = function
   | Pvariant _ -> failwith "TODO Pvariant llastOfEst"
   (* | Pvariant of id * pat *)
   | Precord _ -> failwith "TODO Precord llastOfEst"
+  | Pas _ -> assert false
   (* | Precord of id option * pfield list *)
 
 and variant_args env st idl acc = 

@@ -50,6 +50,7 @@ and pat_ =
   | Pvalue of value
   | Pvariant of id * pat
   | Precord of pat_field list
+  | Pas of id * pat
 
 and pat_field =
   | PFany

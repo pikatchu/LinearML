@@ -227,12 +227,10 @@ end = struct
 	let b2 = pat [b2] in
 	check b1 b2 ;
 	combine b1 rl @ combine b2 rl
-
     | (_, Ptuple l) :: rl ->
 	let rl = pat rl in
 	let l = List.map (fun x -> pat [x]) l in
 	List.fold_right combine l rl 
-
     | x :: rl -> 
 	let rl = pat rl in
 	append [x] rl
@@ -350,10 +348,13 @@ and pat_ = function
   | Pany -> Neast.Pany
   | Pid x -> Neast.Pid x
   | Pcstr x 
-  | Pecstr (_, x) -> Neast.Pvariant (x, (fst x, []))
+  | Pecstr (_, x) -> 
+      Neast.Pvariant (x, (fst x, []))
   | Pevariant (_, x, p)
-  | Pvariant (x, p) -> Neast.Pvariant (x, pat p)
+  | Pvariant (x, p) -> 
+      Neast.Pvariant (x, pat p)
   | Precord pfl -> Neast.Precord (List.map pat_field pfl)
+  | Pas (x, p) -> Neast.Pas (x, pat p)
   | Pbar _ -> assert false
   | Ptuple _ -> assert false
 

@@ -53,6 +53,7 @@ and pat_ =
   | Precord of pat_field list
   | Pbar of pat * pat
   | Ptuple of pat list
+  | Pas of id * pat
 
 and pat_field = Pos.t * pat_field_
 and pat_field_ = 
@@ -76,15 +77,19 @@ and expr_ =
   | Eecstr of id * id
   | Eefield of expr * id * id
   | Eextern of id * id
-  | Erecord of (id * expr) list 
+  | Erecord of field list 
   | Efield of expr * id 
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 
   | Efun of pat list * expr 
   | Eapply of expr * expr list
-  | Ewith of expr * (id * expr) list
+  | Ewith of expr * field list
   | Eseq of expr * expr
+
+and field = 
+  | Eflocl of id * expr 
+  | Efextr of id * id * expr 
 
 and bop = 
   | Eeq

@@ -286,7 +286,6 @@ and instruction proto bb env acc = function
       let v2 = SMap.find v2 acc in
       let v = build_icmp cmp v1 v2 x env.builder in
       SMap.add x v acc
-
   | Extract_value _ -> failwith "TODO Extract_value in emit.ml"
   | Insert _ -> failwith "TODO Insert in emit.ml"
   | Alloca _ -> failwith "TODO Alloca in emit.ml"

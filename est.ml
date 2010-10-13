@@ -29,6 +29,7 @@ and pat_ =
   | Pid of id
   | Pvariant of id * pat
   | Precord of id option * pfield list
+  | Pas of id * pat_el
 
 and pfield = id * pat
 

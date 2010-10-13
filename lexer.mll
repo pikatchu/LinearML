@@ -10,6 +10,7 @@ let error msg = raise (Lexical_error msg)
 let keywords = Hashtbl.create 23  (* small prime number *)
 let assoc_keyword = [
   "and"    , (fun lb -> AND) ;
+  "as"     , (fun lb -> AS) ;
   "when"   , (fun lb -> WHEN) ;
   "while"  , (fun lb -> WHILE) ;
   "with"   , (fun lb -> WITH) ;

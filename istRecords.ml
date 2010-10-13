@@ -46,6 +46,9 @@ and pat_ env acc ty = function
       let rexpr = [ty], Eid rid in
       let acc = List.fold_left (pat_field rexpr) acc pfl in
       acc, Pid rid
+  | Pas (x, p) -> 
+      let acc, p = pat env acc p in
+      acc, Pas (x, p)
 
 and pat_field rid acc = function
   | PFany 

@@ -25,6 +25,7 @@ and pat_ =
   | Pvalue of value
   | Pvariant of id * pat
   | Precord of pat_field list
+  | Pas of id * pat
 
 and pat_field = Pos.t * pat_field_
 and pat_field_ = 
@@ -64,6 +65,9 @@ module FreeVars = struct
     | Pid (_, x) -> ISet.add x s 
     | Pvariant (_, p) -> pat s p 
     | Precord pfl -> List.fold_left pat_field s pfl 
+    | Pas ((_, x), p) -> 
+	let s = ISet.add x s in
+	pat s p
 
   and pat_field s (_, pf) = pat_field_ s pf
   and pat_field_ s = function
@@ -116,6 +120,7 @@ module Rename = struct
   | Pid x -> Pid (id t x) 
   | Pvariant (x, p) -> Pvariant (x, pat t p)
   | Precord pfl -> Precord (List.map (pat_field t) pfl) 
+  | Pas (x, p) -> Pas (id t x, pat t p)
 
   and pat_field t (p, pf) = p, pat_field_ t pf
   and pat_field_ t = function
@@ -261,6 +266,7 @@ module Fresh = struct
   | Pid x -> Pid (id t x) 
   | Pvariant (x, p) -> Pvariant (x, pat t p)
   | Precord pfl -> Precord (List.map (pat_field t) pfl) 
+  | Pas (x, p) -> Pas (id t x, pat t p)
 
   and pat_field t (p, pf) = p, pat_field_ t pf
   and pat_field_ t = function

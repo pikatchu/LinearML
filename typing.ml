@@ -274,27 +274,22 @@ module Instantiate = struct
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> acc, subst
     | Tvar (_, x), Tvar (_, y) when x = y -> acc, subst
     | Tvar v, _ -> inst_var env acc subst v (pl2, ty2)
-
     | Tid (_, x), Tid (_, y) when x = y -> acc, subst
-
     | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
 	inst_list env acc subst tyl1 tyl2
-
     | Tapply ((_, x), tyl1), Tany -> 
 	inst_list env acc subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
-
+    | _, Tany -> acc, subst
     | Tfun (tyl, rty1), Tdef ids -> 
 	let pdef = pl2 in
 	let idl = IMap.fold (fun x _ acc -> (pdef, x) :: acc) ids [] in
 	let rty = pdef, [pl2, Tany] in
 	let acc, rty2 = env.apply_def_list env acc pl2 idl tyl rty in
 	inst_list env acc subst rty1 rty2
-
     | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) -> 
 	let acc, subst = inst_list env acc subst tyl1 tyl2 in
 	let acc, subst = inst_list env acc subst tyl3 tyl4 in
 	acc, subst
-
     | ty1, ty2 -> 
 	let ty1 = Print.type_expr_ ty1 in
 	let ty2 = Print.type_expr_ ty2 in
@@ -514,32 +509,38 @@ and pat_tuple_ env acc l tyl =
 and pat_el env acc (pos, p) (_, ty) =
   let pty = pos, ty in
   let is_obs = is_observed pty in
-  let env, acc, (rty, p) = match p with
-  | Pany -> env, acc, (pty, Tast.Pany)
-  | Pid ((_, x) as id) -> 
-      let env = { env with tenv = IMap.add x pty env.tenv } in
-      env, acc, (pty, Tast.Pid id)
-  | Pvariant (x, (_, [])) -> 
-      let pty = get_true_type pty in
-      let ty2 = IMap.find (snd x) env.tenv in
-      let ty2 = pos, (snd ty2) in
-      let acc, ty = Unify.unify_el env acc ty2 pty in
-      env, acc, (ty, Tast.Pvariant (x, ((pos, []), [])))
-  | Pvariant (x, args) ->
+  let env, acc, (rty, p) = 
+    match p with
+    | Pany -> env, acc, (pty, Tast.Pany)
+    | Pid ((_, x) as id) -> 
+	let env = { env with tenv = IMap.add x pty env.tenv } in
+	env, acc, (pty, Tast.Pid id)
+    | Pvariant (x, (_, [])) -> 
+	let pty = get_true_type pty in
+	let ty2 = IMap.find (snd x) env.tenv in
+	let ty2 = pos, (snd ty2) in
+	let acc, ty = Unify.unify_el env acc ty2 pty in
+	env, acc, (ty, Tast.Pvariant (x, ((pos, []), [])))
+    | Pvariant (x, args) ->
       let pty = get_true_type pty in
       let env, acc, rty, args = pat_variant is_obs env acc x args pty in
       env, acc, (rty, Tast.Pvariant (x, args))
-  | Pvalue v -> 
-      let pty = get_true_type pty in
-      let acc, rty = Unify.unify_el env acc (pos, Tprim (value v)) pty in
-      env, acc, (rty, Tast.Pvalue v)
-  | Precord pfl -> 
-      let pty = get_true_type pty in
-      let (env, acc), pfl = lfold (pat_field is_obs pty) (env, acc) pfl in
-      let tyl = List.map fst pfl in
-      let pfl = List.map snd pfl in
-      let acc, ty = Unify.fold_types env acc tyl in 
-      env, acc, (ty, Tast.Precord pfl) in
+    | Pvalue v -> 
+	let pty = get_true_type pty in
+	let acc, rty = Unify.unify_el env acc (pos, Tprim (value v)) pty in
+	env, acc, (rty, Tast.Pvalue v)
+    | Precord pfl -> 
+	let pty = get_true_type pty in
+	let (env, acc), pfl = lfold (pat_field is_obs pty) (env, acc) pfl in
+	let tyl = List.map fst pfl in
+	let pfl = List.map snd pfl in
+	let acc, ty = Unify.fold_types env acc tyl in 
+	env, acc, (ty, Tast.Precord pfl) 
+    | Pas (((_, x) as id), p) -> 
+	let env = { env with tenv = IMap.add x pty env.tenv } in
+	let env, acc, p = pat env acc p (fst pty, [pty]) in
+	env, acc, ((fst pty, ty), Tast.Pas (id, p))
+  in
   let rty = if is_obs 
   then make_observed rty
   else rty in
@@ -549,6 +550,7 @@ and pat_field is_obs pty (env, acc) (p, pf) =
   let pty = p, snd pty in
   match pf with 
   | PFany -> 
+      let pty = if is_obs then make_observed pty else pty in
       (env, acc), (pty, (p, Tast.PFany))
   | PFid ((_, x) as id) -> 
       let pty = if is_obs then make_observed pty else pty in
@@ -556,6 +558,7 @@ and pat_field is_obs pty (env, acc) (p, pf) =
       (env, acc), (pty, (p, Tast.PFid id))
   | PField (id, args) ->
       let env, acc, rty, args = pat_variant is_obs env acc id args pty in
+      let rty = if is_obs then make_observed rty else rty in
       (env, acc), (rty, (p, Tast.PField (id, args)))
 
 and pat_variant is_obs env acc x args pty =

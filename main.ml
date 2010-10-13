@@ -32,8 +32,8 @@ let _ =
     let est = EstCompile.program est in
     EstPp.program est ;
 (*    let llast = LlastOfEst.program est in
-    let _ = Emit.program llast in *)
-    module_l := new_module :: !module_l 
+     let _ = Emit.program llast in  
+    module_l := new_module :: !module_l *)
   done ;
   !module_l
 

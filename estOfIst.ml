@@ -31,7 +31,7 @@ module SplitPat = struct
     | Pany
     | Pvariant (_, [])
     | Pid _ as x -> [x]
-    | Pvalue _ -> [Pany] (* only possible value is unit *)
+    | Pvalue _ -> [Pany] (* TODO only possible value is unit *)
     | Pvariant (x, p) -> 
 	let pl = pat p in
 	List.map (fun y -> Pvariant (x, [y])) pl 
@@ -39,9 +39,12 @@ module SplitPat = struct
 	let pfid = List.fold_left pf_id None pfl in
 	let pfll = List.fold_right pat_field pfl [] in
 	let recl = break_record pfll in
-	match pfid with
+	(match pfid with
 	| None -> List.map (fun x -> Precord x) recl
-	| Some x -> List.map (fun l -> Precord (x :: l)) recl
+	| Some x -> List.map (fun l -> Precord (x :: l)) recl)
+    | Pas (x, p) -> 
+	let pl = pat p in
+	List.map (fun p -> Pas (x, [p])) pl
 
   and break_record pfll = 
     match pfll with
@@ -122,7 +125,11 @@ module BreakPat = struct
 	      ty, x, subpl, (rl1, a) :: pl
 	   ) part) 
     | ((_, Precord _) :: _, _) :: _ -> assert false
-	 
+    | ((_, Pas (x, p)) :: rl1, a) :: rl2 -> 
+	let pa = (p :: rl1, a) :: rl2 in
+	let s, todo, p = partition id s pa in
+	let s = IMap.add x id s in
+	s, todo, p
 
   let rec pmatch subst idl pal =
     match idl with
@@ -272,6 +279,8 @@ and pat_ = function
 	  | _ -> assert false
        ) pfl in
       Est.Precord (id_opt, pfl)
+  | Pas (x, [[p]]) -> Est.Pas (x, pat_el p)
+  | Pas _ -> assert false
 
 and get_rid = function
   | [] -> None
