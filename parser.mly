@@ -282,7 +282,7 @@ simpl_pat_l:
 
 pat_:
 | simpl_pat { $1 }
-| simpl_pat COLONCOLON simpl_pat { 
+| pat_ COLONCOLON pat_ { 
   let pos = btw $1 $3 in
   pos, Pevariant (($2, "List"), ($2, "Cons"), (pos, Ptuple [$1 ; $3]))
 }

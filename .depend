@@ -50,6 +50,8 @@ istOfStast.cmo: utils.cmx stast.cmx ist.cmx
 istOfStast.cmx: utils.cmx stast.cmx ist.cmx 
 istRecords.cmo: utils.cmx ist.cmx ident.cmi 
 istRecords.cmx: utils.cmx ist.cmx ident.cmx 
+istAdhoc.cmo: utils.cmx naming.cmx ist.cmx ident.cmi 
+istAdhoc.cmx: utils.cmx naming.cmx ist.cmx ident.cmx 
 est.cmo: utils.cmx ist.cmx ident.cmi ast.cmx 
 est.cmx: utils.cmx ist.cmx ident.cmx ast.cmx 
 estSubst.cmo: utils.cmx est.cmx 
@@ -60,15 +62,15 @@ estOfIst.cmo: utils.cmx ist.cmx ident.cmi estSubst.cmx est.cmx
 estOfIst.cmx: utils.cmx ist.cmx ident.cmx estSubst.cmx est.cmx 
 estOptim.cmo: utils.cmx est.cmx 
 estOptim.cmx: utils.cmx est.cmx 
-estCompile.cmo: utils.cmx ident.cmi estOptim.cmx est.cmx 
-estCompile.cmx: utils.cmx ident.cmx estOptim.cmx est.cmx 
+estCompile.cmo: utils.cmx ident.cmi est.cmx 
+estCompile.cmx: utils.cmx ident.cmx est.cmx 
 llast.cmo: /home/pika/godi/lib/llvm.cmi 
 llast.cmx: /home/pika/godi/lib/llvm.cmi 
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx estPp.cmx \
-    estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 
+    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
+    estPp.cmx estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx estPp.cmx \
-    estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 
+    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
+    estPp.cmx estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 

@@ -1,6 +1,34 @@
 open Utils
 open Est
 
+module NoArgVariants = struct
+  open Ist
+
+  let rec program mdl = 
+    let t = IMap.empty in
+    let t = List.fold_left module_ t mdl in
+    t
+
+  and module_ t md = 
+    List.fold_left decl t md.md_decls
+
+  and decl t = function
+    | Dalgebric td -> tdef t td
+    | _ -> t
+
+  and tdef t td = 
+    let vl = IMap.fold (
+      fun x (_, args) acc ->
+	match args with
+	| [] -> x :: acc
+	| _ -> acc
+     ) td.td_map [] in
+    IMap.add td.td_id vl t
+
+  
+end
+
+
 let rec program mdl = 
   List.rev_map module_ mdl
 
@@ -21,7 +49,6 @@ and def df =
    ) (ISet.empty, []) bll in 
   let bll = List.rev bll in
   let df = { df with df_body = bll } in
-(*    let df = EstOptim.def df in  *)
   df
 
 and block bls acc bl = 
@@ -127,20 +154,3 @@ and make_phil l bl =
       let phil = make_phil rl bl in
       (x, ty, l') :: phil
 
-(*and expr = 
-  | Eid of id
-  | Evalue of Ist.value
-  | Evariant of id * ty_idl
-  | Ebinop of Ast.bop * ty_id * ty_id
-  | Euop of Ast.uop * ty_id
-  | Erecord of (id * ty_idl) list 
-  | Ewith of ty_id * (id * ty_idl) list 
-  | Efield of ty_id * id 
-  | Ematch of ty_idl * (pat * expr) list
-  | Ecall of label
-  | Eapply of id * ty_idl
-  | Eseq of ty_id * ty_idl
-  | Eif of ty_id * label * label
-
-
-*)

@@ -269,9 +269,13 @@ module Pat = struct
 	  IMap.add x ATany acc) IMap.empty idl in
 	let m = List.fold_left (pat_field t) m pfl in
 	ATrecord (idl, m)
-    | Pas (_, (_, [_, [p]])) ->
-	pat_el t p
-    | Pas _ -> assert false
+    | Pas (_, (_, pl)) ->
+	let pl = List.map (
+	  function
+	    | _, [p] -> pat_el t p
+	    | _ -> assert false (* cannot use 'as' on tuples *)
+	 ) pl in
+	ATchoice pl
 
   and pat_field t acc (_, pf) = pat_field_ t acc pf
   and pat_field_ t acc = function

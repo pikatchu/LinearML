@@ -170,6 +170,7 @@ module Print = struct
     | Tchar	-> o "char"
     | Tint32	-> o "int32"
     | Tfloat	-> o "float"
+    | Tstring   -> o "string"
 
   let debug tyl = 
     type_expr_list (output_string stdout) (Pos.none, tyl) ;

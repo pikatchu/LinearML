@@ -40,6 +40,7 @@ and type_prim = Nast.type_prim =
   | Tchar
   | Tint32
   | Tfloat
+  | Tstring
 
 and def = id * pat * tuple
 

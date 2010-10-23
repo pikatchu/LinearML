@@ -28,6 +28,7 @@ let _ =
     BoundCheck.program stast ;
     let ist = IstOfStast.program stast in
     let ist = IstRecords.program ist in
+    IstAdhoc.program ist ;
     let est = EstOfIst.program ist in
     let est = EstCompile.program est in
     EstPp.program est ;

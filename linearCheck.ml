@@ -22,6 +22,29 @@ module FreeVars = struct
     | PField (_, p) -> pat t p 
 end
 
+module OnlyUnderscores = struct
+
+  let rec pat t (_, ptl) = List.fold_left pat_tuple t ptl 
+  and pat_tuple t (_, pel) = List.fold_left pat_el t pel 
+  and pat_el t (_, p) = pat_ t p 
+  and pat_ t = function
+    | Pany -> t
+    | Pid _ -> false
+    | Pvalue _ -> t
+    | Pvariant (_, p) -> pat t p 
+    | Precord pfl -> List.fold_left pat_field t pfl 
+    | Pas _ -> false
+
+  and pat_field t (_, pf) =
+    match pf with
+    | PFany -> t
+    | PFid (p, x) -> false
+    | PField (_, p) -> pat t p 
+
+  let pat p = pat true p
+end
+
+
 type ty = 
   | Prim
   | Obs of Pos.t
@@ -130,9 +153,14 @@ and pat_ t ty = function
       let t = IMap.add x (Obs pos) t in
       pat t p
   | Pas ((pos, x), p) -> 
-      let fv = FreeVars.pat IMap.empty p in
-      let t = IMap.add x (Fresh (pos, fv)) t in
-      pat t p
+      if OnlyUnderscores.pat p 
+      then 
+	let t = IMap.add x (Fresh (pos, IMap.empty)) t in
+	t
+      else
+	let fv = FreeVars.pat IMap.empty p in
+	let t = IMap.add x (Fresh (pos, fv)) t in
+	pat t p
 
 and pat_field ty t (p, pf) = pat_field_ ty t p pf
 and pat_field_ ty t p = function

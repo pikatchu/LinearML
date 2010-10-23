@@ -54,6 +54,7 @@ OBJECTS_ML = \
 	ist.ml\
 	istOfStast.ml\
 	istRecords.ml\
+	istAdhoc.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\
@@ -62,6 +63,7 @@ OBJECTS_ML = \
 	estCompile.ml\
 	llast.ml\
 	main.ml
+#	istAdhoc.ml
 
 #	llastOfEst.ml\
 	emit.ml\
