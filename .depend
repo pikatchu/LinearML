@@ -64,13 +64,17 @@ estOptim.cmo: utils.cmx est.cmx
 estOptim.cmx: utils.cmx est.cmx 
 estCompile.cmo: utils.cmx ident.cmi est.cmx 
 estCompile.cmx: utils.cmx ident.cmx est.cmx 
+estNormalizePatterns.cmo: utils.cmx naming.cmx ist.cmx est.cmx 
+estNormalizePatterns.cmx: utils.cmx naming.cmx ist.cmx est.cmx 
 llast.cmo: /home/pika/godi/lib/llvm.cmi 
 llast.cmx: /home/pika/godi/lib/llvm.cmi 
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
     linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
-    estPp.cmx estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 
+    estPp.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx \
+    boundCheck.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
     linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
-    estPp.cmx estOfIst.cmx estCompile.cmx error.cmx boundCheck.cmx 
+    estPp.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx \
+    boundCheck.cmx 

@@ -31,6 +31,7 @@ let _ =
     IstAdhoc.program ist ;
     let est = EstOfIst.program ist in
     let est = EstCompile.program est in
+    let est = EstNormalizePatterns.program est in
     EstPp.program est ;
 (*    let llast = LlastOfEst.program est in
      let _ = Emit.program llast in  

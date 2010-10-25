@@ -1,34 +1,6 @@
 open Utils
 open Est
 
-module NoArgVariants = struct
-  open Ist
-
-  let rec program mdl = 
-    let t = IMap.empty in
-    let t = List.fold_left module_ t mdl in
-    t
-
-  and module_ t md = 
-    List.fold_left decl t md.md_decls
-
-  and decl t = function
-    | Dalgebric td -> tdef t td
-    | _ -> t
-
-  and tdef t td = 
-    let vl = IMap.fold (
-      fun x (_, args) acc ->
-	match args with
-	| [] -> x :: acc
-	| _ -> acc
-     ) td.td_map [] in
-    IMap.add td.td_id vl t
-
-  
-end
-
-
 let rec program mdl = 
   List.rev_map module_ mdl
 

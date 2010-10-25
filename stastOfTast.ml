@@ -3,6 +3,11 @@ open Tast
 
 type t = type_expr IMap.t
 
+let check_terminates (p, tyl) = 
+  List.iter (function
+    | _, Stast.Tany -> Error.infinite_loop p
+    | _ -> ()) tyl
+
 module ObsCheck = struct
   open Stast
 
@@ -108,9 +113,14 @@ and pat_field_ t = function
   | PField (x, p) -> Stast.PField (x, pat t p)
 
 and tuple t (tyl, tpl) = type_expr_list t tyl, List.map (tuple_pos t) tpl
-and tuple_pos t (tyl, e) = type_expr_list t tyl, expr_ t e
-and expr t (ty, e) = type_expr t ty,  expr_ t e
-and expr_ t = function
+and tuple_pos t (tyl, e) = 
+  let tyl = type_expr_list t tyl in
+  tyl, expr_ t tyl e
+and expr t (ty, e) = 
+  let ty = type_expr t ty in
+  ty, expr_ t (fst ty, [ty]) e
+
+and expr_ t ty = function
   | Eid x -> Stast.Eid x
   | Evalue v -> Stast.Evalue v
   | Evariant (id, e) -> 
@@ -137,7 +147,9 @@ and expr_ t = function
       ObsCheck.tuple e2 ;
       ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
-  | Eapply (x, e) -> Stast.Eapply (x, tuple t e)
+  | Eapply (x, e) -> 
+      check_terminates ty ;
+      Stast.Eapply (x, tuple t e)
   | Eseq (e1, e2) -> 
       let e2 = tuple t e2 in
       ObsCheck.tuple e2 ;

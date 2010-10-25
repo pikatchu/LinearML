@@ -61,6 +61,7 @@ OBJECTS_ML = \
 	estOfIst.ml\
 	estOptim.ml\
 	estCompile.ml\
+	estNormalizePatterns.ml\
 	llast.ml\
 	main.ml
 #	istAdhoc.ml
