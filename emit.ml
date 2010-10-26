@@ -12,18 +12,20 @@ module Type = struct
     let t = List.fold_left (module_funs ctx mds) SMap.empty mdl in
     mds, t
 
-  and module_decl ctx acc (md_name, dl) = 
-    let md = create_module ctx md_name in
-    let t = List.fold_left (opaques md ctx) SMap.empty dl in
-    SMap.add md_name (md, t) acc 
+  and module_decl ctx acc md = 
+    let llvm_md = create_module ctx md.md_id in
+    let t = List.fold_left (opaques llvm_md ctx) SMap.empty md.md_defs in
+    SMap.add md.md_id (llvm_md, t) acc 
 
-  and module_refine ctx mds acc (md_name, dl) = 
+  and module_refine ctx mds acc md = 
+    let md_name, dl = md.md_id, md.md_defs in
     let (md, t) = SMap.find md_name mds in
     let t' = List.fold_left (def_type mds ctx) t dl in
     List.iter (refine t t') dl ;
     SMap.add md_name (md, t') acc
 
-  and module_funs ctx mds acc (md_name, dl) = 
+  and module_funs ctx mds acc md = 
+    let md_name, dl = md.md_id, md.md_defs in
     let (md, tys) = SMap.find md_name mds in
     let fs = List.fold_left (def_fun mds tys md ctx) SMap.empty dl in
     SMap.add md_name (md, tys, fs, dl) acc
@@ -104,7 +106,7 @@ type env = {
     fmap: llvalue SMap.t ;
     builder: llbuilder ;
     types: lltype SMap.t ;
-    malloc: llvalue ;
+    prims: llvalue SMap.t ;
     bls: llbasicblock SMap.t ;
     bldone: SSet.t ;
   }
@@ -115,17 +117,24 @@ let pervasives ctx =
   let args = i64_type ctx in
   let fty = function_type rty [|args|] in
   let malloc = declare_function "malloc" fty md in
+  let tprint = function_type (i1_type ctx) [|pointer_type (i8_type ctx)|] in
+  let print = declare_function "print" tprint md in
   set_linkage Linkage.External malloc ; 
+  set_linkage Linkage.External print ;
   dump_module md ;
   Llvm_analysis.assert_valid_module md ;
-  malloc
+  let prims = SMap.empty in 
+  let prims = SMap.add "malloc" malloc prims in
+  let prims = SMap.add "print" print prims in
+  prims
 
 let rec program mdl = 
   let ctx = global_context() in
   let mds, t = Type.program ctx mdl in
   List.rev_map (module_ mds ctx t) mdl 
 
-and module_ mds ctx t (md_id, md) = 
+and module_ mds ctx t md = 
+  let md_id, md = md.md_id, md.md_defs in
   let (md, tys, fs, dl) = SMap.find md_id t in
   let pm = PassManager.create () in
   add_reassociation pm;   
@@ -138,14 +147,14 @@ and module_ mds ctx t (md_id, md) =
   add_jump_threading pm ; 
 (*  add_cfg_simplification pm;   *)
   let builder = builder ctx in
-  let malloc = pervasives ctx in
+  let prims = pervasives ctx in
   let env = 
     { mds = mds ;
       ctx = ctx ; 
       fmap = fs ; 
       builder = builder ; 
       types = tys ;
-      malloc = malloc ;
+      prims = prims ;
       bls = SMap.empty ;
       bldone = SSet.empty ;
     } in
@@ -239,7 +248,8 @@ and instruction proto bb env acc = function
   | Alloc (x, ty) -> 
       let ty = Type.type_ env.mds env.types env.ctx ty in      
       let v = size_of ty in
-      let bl = build_call env.malloc [|v|] "" env.builder in
+      let malloc = SMap.find "malloc" env.prims in
+      let bl = build_call malloc [|v|] "" env.builder in
       let bl = build_bitcast bl (pointer_type ty) x env.builder in
       SMap.add x bl acc
   | VAlloc (x, ty, vty) -> 
@@ -247,7 +257,8 @@ and instruction proto bb env acc = function
       let v1 = size_of vty in
       let v2 = size_of (i32_type env.ctx) in
       let v = const_add v1 v2 in
-      let bl = build_call env.malloc [|v|] "" env.builder in
+      let malloc = SMap.find "malloc" env.prims in
+      let bl = build_call malloc [|v|] "" env.builder in
       SMap.add x bl acc
   | Store (x, y) -> 
       let x = SMap.find x acc in
@@ -274,7 +285,7 @@ and instruction proto bb env acc = function
       let v = build_bitcast y ty x env.builder in
       SMap.add x v acc
   | Call (tail, x, f, l) -> 
-      let f = SMap.find f acc in
+      let f = try SMap.find f acc with Not_found -> SMap.find f env.prims in
       let l = List.map (fun v -> SMap.find v acc) l in
       let t = Array.of_list l in
       let v = build_call f t x env.builder in
@@ -333,9 +344,8 @@ and const env ty = function
   | Const_float s -> 
       const_float_of_string ty s
   | Const_enum i ->
-(*      let i = const_int (i32_type env.ctx) i in
-      const_union ty i *)
       const_int (i32_type env.ctx) i
+  | Const_string _ -> assert false
 
 and icmp = function
   | Llast.Eq -> Llvm.Icmp.Eq 

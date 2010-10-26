@@ -68,13 +68,25 @@ estNormalizePatterns.cmo: utils.cmx naming.cmx ist.cmx est.cmx
 estNormalizePatterns.cmx: utils.cmx naming.cmx ist.cmx est.cmx 
 llast.cmo: /home/pika/godi/lib/llvm.cmi 
 llast.cmx: /home/pika/godi/lib/llvm.cmi 
+llastOfEst.cmo: utils.cmx naming.cmx /home/pika/godi/lib/llvm.cmi llast.cmx \
+    ist.cmx ident.cmi est.cmx ast.cmx 
+llastOfEst.cmx: utils.cmx naming.cmx /home/pika/godi/lib/llvm.cmi llast.cmx \
+    ist.cmx ident.cmx est.cmx ast.cmx 
+emit.cmo: utils.cmx /home/pika/godi/lib/llvm_target.cmi \
+    /home/pika/godi/lib/llvm_scalar_opts.cmi \
+    /home/pika/godi/lib/llvm_analysis.cmi /home/pika/godi/lib/llvm.cmi \
+    llast.cmx 
+emit.cmx: utils.cmx /home/pika/godi/lib/llvm_target.cmi \
+    /home/pika/godi/lib/llvm_scalar_opts.cmi \
+    /home/pika/godi/lib/llvm_analysis.cmi /home/pika/godi/lib/llvm.cmi \
+    llast.cmx 
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
-    estPp.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx \
-    boundCheck.cmx 
+    llastOfEst.cmx linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx \
+    istAdhoc.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx \
+    error.cmx emit.cmx boundCheck.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx nastExtractFuns.cmx nastExpand.cmx nastCheck.cmx naming.cmx \
-    linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx istAdhoc.cmx \
-    estPp.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx \
-    boundCheck.cmx 
+    llastOfEst.cmx linearCheck.cmx lexer.cmx istRecords.cmx istOfStast.cmx \
+    istAdhoc.cmx estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx \
+    error.cmx emit.cmx boundCheck.cmx 

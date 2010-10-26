@@ -1,3 +1,4 @@
+open Utils
 
 type t = module_ list
 
@@ -5,7 +6,11 @@ and id = string
 and label = string
 and value = string
 and idx = int
-and module_ = string * def list
+and module_ = { 
+    md_id: string ; 
+    md_defs: def list ;
+    md_strings: string SMap.t ;
+  }
 
 and def = 
   | Type of string * type_
@@ -95,3 +100,4 @@ and const =
   | Const_int of string
   | Const_float of string
   | Const_enum of int
+  | Const_string of string

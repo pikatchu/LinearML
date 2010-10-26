@@ -45,5 +45,9 @@ let print x =
 let origin x = 
   IMap.find x !origin
 
-let to_ustring x = to_string x ^ string_of_int x
+let to_ustring x = 
+  let s = to_string x in
+  match s with
+  | "free" | "print" -> s
+  | _ -> s ^ string_of_int x
   

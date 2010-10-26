@@ -27,6 +27,52 @@ module Genv = struct
    ) td.td_map t
   
 end
+    
+module Strings = struct
+
+  let rec module_ md = 
+    List.fold_left def SMap.empty md.md_defs 
+
+  and def t d = 
+    List.fold_left block t d.df_body
+
+  and block t bl = 
+    let t = List.fold_left equation t bl.bl_eqs in
+    let t = ret t bl.bl_ret in
+    t
+
+  and pat t pel = List.fold_left pat_el t pel 
+  and pat_el t (_, p) = pat_ t p 
+  and pat_ t = function
+    | Pany 
+    | Pid _
+    | Pvariant _
+    | Precord _
+    | Pas _ -> t
+    (* TODO string is missing *)
+
+  and ret t = function  
+  | Lreturn _
+  | Return _
+  | Jump _ 
+  | If _ -> t 
+  | Match (_, al) -> 
+      let al = List.map fst al in
+      List.fold_left pat t al
+
+  and equation t (_, e) = expr t e
+  and expr t = function
+  | Evalue (Estring s) -> 
+      let x = Ident.tmp() in
+      let x = Ident.to_ustring x in
+      SMap.add s x t
+  | Ematch (_, al) -> 
+      let al = List.map fst al in
+      List.fold_left pat t al
+  | _ -> t
+
+
+end
 
 type env = {
     pfuns: ISet.t ;
@@ -43,6 +89,7 @@ let rec program mdl =
   List.rev_map (module_ names) mdl
 
 and module_ names md =
+  let strings = Strings.module_ md in
   let pfuns = List.fold_left public_funs ISet.empty md.md_decls in
   let l = List.fold_left decl [] md.md_decls in
   let variants = List.fold_left decl_variants IMap.empty md.md_decls in
@@ -50,7 +97,10 @@ and module_ names md =
   let env = { pfuns = pfuns ; names = names ; 
 	      variants = variants ; blocks = IMap.empty } in
   let l = List.fold_left (def env) l md.md_defs in
-  (Ident.to_ustring md.md_id, l)
+  { Llast.md_id = Ident.to_ustring md.md_id ;
+    Llast.md_defs = l ;
+    Llast.md_strings = strings ;
+  }
 
 and public_funs acc = function
   | Dval (x, _) -> ISet.add x acc
@@ -134,6 +184,7 @@ and type_prim = function
   | Tchar -> Llast.Int8
   | Tint32 -> Llast.Int32
   | Tfloat -> Llast.Float
+  | Tstring -> Llast.Pointer (Llast.Int8)
 
 and def env acc df = 
   let public = ISet.mem df.df_id env.pfuns in
@@ -335,4 +386,4 @@ and value = function
   | Eint s -> Llast.Const_int s
   | Efloat s -> Llast.Const_float s 
   | Echar _ -> failwith "TODO const char"
-  | Estring _ -> failwith "TODO const string"
+  | Estring s -> Llast.Const_string s

@@ -47,6 +47,7 @@ module LocalUtils = struct
     match ty with
     | Tprim _ -> (p, ty)
     | Tapply ((_, x), _) when x = Naming.tobs -> p, ty
+    | Tapply ((_, x), _) when x = Naming.tshared -> p, ty
     | _ -> p, Tapply ((p, Naming.tobs), (p, [p, ty]))
 
   let unobserve = function
@@ -186,10 +187,14 @@ module Unify = struct
 
   let rec unify_list env acc ((p1, _) as l1) ((p2, _) as l2) = 
     try unify_list_ env acc l1 l2
-    with Exit -> 
-      let pp1 = Print.type_expr_list l1 in
-      let pp2 = Print.type_expr_list l2 in 
-      Error.unify p1 p2 pp1 pp2
+    with Error.Type err_l -> 
+      let err = Error.Unify {
+	Error.pos1 = p1 ;
+	Error.pos2 = p2 ;
+	Error.print1 = Print.type_expr_list l1 ;
+	Error.print2 = Print.type_expr_list l2 ; 
+      } in
+      raise (Error.Type (err :: err_l))
 
   and unify_list_ env acc ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
     let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
@@ -202,10 +207,14 @@ module Unify = struct
 	
   and unify_el env acc ty1 ty2 = 
     try unify_el_ env acc ty1 ty2
-    with Exit -> 
-      let pty1 = Print.type_expr ty1 in
-      let pty2 = Print.type_expr ty2 in
-      Error.unify (fst ty1) (fst ty2) pty1 pty2
+    with Error.Type _ -> 
+      let err = Error.Unify {
+	Error.pos1 = fst ty1 ;
+	Error.pos2 = fst ty2 ;
+	Error.print1 = Print.type_expr ty1 ;
+	Error.print2 = Print.type_expr ty2 ;
+      } in
+      raise (Error.Type [err])
 
   and unify_el_ env acc ty1 ty2 = 
     match ty1, ty2 with
@@ -230,7 +239,7 @@ module Unify = struct
 	let ty = unify_el_prim env acc ty1 ty2 in
 	acc, (p, ty)
 
-  and unify_el_prim env acc (p1, ty1) (p2, ty2) =
+  and unify_el_prim env acc ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
     | Tany, ty 
     | ty, Tany -> ty
@@ -238,7 +247,16 @@ module Unify = struct
     | Tvar (_, x), Tvar (_, y) when x = y -> ty1
     | Tid (_, x), Tid (_, y) when x = y -> ty1
     | Tdef s1, Tdef s2 -> Tdef (IMap.fold IMap.add s1 s2)
-    | _ -> raise Exit
+    | _ -> 
+      let pty1 = Print.type_expr pty1 in
+      let pty2 = Print.type_expr pty2 in
+      let err = Error.Unify {
+	Error.pos1 = p1 ;
+	Error.pos2 = p2 ;
+	Error.print1 = pty1 ;
+	Error.print2 = pty2 ;
+      } in
+      raise (Error.Type [err])
 
   let rec fold_types env acc tyl = 
     match tyl with
@@ -292,9 +310,13 @@ module Instantiate = struct
 	let acc, subst = inst_list env acc subst tyl3 tyl4 in
 	acc, subst
     | ty1, ty2 -> 
-	let ty1 = Print.type_expr_ ty1 in
-	let ty2 = Print.type_expr_ ty2 in
-	Error.unify pl1 pl2 ty1 ty2
+	let err = Error.Unify {
+	  Error.pos1 = pl1 ;
+	  Error.pos2 = pl2 ;
+	  Error.print1 = Print.type_expr_ ty1 ;
+	  Error.print2 = Print.type_expr_ ty2 ; 
+	} in
+	raise (Error.Type [err])
 
   and inst_var env acc subst (_, x) (p, ty2) =
     try 
@@ -340,12 +362,37 @@ module Env = struct
   let tfree = tfun [tany] [tprim Tunit]
   let tget = tfun [tany ; tany] [tany] (* TODO type *)
   let tlength = tfun [tany] [tprim Tint32] (* TODO type *)
+  let tprint = tfun [tprim Tstring] [tprim Tunit]
+
+  let share = 
+    let tmp = Ident.tmp() in
+    tfun [tvar tmp] [tapply Naming.tshared [tvar tmp]]
+
+  let clone = 
+    let tmp = Ident.tmp() in
+    let x = tapply Naming.tshared [tvar tmp] in
+    tfun [x] [x]
+
+  let visit = 
+    let tmp = Ident.tmp() in
+    let x = tapply Naming.tshared [tvar tmp] in
+    tfun [x] [tapply Naming.tobs [tvar tmp]]
+
+(*  let unshare = 
+    let tmp = Ident.tmp() in
+    let x = tapply Naming.tshared [tvar tmp] in
+    tfun [x] [tapply Naming.tobs [tvar tmp]] *)
 
   let rec make mdl = 
     let env = IMap.empty in
     let env = IMap.add Naming.free tfree env in
     let env = IMap.add Naming.get tget env in
     let env = IMap.add Naming.length tlength env in
+    let env = IMap.add Naming.print tprint env in
+    let env = IMap.add Naming.share share env in
+    let env = IMap.add Naming.clone clone env in
+    let env = IMap.add Naming.visit visit env in
+(*    let env = IMap.add Naming.unshare unshare env in *)
     let env = List.fold_left module_ env mdl in
     env
 
@@ -446,12 +493,14 @@ and def env (((p, x), _, _) as d) =
 
 and decl env acc = function
   | Dval (fid, (_, Tfun (tyl, rty))) ->
-      let (_, args, e) = IMap.find (snd fid) env.defs in      
-      let env, acc, _ = pat env acc args tyl in
-      let acc, (rty2, _) = tuple env acc e in
-      let acc, rty = Unify.unify_list env acc rty2 rty in
-      let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
-      acc
+      (try 
+	let (_, args, e) = IMap.find (snd fid) env.defs in      
+	let env, acc, _ = pat env acc args tyl in
+	let acc, (rty2, _) = tuple env acc e in
+	let acc, rty = Unify.unify_list env acc rty2 rty in
+	let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
+	acc
+      with Error.Type err_l -> Error.unify err_l)
   | Dval _ -> assert false
   | _ -> acc
 
@@ -507,8 +556,8 @@ and pat_tuple_ env acc l tyl =
       let env, acc, ((ty, _) as p) = pat_el env acc p ty in
       env, acc, (ty :: tyl, p :: pl)
 
-and pat_el env acc (pos, p) (_, ty) =
-  let pty = pos, ty in
+and pat_el env acc (pos, p) ((hpos, ty)) =
+  let pty = pos, ty in 
   let is_obs = is_observed pty in
   let env, acc, (rty, p) = 
     match p with
@@ -744,7 +793,7 @@ and value = function
   | Nast.Eint _ -> Tint32
   | Nast.Efloat _ -> Tfloat
   | Nast.Echar _ -> Tchar
-  | Nast.Estring _ -> assert false
+  | Nast.Estring _ -> Tstring
 
 and apply env acc p (fp, x) tyl = 
   match IMap.find x env.tenv with
@@ -752,19 +801,15 @@ and apply env acc p (fp, x) tyl =
       let acc, subst = Instantiate.inst_list env acc IMap.empty tyl1 tyl in
       let acc, rty = Instantiate.replace_list subst env acc tyl2 in
       acc, rty
-
   | (_, Tdef ids) ->
       let rty = p, [p, Tany] in
       let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
       apply_def_list env acc p idl tyl rty
-
   | (_, Tany) ->
       let rty = p, [p, Tany] in
       let tenv = IMap.add x (p, Tfun (tyl, rty)) env.tenv in
       let env = { env with tenv = tenv } in
       apply env acc p (fp, x) tyl
-      
-
   | p2, ty -> 
       Print.debug [p2, ty] ;
       Error.expected_function fp (* TODO *)
@@ -781,10 +826,12 @@ and apply_def env acc pl fid tyl rty =
     let mem_rty = TMap.find (fid, tyl) acc.mem in 
     let acc, rty = Unify.unify_list env acc rty mem_rty in
     acc, rty 
-  with Not_found -> 
+  with Not_found -> try
     let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
     let acc, rty = apply_def_ env acc fid tyl rty in
     acc, rty
+  with Error.Type err_l -> 
+    raise (Error.Type (Error.Fun_call pl :: err_l))
     
 and apply_def_ env acc fid tyl rty = 
   let (_, argl, el) = IMap.find (snd fid) env.defs in

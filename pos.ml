@@ -4,6 +4,7 @@ type t = {
     pos_file: string ;
     pos_start: Lexing.position ;
     pos_end: Lexing.position ;
+    pos_history: t list ref ;
   }
 
 let file = ref ""
@@ -13,6 +14,7 @@ let none = {
   pos_file = "" ;
   pos_start = dummy_pos ;
   pos_end = dummy_pos ;
+  pos_history = ref [] ;
 }
 
 let new_line() = incr line
@@ -21,6 +23,7 @@ let make lb = {
   pos_file = !file ;
   pos_start = lexeme_start_p lb ;
   pos_end = lexeme_end_p lb ;
+  pos_history = ref [] ;
 }
 
 let btw x1 x2 = 
@@ -37,8 +40,6 @@ let string t =
   Printf.sprintf "File \"%s\", line %d, characters %d-%d:" 
     t.pos_file line start end_
   
-let compare = compare
-
 let rec begin_end l = 
   match l with
   | [] -> assert false
@@ -53,3 +54,8 @@ and end_ x =
 let list l = 
   let b, e = begin_end l in
   btw b e, l
+
+let push p h = 
+  p.pos_history := h :: !(p.pos_history)
+
+let history p = !(p.pos_history)

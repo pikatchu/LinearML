@@ -1,5 +1,17 @@
 open Utils
 
+type type_error = 
+  | Unify of unify_error
+  | Fun_call of Pos.t
+
+and unify_error = {
+    pos1: Pos.t ;
+    pos2: Pos.t ;
+    print1: ((string -> unit) -> unit) ;
+    print2: ((string -> unit) -> unit) ;
+  }
+
+exception Type of type_error list
 
 let oerr = output_string stderr
 let err x = oerr x ; oerr "\n"
@@ -148,15 +160,46 @@ let unused p =
   err "Unused" ;
   exit 2
 
-let unify p1 p2 fty1 fty2 = 
+let unify_err p1 p2 fty1 fty2 = 
+  if p1 == p2 
+  then begin
+    pos p1 ;
+    err "This expression has type: " ;
+    fty1 oerr ;
+    err "It should be of type: " ;
+    fty2 oerr ;
+  end 
+  else begin
+    pos p1 ;
+    err "This expression has type: " ;
+    fty1 oerr ;
+    err "It should have the same type as " ;
+    pos p2 ;
+    err "this expression which is of type: " ;
+    fty2 oerr ;
+    List.iter pos (Pos.history p1) ;
+  end
+
+let same_type p1 p2 = 
   pos p1 ;
-  err "This expression has type: " ;
-  fty1 oerr ;
-  err "It should have the same type as " ;
+  err "Because this expression must have the same type" ;
   pos p2 ;
-  err "this expression which is of type: " ;
-  fty2 oerr ;
-  exit 2
+  err "As this expression"
+
+let rec unify err_l = 
+  match err_l with
+  | [] -> assert false
+  | [Unify x] -> unify_err x.pos1 x.pos2 x.print1 x.print2
+  | [_] -> assert false
+  | Unify x :: rl -> 
+      unify rl ;
+      same_type x.pos1 x.pos2 
+  | Fun_call p :: rl ->
+      unify rl ;
+      pos p ;
+      err "Through this function call"
+
+let unify err_l = unify err_l ; exit 2 
 
 let unify_proj p1 p2 = 
   pos p2 ;
