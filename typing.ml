@@ -47,7 +47,6 @@ module LocalUtils = struct
     match ty with
     | Tprim _ -> (p, ty)
     | Tapply ((_, x), _) when x = Naming.tobs -> p, ty
-    | Tapply ((_, x), _) when x = Naming.tshared -> p, ty
     | _ -> p, Tapply ((p, Naming.tobs), (p, [p, ty]))
 
   let unobserve = function
@@ -200,7 +199,9 @@ module Unify = struct
     let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
     let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
     if List.length tyl1 <> List.length tyl2
-    then Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
+    then begin
+      Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
+    end
     else 
       let acc, tyl = lfold2 (unify_el_ env) acc tyl1 tyl2 in
       acc, (p1, tyl)
@@ -280,11 +281,15 @@ end
 
 module Instantiate = struct
 
-  let rec inst_list env acc subst (p1, tyl1) (p2, tyl2) = 
+  let rec inst_list env acc subst ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
+    let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
+    let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
     let size1 = List.length tyl1 in
     let size2 = List.length tyl2 in
     if size1 <> size2
-    then Error.arity p1 p2 size1 size2
+    then begin
+      Error.arity p1 p2 size1 size2
+    end
     else List.fold_left2 (inst env) (acc, subst) tyl1 tyl2
         
   and inst env (acc, subst) (pl1, ty1) (pl2, ty2) = 
@@ -299,13 +304,13 @@ module Instantiate = struct
     | Tapply ((_, x), tyl1), Tany -> 
 	inst_list env acc subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
     | _, Tany -> acc, subst
-    | Tfun (tyl, rty1), Tdef ids -> 
+    | Tfun (tyl, rty1), Tdef ids ->
 	let pdef = pl2 in
 	let idl = IMap.fold (fun x _ acc -> (pdef, x) :: acc) ids [] in
 	let rty = pdef, [pl2, Tany] in
 	let acc, rty2 = env.apply_def_list env acc pl2 idl tyl rty in
 	inst_list env acc subst rty1 rty2
-    | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) -> 
+    | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) ->
 	let acc, subst = inst_list env acc subst tyl1 tyl2 in
 	let acc, subst = inst_list env acc subst tyl3 tyl4 in
 	acc, subst
@@ -364,6 +369,12 @@ module Env = struct
   let tlength = tfun [tany] [tprim Tint32] (* TODO type *)
   let tprint = tfun [tprim Tstring] [tprim Tunit]
 
+  let tsome = 
+    let tmp = Ident.tmp() in
+    tfun [tvar tmp] [tapply Naming.toption [tvar tmp]]
+
+  let tnone = tapply Naming.toption [tany]
+
   let share = 
     let tmp = Ident.tmp() in
     tfun [tvar tmp] [tapply Naming.tshared [tvar tmp]]
@@ -371,17 +382,22 @@ module Env = struct
   let clone = 
     let tmp = Ident.tmp() in
     let x = tapply Naming.tshared [tvar tmp] in
-    tfun [x] [x]
+    tfun [tapply Naming.tobs [x]] [x]
 
   let visit = 
     let tmp = Ident.tmp() in
     let x = tapply Naming.tshared [tvar tmp] in
     tfun [x] [tapply Naming.tobs [tvar tmp]]
 
-(*  let unshare = 
+  let visit_obs = 
     let tmp = Ident.tmp() in
     let x = tapply Naming.tshared [tvar tmp] in
-    tfun [x] [tapply Naming.tobs [tvar tmp]] *)
+    tfun [tapply Naming.tobs [x]] [tapply Naming.tobs [tvar tmp]]
+
+  let tfree_shared = 
+    let tmp = Ident.tmp() in
+    let x = tapply Naming.tshared [tvar tmp] in
+    tfun [x] [tapply Naming.toption [tvar tmp]]
 
   let rec make mdl = 
     let env = IMap.empty in
@@ -392,6 +408,10 @@ module Env = struct
     let env = IMap.add Naming.share share env in
     let env = IMap.add Naming.clone clone env in
     let env = IMap.add Naming.visit visit env in
+    let env = IMap.add Naming.visit_obs visit_obs env in
+    let env = IMap.add Naming.free_shared tfree_shared env in
+    let env = IMap.add Naming.some tsome env in
+    let env = IMap.add Naming.none tnone env in
 (*    let env = IMap.add Naming.unshare unshare env in *)
     let env = List.fold_left module_ env mdl in
     env
@@ -797,7 +817,7 @@ and value = function
 
 and apply env acc p (fp, x) tyl = 
   match IMap.find x env.tenv with
-  | (_, Tfun (tyl1, tyl2)) -> 
+  | (_, Tfun (tyl1, tyl2)) ->
       let acc, subst = Instantiate.inst_list env acc IMap.empty tyl1 tyl in
       let acc, rty = Instantiate.replace_list subst env acc tyl2 in
       acc, rty

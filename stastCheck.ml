@@ -169,7 +169,8 @@ and general t =
 let rec expand_map f m gm =
   IMap.fold (fun x t m ->
     try IMap.add x (f t (IMap.find x gm)) m
-    with Not_found -> assert false) m m
+    with Not_found -> 
+      assert false) m m
 
 let rec expand ty gt = 
   match ty, gt with
@@ -309,8 +310,11 @@ end
 
 module Env = struct
 
-  let rec make mdl = 
-    List.fold_left module_ IMap.empty mdl
+  let rec make mdl =
+    let t = List.fold_left module_ IMap.empty mdl in
+    let option = [Naming.none, 0 ; Naming.some, 1] in
+    let t = IMap.add Naming.toption option t in
+    t
 
   and module_ t md = 
     List.fold_left decl t md.md_decls 
@@ -320,7 +324,6 @@ module Env = struct
     | Dalgebric td -> 
 	let l = talgebric t td in
 	IMap.add (snd td.td_id) l t
-
     | _ -> t
 	
   and talgebric t td = 

@@ -161,7 +161,9 @@ let unused p =
   exit 2
 
 let unify_err p1 p2 fty1 fty2 = 
-  if p1 == p2 
+  let (p1, fty1), (p2, fty2) = 
+    if p1 = Pos.none then (p2, fty2), (p1,fty1) else (p1, fty1), (p2, fty2) in
+  if p1 == p2 || p2 = Pos.none
   then begin
     pos p1 ;
     err "This expression has type: " ;

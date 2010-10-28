@@ -28,15 +28,21 @@ let float	= prim_type "float"
 let double	= prim_type "double"
 let tobs        = prim_type "obs"
 let tshared     = prim_type "shared"
+let toption     = prim_type "option"
 
 let free        = prim_value "free"
 let print       = prim_value "print"
 let share       = prim_value "share"
+let free_shared = prim_value "free_shared"
 let clone       = prim_value "clone"
 let visit       = prim_value "visit"
+let visit_obs   = prim_value "visit_obs"
 let eunit       = prim_value "()"
 let get         = prim_value "array_get"
 let length      = prim_value "array_length"
+
+let some        = prim_cstr "Some"
+let none        = prim_cstr "None"
 
 let prim_types  = !prim_types
 let prim_values = !prim_values
@@ -316,7 +322,6 @@ and decl genv sig_ env = function
   | Dtype tdl -> 
       let env = List.fold_left (bind_type sig_) env tdl in
       env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
-
   | Dval (id, ((p, Tfun (_, _)) as ty)) -> 
       let id = Env.value sig_ id in
       let tvarl = FreeVars.type_expr ty in
@@ -325,7 +330,6 @@ and decl genv sig_ env = function
       (* The declaration of the type variables is implicit *)
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
       env, Nast.Dval (id, ty)
-
   | Dval ((p, _), _) -> Error.value_function p
 
 and bind_type sig_ env (x, _) = 
