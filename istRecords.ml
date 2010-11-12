@@ -1,54 +1,59 @@
 open Utils
 open Ist
 
-type env = unit
-type acc = unit
+let alias subst e = 
+  IMap.fold (
+  fun x ((ty, _) as y) acc ->
+    let rty = fst (List.hd acc) in
+    [rty, Elet ([[List.hd ty, Pid x]], [y], acc)]
+ ) subst e
 
-let id env x = 
-  try IMap.find x env
-  with Not_found -> Eid x
 
 let rec program p = 
   List.rev_map module_ p
 
 and module_ md = 
-  let env = IMap.empty in
-  let acc = IMap.empty in
-  let acc, defs = L.lfold def env acc md.md_defs in
+  let defs = List.map def md.md_defs in
   let md = { md with md_defs = defs } in
   md
 
-and def env acc (x, p, e) = 
-  let acc, p = pat env acc p in
-  let acc, e = tuple env acc e in
-  acc, (x, p, e)
+and def (x, p, e) = 
+  let subst, p = pat IMap.empty p in
+  let e = tuple e in
+  let e = alias subst e in
+  (x, p, e)
 
-and pat env acc ptl = 
-  let acc, ptl = L.lfold pat_tuple env acc ptl in
+and pat acc ptl = 
+  let acc, ptl = lfold pat_tuple acc ptl in
   acc, ptl
 
-and pat_tuple env acc pel = 
-  let acc, pel = L.lfold pat_el env acc pel in
+and pat_tuple acc pel = 
+  let acc, pel = lfold pat_el acc pel in
   acc, pel
 
-and pat_el env acc (ty, p) = 
-  let acc, p = pat_ env acc ty p in
+and pat_el acc (ty, p) = 
+  let acc, p = pat_ acc ty p in
   acc, (ty, p)
 
-and pat_ env acc ty = function
+and pat_ acc ty = function
   | Pany | Pid _ 
   | Pvalue _ as x -> acc, x
   | Pvariant (x, p) -> 
-      let acc, p = pat env acc p in
+      let acc, p = pat acc p in
       acc, Pvariant (x, p)
   | Precord pfl -> 
-      let rid = Ident.tmp() in
+      let rid = record_id pfl in
       let rexpr = [ty], Eid rid in
       let acc = List.fold_left (pat_field rexpr) acc pfl in
       acc, Pid rid
   | Pas (x, p) -> 
-      let acc, p = pat env acc p in
+      let acc, p = pat acc p in
       acc, Pas (x, p)
+
+and record_id = function
+  | [] -> Ident.tmp() 
+  | PFid x :: _ -> x
+  | _ :: rl -> record_id rl
 
 and pat_field rid acc = function
   | PFany 
@@ -60,65 +65,65 @@ and pat_field rid acc = function
 and make_field rid x acc p = 
   match p with
   | _, Pid y ->
-      let v = Efield (rid, x) in
+      let v = fst rid, Efield (rid, x) in
       IMap.add y v acc
   | _ -> assert false
 
-and tuple env acc l = L.lfold expr env acc l
-and expr env acc (ty, e) = 
-  let acc, e = expr_ env acc e in
-  acc, (ty, e)
-
-and expr_ env acc = function
-  | Eid x -> acc, id acc x
-  | Evalue _ as e -> acc, e
+and tuple l = List.map expr l
+and expr (ty, e) = ty, expr_ ty e
+and expr_ ty = function
+  | Eid _
+  | Evalue _ as e -> e
   | Evariant (x, e) -> 
-      let acc, e = tuple env acc e in
-      acc, Evariant (x, e)
+      let e = tuple e in
+      Evariant (x, e)
   | Ebinop (bop, e1, e2) -> 
-      let acc, e1 = expr env acc e1 in
-      let acc, e2 = expr env acc e2 in
-      acc, Ebinop (bop, e1, e2)
+      let e1 = expr e1 in
+      let e2 = expr e2 in
+      Ebinop (bop, e1, e2)
   | Euop (uop, e) -> 
-      let acc, e = expr env acc e in
-      acc, Euop (uop, e)
+      let e = expr e in
+      Euop (uop, e)
   | Erecord fdl -> 
-      let acc, fdl = L.lfold field env acc fdl in
-      acc, Erecord fdl
+      let fdl = List.map field fdl in
+      Erecord fdl
   | Ewith (e, fdl) -> 
-      let acc, fdl = L.lfold field env acc fdl in
-      let acc, e = expr env acc e in
-      acc, Ewith (e, fdl)
+      let fdl = List.map field fdl in
+      let e = expr e in
+      Ewith (e, fdl)
   | Efield (e, x) -> 
-      let acc, e = expr env acc e in
-      acc, Efield (e, x)
+      let e = expr e in
+      Efield (e, x)
   | Ematch (e, al) -> 
-      let acc, e = tuple env acc e in
-      let acc, al = L.lfold action env acc al in
-      acc, Ematch (e, al)
+      let e = tuple e in
+      let al = List.map action al in
+      Ematch (e, al)
   | Elet (p, e1, e2) -> 
-      let acc, p = pat env acc p in
-      let acc, e1 = tuple env acc e1 in
-      let acc, e2 = tuple env acc e2 in
-      acc, Elet (p, e1, e2)
+      let subst, p = pat IMap.empty p in
+      let e1 = tuple e1 in
+      let e2 = tuple e2 in
+      let e = Elet (p, e1, e2) in
+      let e = alias subst [ty, e] in
+      snd (List.hd e)
   | Eif (c, e1, e2) -> 
-      let acc, c = expr env acc c in
-      let acc, e1 = tuple env acc e1 in
-      let acc, e2 = tuple env acc e2 in
-      acc, Eif (c, e1, e2)
+      let c = expr c in
+      let e1 = tuple e1 in
+      let e2 = tuple e2 in
+      Eif (c, e1, e2)
   | Eapply (x, e) -> 
-      let acc, e = tuple env acc e in
-      acc, Eapply (x, e)
+      let e = tuple e in
+      Eapply (x, e)
   | Eseq (e1, e2) -> 
-      let acc, e1 = expr env acc e1 in
-      let acc, e2 = tuple env acc e2 in
-      acc, Eseq (e1, e2)
+      let e1 = expr e1 in
+      let e2 = tuple e2 in
+      Eseq (e1, e2)
 
-and field env acc (x, e) = 
-  let acc, e = tuple env acc e in
-  acc, (x, e)
+and field (x, e) = 
+  let e = tuple e in
+  (x, e)
 
-and action env acc (p, a) =
-  let acc, p = pat env acc p in
-  let acc, a = tuple env acc a in
-  acc, (p, a)
+and action (p, a) =
+  let subst, p = pat IMap.empty p in
+  let a = tuple a in
+  let a = alias subst a in
+  (p, a)

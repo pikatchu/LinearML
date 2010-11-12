@@ -86,15 +86,27 @@ let type_expects_arguments (p, x) n pdef =
   let n = string_of_int n in
   pos p ;
   err ("The type "^x^" expects "^n^" arguments") ;
+  if pdef <> Pos.none
+  then begin
   err ("Its definition is given here: ") ;
   pos pdef
+  end ;
+  exit 2
 
 let not_expecting_arguments px x pdef = 
   let x = Ident.to_string x in
   pos px ;
   err ("The type "^x^" doesn't expect any arguments") ;
-  err ("Its definition is given here") ;
-  pos pdef ;
+  if pdef <> Pos.none
+  then begin
+    err ("Its definition is given here") ;
+    pos pdef ;
+  end ;
+  exit 2
+
+let no_argument p = 
+  pos p ;
+  err "No argument expected" ;
   exit 2
 
 let type_arity px x size1 size2 pdef = 
@@ -103,8 +115,11 @@ let type_arity px x size1 size2 pdef =
   let size2 = string_of_int size2 in
   pos px ;
   err ("The type "^x^" expects "^size2^" arguments not "^size1) ;
-  err ("Its definition is given here") ;
-  pos pdef ;
+  if pdef <> Pos.none
+  then begin
+    err ("Its definition is given here") ;
+    pos pdef ;
+  end ;
   exit 2
 
 
@@ -368,3 +383,19 @@ let multiple_record_name p1 p2 =
 let internal s = 
   err s ;
   exit 3
+
+let poly_is_not_prim p = 
+  pos p ;
+  err "You cannot use a primitive type here, a pointer is expected" ;
+  exit 2
+
+let cannot_free_field p v = 
+  pos p ;
+  err ("This record cannot be freed because the field ["^(Ident.to_string v)^
+       "] still carries a value") ;
+  exit 2
+
+let undef_field p fd = 
+  pos p ;
+  err ("The field "^fd^" is undefined") ;
+  exit 2

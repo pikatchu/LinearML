@@ -248,7 +248,7 @@ field_type:
 
 pat_field:
 | ID { fst $1, PFid $1 }
-| ID EQ pat { btw $1 $3, PField ($1, $3) }
+| ID EQ pat { btw $1 $3, PField ($1, $3) } 
 | UNDERSCORE { ($1, PFany) }
 
 pat_field_l:
@@ -312,6 +312,7 @@ pat:
 
 pat_action_l:
 | { [] }
+| pat_action { [$1] }
 | pat_action_l BAR pat_action { $3 :: $1 } 
 
 pat_action:

@@ -174,4 +174,72 @@ end = struct
     IMap.add id (pos, snd ty) acc
 end
 
-let program p = ModuleTypes.check p
+(*****************************************************************************)
+(* Module checking the current implementation restrictions                   *)
+
+module CheckRestrict = struct
+
+  let error p = 
+    Error.pos p ;
+    Printf.printf "Feature not implemented\n" ;
+    exit 2
+
+  let rec program mdl = 
+    List.iter module_ mdl
+
+  and module_ md = 
+    List.iter def md.md_defs
+
+  and def (_, p, e) = 
+    List.iter pat p ;
+    expr e
+
+  and pat (pos, p) = pat_ pos p
+  and pat_ pos = function
+    | Pvalue Eunit -> ()
+    | Pvalue _ -> error pos
+    | Precord pfl -> List.iter pat_field pfl 
+    | Pbar _ -> error pos
+    | Ptuple l -> List.iter pat l
+    | _ -> ()
+
+  and simpl_pat (pos, p) = simpl_pat_ pos p
+  and simpl_pat_ pos = function
+    | Pid _ -> ()
+    | Pany _ -> ()
+    | Ptuple l -> List.iter simpl_pat l
+    | _ -> error pos
+
+  and pat_field (_, pf) = pat_field_ pf
+  and pat_field_ = function
+    | PFany
+    | PFid _ -> ()
+    | PField (_, p) -> simpl_pat p
+
+  and expr (p, e) = expr_ p e
+  and expr_ p = function
+    | Ebinop (_, e1, e2) -> expr e1 ; expr e2 
+    | Euop (_, e) -> expr e 
+    | Etuple el -> List.iter expr el 
+    | Erecord fdl -> List.iter field fdl 
+    | Efield _ -> error p
+    | Ematch (e, pel) -> 
+	expr e ;
+	List.iter action pel
+    | Elet (p, e1, e2) -> pat p ; expr e1 ; expr e2
+    | Eif (e1, e2, e3) -> expr e1 ; expr e2 ; expr e3
+    | Efun (pl, e) -> List.iter pat pl ; expr e
+    | Eapply (e, el) -> expr e ; List.iter expr el 
+    | Ewith (e, fdl) -> expr e ; List.iter field fdl 
+    | Eseq (e1, e2) -> expr e1 ; expr e2
+    | Eobs _ 
+    | Ecstr _ | Evalue _ | Eid _ -> ()
+
+  and field (_, e) = expr e
+  and action (p, e) = pat p ; expr e
+	     
+end
+
+let program p = 
+  CheckRestrict.program p ;
+  ModuleTypes.check p

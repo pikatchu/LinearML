@@ -78,11 +78,15 @@ type env = {
     pfuns: ISet.t ;
     names: int IMap.t ;
     variants: string IMap.t ;
+    variant_tys: Llast.type_ IMap.t ;
     blocks: Est.block IMap.t ;
+    strings: string SMap.t ;
   }
 
 let tmp() = 
   Ident.to_ustring (Ident.tmp())
+
+let ty_id (_, x) = Ident.to_ustring x
 
 let rec program mdl = 
   let names = Genv.program mdl in
@@ -92,12 +96,16 @@ and module_ names md =
   let strings = Strings.module_ md in
   let pfuns = List.fold_left public_funs ISet.empty md.md_decls in
   let l = List.fold_left decl [] md.md_decls in
-  let variants = List.fold_left decl_variants IMap.empty md.md_decls in
-  let variants, l = IMap.fold def_variant variants (IMap.empty, l) in
-  let env = { pfuns = pfuns ; names = names ; 
-	      variants = variants ; blocks = IMap.empty } in
+  let variant_tys = List.fold_left decl_variants IMap.empty md.md_decls in
+  let variants, l = IMap.fold def_variant variant_tys (IMap.empty, l) in
+  let env = { pfuns = pfuns ; 
+	      names = names ; 
+	      variants = variants ; 
+	      blocks = IMap.empty ; 
+	      variant_tys = variant_tys ;
+	      strings = strings } in
   let l = List.fold_left (def env) l md.md_defs in
-  { Llast.md_id = Ident.to_ustring md.md_id ;
+  { Llast.md_id = Ident.to_string md.md_id ;
     Llast.md_defs = l ;
     Llast.md_strings = strings ;
   }
@@ -132,11 +140,13 @@ and struct_ tyl =
 
 and union td =
   let id = Ident.to_ustring td.td_id in
-(*   let tyl = [Llast.Int32; Llast.Any] in *) (* TODO *)
-  Llast.Type (id, Llast.Int32)
+  Llast.Type (id, Llast.Any)
 
 and variants td acc = 
-  IMap.fold variant td.td_map acc
+  let n = ref 0 in
+  IMap.iter (fun _ _ -> incr n) td.td_map ;
+  let ntag = !n > 2 in
+  IMap.fold (variant ntag) td.td_map acc
 
 and record td = 
   let id = Ident.to_ustring td.td_id in
@@ -148,13 +158,14 @@ and field _ (x, tyl) acc =
   | [ty] -> type_expr ty :: acc
   | tyl -> struct_ (type_expr_list tyl) :: acc
 						 
-and variant _ (x, tyl) acc = 
+and variant ntag _ (x, tyl) acc = 
   match tyl with
-  | []  -> IMap.add x Llast.Int32 acc
-  | tyl -> IMap.add x (variant_arg tyl) acc
+  | []  -> IMap.add x Llast.Any acc
+  | tyl -> IMap.add x (variant_arg ntag tyl) acc
 
-and variant_arg tyl = 
+and variant_arg ntag tyl = 
   let tyl = type_expr_list tyl in
+  let tyl = if ntag then Llast.Int16 :: tyl else tyl in
   struct_ tyl
 
 and type_expr_list l = List.map type_expr l
@@ -190,11 +201,14 @@ and def env acc df =
   let public = ISet.mem df.df_id env.pfuns in
   let link = if public
   then Llvm.Linkage.External
-  else Llvm.Linkage.Internal in
+  else Llvm.Linkage.Private in
   let cc = if public 
   then Llvm.CallConv.fast (* TODO make a decision *)
   else Llvm.CallConv.fast in
-  let name = Ident.to_ustring df.df_id in
+  let name = 
+    (* TODO dirty hack *)
+    if Ident.to_string df.df_id = "main" then "main"
+    else Ident.to_ustring df.df_id in
   let argl = List.map snd df.df_args in
   let argl = List.map Ident.to_ustring argl in
   let tyl = List.map fst df.df_args in
@@ -267,37 +281,51 @@ and split_match env = function
   | _ -> failwith "TODO rest of Patterns in llastOfEst"
 
 and equation env (idl, e) acc = 
-  equation_ env (idl, e) :: acc
+  equation_ env (idl, e) @ acc
 			    
 and equation_ env (idl, e) = 
   match idl, e with
   | [_, x], Eid y -> 
       let x = Ident.to_ustring x in
       let y = Ident.to_ustring y in
-      Llast.Alias (x, y)
+      [Llast.Alias (x, y)]
   | [ty, x], Evalue v -> 
       let ty = type_expr ty in
       let x = Ident.to_ustring x in
-      let v = value v in
-      Llast.Const (x, ty, v)
+      let v = value env v in
+      [Llast.Const (x, ty, v)]
   | [ty, x], Ebinop (op, (ty1, x1), (ty2, x2)) -> 
       let x = Ident.to_ustring x in
       let ty1 = type_expr ty1 in
       let x1 = Ident.to_ustring x1 in
       let x2 = Ident.to_ustring x2 in
-      binop x ty1 x1 x2 op
+      [binop x ty1 x1 x2 op]
   | [ty, x], Evariant (y, []) -> 
       let x = Ident.to_ustring x in
       let y = IMap.find y env.names in
       let ty = type_expr ty in
-      Llast.Const (x, ty, Llast.Const_enum y)
+      [Llast.Const (x, ty, Llast.Const_enum y)]
+  | [ty, x], Evariant (y, el) -> 
+      let vty = IMap.find y env.variant_tys in
+      let x = Ident.to_ustring x in
+      let tmp = tmp() in
+      let last = [Llast.Cast (x, tmp, Llast.Any)] in
+      Llast.Alloc (tmp, vty) :: fill_record last tmp 0 el
   | [_, x], Eapply (f, idl) -> 
       let idl = List.map snd idl in
       let x = Ident.to_ustring x in
       let f = Ident.to_ustring f in
       let idl = List.map Ident.to_ustring idl in
-      Llast.Call (false, x, f, idl)
+      [Llast.Call (false, x, f, idl)]
   | _ -> failwith "TODO rest of equation in llastOfEst"
+
+and fill_record last x i = function
+  | [] -> last
+  | y :: rl ->
+      let v = tmp() in
+      Llast.Get_field (v, x, i) ::
+      Llast.Store (v, ty_id y) ::
+      fill_record last x (i+1) rl
 
 (*  
   | Euop of Ast.uop * ty_id
@@ -377,13 +405,14 @@ and farith = function
   | Eminus	-> Llast.Fsub 
   | Estar	-> Llast.Fmul
   | _		-> assert false
-
       
-and value = function
+and value env = function
   | Eunit -> Llast.Const_int "0"
   | Ebool true -> Llast.Const_int "1" 
   | Ebool false -> Llast.Const_int "0" 
   | Eint s -> Llast.Const_int s
   | Efloat s -> Llast.Const_float s 
   | Echar _ -> failwith "TODO const char"
-  | Estring s -> Llast.Const_string s
+  | Estring s -> 
+      let global = SMap.find s env.strings in
+      Llast.Const_string global

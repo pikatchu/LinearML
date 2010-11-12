@@ -1,6 +1,46 @@
 open Utils
 open Ist
 
+module ExtractRecords = struct
+
+  let rec pat acc ptl = 
+    lfold pat_tuple acc ptl 
+
+  and pat_tuple acc pel = lfold pat_el acc pel
+  and pat_el acc (ty, p) = 
+    let acc, p = pat_ ty acc p in
+    acc, (ty, p)
+
+  and pat_ ty acc = function
+    | Pany 
+    | Pid _ 
+    | Pvalue _ as p -> acc, p
+    | Pvariant (x, p) -> 
+	let acc, p = pat acc p in
+	acc, Pvariant (x, p)
+    | Precord pfl -> 
+	let v = Ident.tmp() in
+	let acc = List.fold_left (pat_field ty v) acc pfl in
+	acc, Pid v
+    | Pas (v, p) -> 
+	let acc, p = pat acc p in
+	acc, Pas (v, p)
+
+  and pat_field ty v acc = function
+    | PFany -> acc
+    | PFid x -> ([ty, x], Est.Eid v) :: acc 
+    | PField (fd_id, [l]) -> 
+	let xl = List.map get_field_id l in
+	(xl, Est.Efield ((ty, v), fd_id)) :: acc
+    | PField _ -> assert false
+
+  and get_field_id = function
+    | (ty, Pid x) -> (ty, x)
+    | (ty, Pany) -> (ty, Ident.tmp())
+    | _ -> assert false
+
+end
+
 module SplitPat = struct
 
   let rec pat ptl = 
@@ -302,10 +342,10 @@ and expr t (tyl, e) =
   t, id
 
 and expr_ t tyl = function
-  | Eid x -> t, [lone tyl, x]
-(*      let idl = make_idl tyl in
+  | Eid x -> (* t, [lone tyl, x] *)
+      let idl = make_idl tyl in
       let t = equation t idl (Est.Eid x) in
-      t, idl *)
+      t, idl 
   | Efield (e, x) -> 
       let idl = make_idl tyl in
       let t, id = expr t e in
@@ -383,7 +423,8 @@ and field t (x, e) =
   t, (x, idl)
 
 and action (p, e) (t, acc) = 
-  let t, label = make_block t e in
+  let eqs, p = ExtractRecords.pat [] p in
+  let t, label = make_block t eqs e in
   let pll = SplitPat.pat p in
   let pll = List.fold_right (fun p acc -> pat [p] label :: acc) pll [] in
   let pl = List.flatten pll in
@@ -393,9 +434,9 @@ and equation t idl e = {
   t with eqs = (idl, e) :: t.eqs
 }
 
-and make_block t e = 
+and make_block t record_eqs e = 
   let eqs = t.eqs in
-  let t = { t with eqs = [] } in
+  let t = { t with eqs = record_eqs } in
   let t, idl = tuple t e in
   let bl = block t.eqs (Est.Lreturn idl) in
   let t = { t with blocks = bl :: t.blocks } in

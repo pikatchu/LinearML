@@ -1,6 +1,35 @@
 open Utils
 open Est
 
+module MakeOrigins = struct
+
+  let rec def df = 
+    let t = IMap.empty in
+    List.fold_left block t df.df_body 
+
+  and block t bl = 
+    let t = List.fold_left (phi bl.bl_id) t bl.bl_phi in
+    List.fold_left (equation bl.bl_id) t bl.bl_eqs
+
+  and phi orig t (x, _, _) = IMap.add x orig t 
+  and equation orig t (idl, _) = 
+    List.fold_left (fun acc (_, x) -> IMap.add x orig t) t idl
+  
+end
+
+module MakePhi = struct
+
+  let rec def df = 
+    let t = MakeOrigins.def df in
+    { df with df_body = List.map (block t) df.df_body }
+
+  and block t bl = 
+    { bl with bl_phi = List.map (phi t) bl.bl_phi }
+
+  and phi t (x, ty, vl) = x, ty, List.map (
+    fun (x, _) -> x, IMap.find x t) vl 
+end
+
 let rec program mdl = 
   List.rev_map module_ mdl
 
@@ -21,6 +50,7 @@ and def df =
    ) (ISet.empty, []) bll in 
   let bll = List.rev bll in
   let df = { df with df_body = bll } in
+  let df = MakePhi.def df in
   df
 
 and block bls acc bl = 

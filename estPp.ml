@@ -1,4 +1,5 @@
 open Utils
+open Ist
 open Est
 
 let n = ref 0
@@ -32,14 +33,37 @@ and module_ md =
 and def df = 
   id df.df_id ; 
   o " " ; 
-  idl df.df_args ;
+  ty_idl df.df_args ;
   o " returns " ; 
-  idl df.df_return ;
+  ty_idl df.df_return ;
   o " = " ;
   push() ;
   List.iter block df.df_body ;
   pop() ;
   nl() ; nl() ;
+
+and type_expr = function
+  | Tany -> o "void*"
+  | Tvar x -> id x
+  | Tprim tp -> type_prim tp
+  | Tid x -> id x 
+  | Tapply (x, tyl) -> o "(" ; type_expr_list tyl ; o ") " ; id x
+  | Tfun (tyl1, tyl2) -> 
+      type_expr_list tyl1 ;
+      o " -> " ;
+      type_expr_list tyl2 
+
+and type_expr_list l = 
+  print_list o (fun _ x -> type_expr x) ", " l
+
+and type_prim = function
+  | Tunit -> o "unit"
+  | Tbool -> o "bool"
+  | Tchar -> o "char"
+  | Tint32 -> o "int32"
+  | Tfloat -> o "float"
+  | Tstring -> o "string"
+
   
 and pat pl = print_list o pat_el ", " pl
 and pat_el _ p = pat_ (snd p)
@@ -55,6 +79,7 @@ and pfield (x, p) =
   id x ; o " = " ; pat p ; o " ; "
 
 and idl = List.iter (fun (_, x) -> id x ; o " ")
+and ty_idl l = List.iter (fun (ty, x) -> id x ; o ": " ; type_expr ty) l
 
 and block bl = 
   nl() ;

@@ -43,6 +43,7 @@ OBJECTS_ML = \
 	neast.ml\
 	nastExtractFuns.ml\
 	nastExpand.ml\
+	neastCheck.ml\
 	tast.ml\
 	typing.ml\
 	stast.ml\
@@ -50,11 +51,9 @@ OBJECTS_ML = \
 	stastCheck.ml\
 	recordCheck.ml\
 	linearCheck.ml\
-	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
 	istRecords.ml\
-	istAdhoc.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\
@@ -62,13 +61,16 @@ OBJECTS_ML = \
 	estOptim.ml\
 	estCompile.ml\
 	estNormalizePatterns.ml\
-	llast.ml\
-	llastOfEst.ml\
-	emit.ml\
+	estOptimizePatterns.ml\
+	llst.ml\
+	llstPp.ml\
+	llstOfEst.ml\
+	llstOptim.ml\
+	emit2.ml\
 	main.ml
 #	istAdhoc.ml
 
-
+#	boundCheck2.ml\
 # 	id.ml\
 # 	ast.ml\
 # 	astOfCst.ml\

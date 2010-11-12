@@ -26,12 +26,14 @@ let int64	= prim_type "int64"
 let bool	= prim_type "bool"
 let float	= prim_type "float"
 let double	= prim_type "double"
+let string      = prim_type "string"
 let tobs        = prim_type "obs"
 let tshared     = prim_type "shared"
 let toption     = prim_type "option"
 
 let free        = prim_value "free"
 let print       = prim_value "print"
+let print_int   = prim_value "print_int"
 let share       = prim_value "share"
 let free_shared = prim_value "free_shared"
 let clone       = prim_value "clone"
@@ -116,34 +118,6 @@ end = struct
       then ()
       else Error.both_side_pattern p x) t2.values
 
-  let value t (p, x) =
-    try p, SMap.find x t.values
-    with Not_found -> Error.unbound_name p x
-
-  let try_value t (p, x) = 
-    try Some (p, SMap.find x t.values)
-    with Not_found -> None
-
-  let field t (p, x) =
-    try p, SMap.find x t.fields
-    with Not_found -> Error.unbound_name p x
-
-  let type_ t (p, x) =
-    try p, SMap.find x t.types
-    with Not_found -> Error.unbound_name p x
-
-  let try_type t (p, x) = 
-    try Some (p, SMap.find x t.types)
-    with Not_found -> None
-
-  let tvar t (p, x) =
-    try p, SMap.find x t.tvars
-    with Not_found -> Error.unbound_name p x
-
-  let cstr t (p, x) =
-    try p, SMap.find x t.cstrs
-    with Not_found -> Error.unbound_name p x
-
   let new_id t env (p, x) = 
     let id = Ident.make x in
     if SMap.mem x env
@@ -180,6 +154,34 @@ end = struct
     let env = t.cstrs in
     let t, env, id = new_id t env x in
     { t with cstrs = env }, id
+
+  let value t (p, x) =
+    try p, SMap.find x t.values
+    with Not_found -> Error.unbound_name p x
+
+  let try_value t (p, x) = 
+    try Some (p, SMap.find x t.values)
+    with Not_found -> None
+
+  let field t (p, x) =
+    try p, SMap.find x t.fields
+    with Not_found -> Error.unbound_name p x
+
+  let type_ t (p, x) =
+    try p, SMap.find x t.types
+    with Not_found -> Error.unbound_name p x
+
+  let try_type t (p, x) = 
+    try Some (p, SMap.find x t.types)
+    with Not_found -> None
+
+  let tvar t (p, x) =
+    try p, SMap.find x t.tvars
+    with Not_found -> Error.unbound_name p x
+
+  let cstr t (p, x) =
+    try p, SMap.find x t.cstrs
+    with Not_found -> Error.unbound_name p x
 
   let add_type t (_, x) (_, id) =
     { t with types = SMap.add x id t.types }
@@ -264,7 +266,7 @@ end = struct
   and type_ id env = function
     | Tabs (_, (_, ty)) -> type_ id env ty
     | Talgebric vtl -> List.fold_left variant env vtl 
-    | Trecord fdl -> List.fold_left field env (List.rev fdl)
+    | Trecord fdl -> List.fold_left field env fdl
     | _ -> env
 
   and variant env (id, _) = fst (Env.new_cstr env id)
@@ -374,6 +376,7 @@ and tid_ env p = function
   | "int32" -> Nast.Tprim Nast.Tint32
   | "float" -> Nast.Tprim Nast.Tfloat
   | "char" -> Nast.Tprim Nast.Tchar
+  | "string" -> Nast.Tprim Nast.Tstring
   | x -> Nast.Tid (Env.type_ env (p, x))
 
 and tvariant genv sig_ env (id, ty) = 

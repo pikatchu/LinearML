@@ -20,21 +20,23 @@ let _ =
     NastCheck.program nast ;
     let nast = NastExtractFuns.program nast in
     let neast = NastExpand.program nast in
+    NeastCheck.program neast ;
     let tast = Typing.program neast in
     let stast = StastOfTast.program tast in
     StastCheck.program stast ;
     RecordCheck.program stast ;
     LinearCheck.program stast ;
-    BoundCheck.program stast ;
+(*    BoundCheck.program stast ; *)
     let ist = IstOfStast.program stast in
-    let ist = IstRecords.program ist in
-    IstAdhoc.program ist ;
     let est = EstOfIst.program ist in
     let est = EstCompile.program est in
     let est = EstNormalizePatterns.program est in
-    EstPp.program est ; 
-    let llast = LlastOfEst.program est in
-    let _ = Emit.program llast in  
+(*     EstPp.program est ; *)
+    let llst = LlstOfEst.program est in
+(*    LlstPp.program llst ; *)
+    let llst = LlstOptim.program llst in 
+      LlstPp.program llst ; 
+    Emit2.program llst ;
     module_l := new_module :: !module_l 
   done ;
   !module_l

@@ -42,7 +42,7 @@ and type_ =
   | Array of type_
   | Pointer of type_
   | Struct of type_ list
-  | Union of type_ list
+  | Union of type_ IMap.t
   | Function of type_ list * type_ list
 
 and binop = 

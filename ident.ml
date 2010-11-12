@@ -47,7 +47,7 @@ let origin x =
 
 let to_ustring x = 
   let s = to_string x in
-  match s with
-  | "free" | "print" -> s
+  match s with (* TODO make a table *)
+  | "free" | "print" | "print_int" -> s
   | _ -> s ^ string_of_int x
   

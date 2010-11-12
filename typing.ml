@@ -367,7 +367,8 @@ module Env = struct
   let tfree = tfun [tany] [tprim Tunit]
   let tget = tfun [tany ; tany] [tany] (* TODO type *)
   let tlength = tfun [tany] [tprim Tint32] (* TODO type *)
-  let tprint = tfun [tprim Tstring] [tprim Tunit]
+  let tprint = tfun [tprim Tstring] [tprim Tint32]
+  let tprint_int = tfun [tprim Tint32] [tprim Tunit]
 
   let tsome = 
     let tmp = Ident.tmp() in
@@ -405,6 +406,7 @@ module Env = struct
     let env = IMap.add Naming.get tget env in
     let env = IMap.add Naming.length tlength env in
     let env = IMap.add Naming.print tprint env in
+    let env = IMap.add Naming.print_int tprint_int env in
     let env = IMap.add Naming.share share env in
     let env = IMap.add Naming.clone clone env in
     let env = IMap.add Naming.visit visit env in
@@ -489,7 +491,7 @@ and module_ tenv md =
 (*  TMap.iter (fun ((_, x), args) rty ->
     Ident.print x ;
     Print.debug (snd args) ;
-    Print.debug (snd rty) ; ) acc.mem ; *)
+    Print.debug (snd rty) ; ) acc.mem ;  *)
   Usage.check acc md ;
   let md = fresh_module env acc md in
   md
@@ -634,7 +636,7 @@ and pat_field is_obs pty (env, acc) (p, pf) =
 and pat_variant is_obs env acc x args pty =
   let argty, rty = match IMap.find (snd x) env.tenv with
   | _, Tfun (tyl, rty) -> tyl, rty
-  | _ -> assert false (* TODO error no argument expected *) in
+  | _ -> Error.no_argument (fst pty) in
   let pty = fst pty, [pty] in
   let acc, subst = Instantiate.inst_list env acc IMap.empty rty pty in
   let acc, tyl = Instantiate.replace_list subst env acc argty in 
@@ -848,7 +850,8 @@ and apply_def env acc pl fid tyl rty =
     acc, rty 
   with Not_found -> try
     let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
-    let acc, rty = apply_def_ env acc fid tyl rty in
+    let acc, rty = apply_def_ env acc fid tyl rty in 
+    let acc, rty = apply_def_ env acc fid tyl rty in (* Retyping *)
     acc, rty
   with Error.Type err_l -> 
     raise (Error.Type (Error.Fun_call pl :: err_l))

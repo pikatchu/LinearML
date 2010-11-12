@@ -12,17 +12,37 @@ and field =
   | Read
   | Write of Pos.t
 
+module Debug = struct
+
+  let rec ty l = List.iter ty_ l
+  and ty_ = function
+    | P -> o "P" 
+    | A -> o "A"
+    | Rid x -> o "Rid" 
+    | R fdl -> o "{" ; IMap.iter field fdl ; o "}" 
+
+  and field fd (k, v) =
+    o (Ident.to_string fd) ; 
+    field_kind k ;
+    o ": " ;
+    ty v ;
+    o "; "
+
+  and field_kind = function
+    | Read -> o "[R]"
+    | Write _ -> o "[W]" 
+
+end
+
 let get_record_type x t = 
-  match IMap.find x t with
+  try match IMap.find x t with
   | [x] -> x
   | _ -> assert false
+  with Not_found -> A
 
-let rec is_pointer l = List.fold_left is_pointer_ false l
-and is_pointer_ b = function
-  | P -> b
-  | A
-  | Rid _ 
-  | R _ -> true
+let rec is_pointer l = 
+  let c = List.fold_left (fun acc x -> x = P && acc) true l in
+  not c
 
 let rec assign pos t ty1 ty2 = List.map2 (assign_ pos t) ty1 ty2
 and assign_ pos t ty1 ty2 = 
@@ -36,7 +56,7 @@ and assign_ pos t ty1 ty2 =
 and assign_map pos m2 x (a1, _) m = try
   let a2, t as t2 = IMap.find x m2 in
   match a1, a2 with
-  | Read, Read when is_pointer t -> Error.fd_already_has_value pos x
+  | Read _, Read _ when is_pointer t -> Error.fd_already_has_value pos x
   | _, Write _ -> assert false
   | _-> IMap.add x t2 m
 with Not_found -> m
@@ -61,9 +81,9 @@ module Unify = struct
 
   and unify_access x a1 a2 = 
     match a1, a2 with
-    | Read, Read -> ()
-    | Write p, Read
-    | Read, Write p -> raise (Error x)
+    | Read _, Read _ -> ()
+    | Write p, Read _
+    | Read _, Write p -> raise (Error x)
     | Write _, Write _ -> ()
 
   let rec unify_types (p1, tyl1) (p2, tyl2) = 
@@ -82,21 +102,39 @@ and check_type_ pos = function
 and check_field pos x (a, ty) = 
   check_type pos ty ;
   match a with
-  | Read -> ()
+  | Read _ -> ()
   | Write p -> Error.missing_field pos x
 
 let rec type_expr_list (_, tyl) = List.map type_expr tyl
 and type_expr (_, ty) = type_expr_ ty
 and type_expr_ = function
-  | Tany | Tprim _ 
-  | Tvar _ | Tfun _ -> P
+  | Tprim Tstring -> A
+  | Tprim _ -> P
+  | Tany 
+  | Tvar _ | Tfun _ -> A
   | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> type_expr ty
   | Tid (_, x)
   | Tapply ((_, x), _) -> Rid x
 
 let read_only pos = function
-  | Read -> ()
+  | Read _ -> ()
   | Write _ -> Error.field_no_val pos
+
+let free_field t pos v (x, ty) = 
+  if ty = [P]
+  then ()
+  else match x with
+  | Read -> Error.cannot_free_field pos v
+  | _ -> ()
+
+let rec free_ty t pos = function
+  | P
+  | A -> ()
+  | Rid x -> free_ty t pos (get_record_type x t)
+  | R m -> IMap.iter (free_field t pos) m 
+
+let free t pos l = List.iter (free_ty t pos) l
+
 
 module Env: sig
 
@@ -115,7 +153,9 @@ end = struct
     | Dval _ -> t
 
   and tdef t td = 
-    let m = IMap.map (fun (_, ty) -> Read, type_expr_list ty) td.td_map in
+    let m = IMap.map (
+      fun (_, ty) -> Read, type_expr_list ty
+     ) td.td_map in
     IMap.add (snd td.td_id) [R m] t
 
 end
@@ -171,7 +211,10 @@ and pat_field_ (t, m) pf =
       read_only pos a ;
       let t = pat t p ty in
       let t = IMap.add x ty t in
-      let m = IMap.add x (Write pos, ty) m in
+      let m = 
+	if is_pointer ty 
+	then IMap.add x (Write pos, ty) m 
+	else m in
       t, m
 
 and tuple t (_, tpl) = 
@@ -182,7 +225,8 @@ and tuple_pos t ((p, tyl), e) = expr_ t p tyl e
 and expr t ((p, _) as ty, e) = expr_ t p [ty] e 
 and expr_ t pos ty = function
   | Eobs (_, x)
-  | Eid (_, x) -> (try IMap.find x t with Not_found -> [P])
+  | Eid (_, x) -> 
+      (try IMap.find x t with Not_found -> type_expr_list (pos, ty))
   | Evalue _ 
   | Ebinop _
   | Euop _ -> [P]
@@ -193,38 +237,37 @@ and expr_ t pos ty = function
       let tyl = List.map (action t ty) al in
       let tyl = List.map2 (fun x y -> (x, y)) pl tyl in
       snd (List.fold_left Unify.unify_types (List.hd tyl) (List.tl tyl))
-
   | Elet (p, e1, e2) -> 
       let ty1 = tuple t e1 in
       let t = pat t p ty1 in
       tuple t e2
-
   | Eif (_, e1, e2) -> 
       let e1 = fst (fst e1), tuple t e1 in
       let e2 = fst (fst e2), tuple t e2 in
       snd (Unify.unify_types e1 e2)
-
+  | Eapply ((_, v), e) when v = Naming.free ->
+      let ty = tuple t e in
+      free t (fst (fst e)) ty ;
+      [P]
   | Eapply (_, e) -> 
       check_type pos (tuple t e) ;
       List.map type_expr ty 
-
   | Efield (e, (p, x)) -> 
       let ty = expr t e in
       proj t p ty x
-
   | Erecord fdl -> 
     let m = List.fold_left (field t) IMap.empty fdl in
     let ty = List.map type_expr ty in
     let fdm = get_fields t ty in
     [R (add_write_only pos fdm m)]
-
   | Ewith (e, fdl) -> 
       let ty1 = expr t e in
       let m = List.fold_left (field t) IMap.empty fdl in
       let ty2 = [R m] in
       assign pos t ty1 ty2
-
-  | Eseq (_, e) -> tuple t e
+  | Eseq (e1, e2) -> 
+      ignore (expr t e1) ;
+      tuple t e2
 
 and field t m ((_, x), e) = 
   IMap.add x (Read, tuple t e) m

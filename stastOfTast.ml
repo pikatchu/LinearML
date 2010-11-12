@@ -8,10 +8,15 @@ let check_terminates (p, tyl) =
     | _, Stast.Tany -> Error.infinite_loop p
     | _ -> ()) tyl
 
+let check_apply (p, ty) = 
+  match ty with
+  | Stast.Tprim _ -> Error.poly_is_not_prim p
+  | _ -> ()
+
 module ObsCheck = struct
   open Stast
 
-  let rec type_expr (p, ty) = type_expr_ p ty
+  let rec type_expr p (_, ty) = type_expr_ p ty
   and type_expr_ p = function
   | Tany 
   | Tprim _
@@ -21,14 +26,16 @@ module ObsCheck = struct
   | Tapply ((_, x), _) when x = Naming.tobs -> 
       Error.obs_not_allowed p
 
-  | Tapply (_, tyl) -> type_expr_list tyl
-  | Tfun (_, tyl) -> type_expr_list tyl
+  | Tapply (_, tyl) -> type_expr_list p tyl
+  | Tfun (_, tyl) -> type_expr_list p tyl
 
-  and type_expr_list (_, tyl) = 
-    List.iter type_expr tyl
+  and type_expr_list p (_, tyl) = 
+    List.iter (type_expr p) tyl
 
-  and tuple (tyl,_) = type_expr_list tyl
-  and expr (ty, _) = type_expr ty
+
+  let tuple ((p, _) as tyl,_) = type_expr_list p tyl
+  let expr ((p, _) as ty, _) = type_expr p ty
+  let type_expr_list ((p, _) as tyl) = type_expr_list p tyl 
   
 end
 
@@ -74,7 +81,10 @@ and type_expr_ t = function
     | Neast.Tprim ty -> Stast.Tprim ty
     | Neast.Tvar x -> Stast.Tvar x
     | Neast.Tid x -> Stast.Tid x
-    | Neast.Tapply (x, tyl) -> Stast.Tapply (x, type_expr_list t tyl)
+    | Neast.Tapply (x, tyl) -> 
+	let tyl = type_expr_list t tyl in
+	List.iter check_apply (snd tyl) ;
+	Stast.Tapply (x, tyl)
     | Neast.Tfun (tyl1, tyl2) -> 
 	Stast.Tfun (type_expr_list t tyl1, type_expr_list t tyl2)
 
@@ -138,9 +148,11 @@ and expr_ t ty = function
   | Efield (e, x) -> Stast.Efield (expr t e, x)
   | Ematch (e, pal) -> Stast.Ematch (tuple t e, List.map (action t) pal)
   | Elet (p, e1, e2) -> 
+      let e1 = tuple t e1 in
       let e2 = tuple t e2 in
+      ObsCheck.tuple e1 ;
       ObsCheck.tuple e2 ;
-      Stast.Elet (pat t p, tuple t e1, e2)
+      Stast.Elet (pat t p, e1, e2)
   | Eif (e1, e2, e3) -> 
       let e2 = tuple t e2 in
       let e3 = tuple t e3 in

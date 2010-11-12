@@ -80,9 +80,9 @@ module Type = struct
     | ConstInt -> i32_type ctx
     | Float -> float_type ctx
     | Double -> double_type ctx
-    | Union tyl -> 
-	let tyl = type_list mds t ctx tyl in
-	union_type ctx tyl
+    | Union tyl -> failwith "TODO"
+(*	let tyl = type_list mds t ctx tyl in
+	union_type ctx tyl *)
     | Array ty -> 
 	pointer_type (type_ mds t ctx ty)
     | Pointer ty -> 
@@ -100,8 +100,21 @@ module Type = struct
 
 end
 
+module Globals = struct
+
+  let rec module_ ctx llvm_md strings = 
+    SMap.iter (declare_string llvm_md ctx) strings
+
+  and declare_string md ctx s v = 
+    let x = const_stringz ctx s in
+    let g = define_global v x md in
+(*    set_global_constant true g ; *)
+    set_linkage Linkage.Private g 
+end
+
 type env = {
     mds: (llmodule * lltype SMap.t) SMap.t ;
+    cmd: llmodule ;
     ctx: llcontext ;
     fmap: llvalue SMap.t ;
     builder: llbuilder ;
@@ -111,22 +124,59 @@ type env = {
     bldone: SSet.t ;
   }
 
-let pervasives ctx = 
-  let md = create_module ctx "pervasives" in
-  let rty = pointer_type (i8_type ctx) in
+let dump_module md_file md pm =
+  ignore (PassManager.run_module md pm) ;
+  Llvm.dump_module md ;
+  (match Llvm_analysis.verify_module md with
+  | None -> ()
+  | Some r -> failwith r) ;
+  Llvm_analysis.assert_valid_module md ;
+  if Llvm_bitwriter.write_bitcode_file md md_file
+  then () (* TODO dispose all modules *)
+  else failwith ("Error: module generation failed"^md_file)
+
+let pervasives ctx md = 
+  let string = pointer_type (i8_type ctx) in
+  let rty = string in
   let args = i64_type ctx in
   let fty = function_type rty [|args|] in
   let malloc = declare_function "malloc" fty md in
-  let tprint = function_type (i1_type ctx) [|pointer_type (i8_type ctx)|] in
-  let print = declare_function "print" tprint md in
+  let tprint = function_type (i32_type ctx) [|string|] in
+  let print = declare_function "puts" tprint md in 
+  let tprint_int = function_type (i32_type ctx) [|i32_type ctx|] in
+  let print_int = declare_function "print_int" tprint_int md in 
   set_linkage Linkage.External malloc ; 
-  set_linkage Linkage.External print ;
-  dump_module md ;
-  Llvm_analysis.assert_valid_module md ;
+  set_linkage Linkage.External print ; 
+  set_linkage Linkage.External print_int ; 
   let prims = SMap.empty in 
   let prims = SMap.add "malloc" malloc prims in
   let prims = SMap.add "print" print prims in
+  let prims = SMap.add "print_int" print_int prims in
   prims
+
+let optims pm = 
+  add_constant_propagation pm ;
+  add_sccp pm ;
+  add_dead_store_elimination pm ;
+  add_aggressive_dce pm ;
+  add_scalar_repl_aggregation pm ;
+  add_ind_var_simplification pm ;
+  add_instruction_combination pm ;
+  add_licm pm ;
+  add_loop_unswitch pm ;
+  add_loop_unroll pm ;
+  add_loop_rotation pm ;
+  add_loop_index_split pm ;
+  add_memory_to_register_promotion pm ;
+(*  add_memory_to_register_demotion pm ; *)
+  add_reassociation pm ;
+  add_jump_threading pm ;
+  add_cfg_simplification pm ;
+  add_tail_call_elimination pm ;
+  add_gvn pm ;
+  add_memcpy_opt pm ;
+  add_loop_deletion pm ;
+  add_lib_call_simplification pm 
 
 let rec program mdl = 
   let ctx = global_context() in
@@ -134,22 +184,16 @@ let rec program mdl =
   List.rev_map (module_ mds ctx t) mdl 
 
 and module_ mds ctx t md = 
-  let md_id, md = md.md_id, md.md_defs in
+  let md_id, md, strings = md.md_id, md.md_defs, md.md_strings in
   let (md, tys, fs, dl) = SMap.find md_id t in
+  Globals.module_ ctx md strings ;
   let pm = PassManager.create () in
-  add_reassociation pm;   
-  add_gvn pm;    
-  add_tail_call_elimination pm ; 
-(*  add_cfg_simplification pm;     *)
-(*  add_instruction_combination pm;    *)
-(*  add_memory_to_register_demotion pm ; 
-  add_memory_to_register_promotion pm ; *)
-  add_jump_threading pm ; 
-(*  add_cfg_simplification pm;   *)
+(*   optims pm ;  *)
   let builder = builder ctx in
-  let prims = pervasives ctx in
+  let prims = pervasives ctx md in
   let env = 
     { mds = mds ;
+      cmd = md ;
       ctx = ctx ; 
       fmap = fs ; 
       builder = builder ; 
@@ -159,8 +203,7 @@ and module_ mds ctx t md =
       bldone = SSet.empty ;
     } in
   List.iter (def env) dl ;
-  ignore (PassManager.run_module md pm) ;
-  dump_module md ; o "\n" ;
+  dump_module (md_id^".bc") md pm
 
 and def env = function
   | Type _ -> ()
@@ -217,7 +260,7 @@ and block env proto acc bl =
       let b2 = SMap.find l2 env.bls in
       let x = SMap.find x acc in
       ignore (build_cond_br x b1 b2 env.builder)
-  | Switch (x, cases, default) -> 
+  | Switch (x, cases, default) ->
       let x = SMap.find x acc in
       let default = SMap.find default env.bls in
       let n = List.length cases in
@@ -250,7 +293,7 @@ and instruction proto bb env acc = function
       let v = size_of ty in
       let malloc = SMap.find "malloc" env.prims in
       let bl = build_call malloc [|v|] "" env.builder in
-      let bl = build_bitcast bl (pointer_type ty) x env.builder in
+      let bl = build_bitcast bl ty x env.builder in
       SMap.add x bl acc
   | VAlloc (x, ty, vty) -> 
       let vty = Type.type_ env.mds env.types env.ctx vty in      
@@ -263,8 +306,6 @@ and instruction proto bb env acc = function
   | Store (x, y) -> 
       let x = SMap.find x acc in
       let y = SMap.find y acc in
-      dump_value x ;
-      dump_value y ;
       ignore (build_store y x env.builder) ;   
       acc
   | Get_element_ptr (x, y, n) -> 
@@ -275,20 +316,20 @@ and instruction proto bb env acc = function
   | Get_field (x, y, n) -> 
       let y = SMap.find y acc in
       let z = const_int (i32_type env.ctx) 0 in
-      let n = const_int (i32_type env.ctx) n in
-      let v = build_gep y [|z;n|] x env.builder in
+      let v = build_gep y [|z|] x env.builder in
+      let v = build_struct_gep v n x env.builder in 
       SMap.add x v acc
   | Cast (x, y, ty) -> 
       let ty = Type.type_ env.mds env.types env.ctx ty in      
       let y = SMap.find y acc in
-      dump_value y ;
       let v = build_bitcast y ty x env.builder in
       SMap.add x v acc
-  | Call (tail, x, f, l) -> 
+  | Call (tail, x, f, l) ->
       let f = try SMap.find f acc with Not_found -> SMap.find f env.prims in
       let l = List.map (fun v -> SMap.find v acc) l in
       let t = Array.of_list l in
       let v = build_call f t x env.builder in
+      set_instruction_call_conv (function_call_conv f) v ;
       set_tail_call tail v ;
       SMap.add x v acc
   | Icmp (x, op, _, v1, v2) -> 
@@ -344,8 +385,16 @@ and const env ty = function
   | Const_float s -> 
       const_float_of_string ty s
   | Const_enum i ->
-      const_int (i32_type env.ctx) i
-  | Const_string _ -> assert false
+      let n = const_int (i16_type env.ctx) i in
+      let n = const_inttoptr n (pointer_type (i8_type env.ctx)) in
+      n
+  | Const_string v -> 
+      match lookup_global v env.cmd with 
+      | None -> assert false
+      | Some s -> 
+	  let z = const_int (i64_type env.ctx) 0 in
+	  let s = const_gep s [|z;z|] in
+	  s
 
 and icmp = function
   | Llast.Eq -> Llvm.Icmp.Eq 
