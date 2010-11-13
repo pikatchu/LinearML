@@ -65,6 +65,7 @@ OBJECTS_ML = \
 	llst.ml\
 	llstPp.ml\
 	llstOfEst.ml\
+	llstFree.ml\
 	llstOptim.ml\
 	emit2.ml\
 	main.ml

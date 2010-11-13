@@ -195,7 +195,7 @@ module ExtractArgs = struct
 	  then [] 
 	  else 
 	    let dummy = Llst.Tprim Tunit, Ident.tmp() in
-	    [[dummy], Llst.Eapply (Naming.free, [variant_ty, snd tmp])] 
+	    [[dummy], Llst.Eapply (Naming.free, [v])] 
 	in
 	let start = if ISet.mem x t.is_tagged then 1 else 0 in
 	let eqs = extract_args mkty tmp start l eqs in

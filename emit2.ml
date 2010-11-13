@@ -197,11 +197,16 @@ let optims pm =
   add_reassociation pm ;
   add_jump_threading pm ;
   add_cfg_simplification pm ;
-(*  add_tail_call_elimination pm ;*)
+  add_tail_call_elimination pm ;
   add_gvn pm ;
   add_memcpy_opt pm ;
   add_loop_deletion pm ;
-  add_lib_call_simplification pm 
+  add_lib_call_simplification pm ;
+
+
+  add_ind_var_simplification pm ;
+  add_instruction_combination pm 
+
 
 
 let rec program mdl = 
@@ -320,31 +325,6 @@ and expr proto bb env acc (ty, x) e =
       let bop = binop bop in
       let v = bop x1 x2 xs env.builder in
       IMap.add x v acc
-(*  | Alloc (x, ty) -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty in      
-      let v = size_of ty in
-      let malloc = IMap.find "malloc" env.prims in
-      let bl = build_call malloc [|v|] "" env.builder in
-      let bl = build_bitcast bl ty x env.builder in
-      IMap.add x bl acc
-  | VAlloc (x, ty, vty) -> 
-      let vty = Type.type_ env.mds env.types env.ctx vty in      
-      let v1 = size_of vty in
-      let v2 = size_of (i32_type env.ctx) in
-      let v = const_add v1 v2 in
-      let malloc = IMap.find "malloc" env.prims in
-      let bl = build_call malloc [|v|] "" env.builder in
-      IMap.add x bl acc
-  | Store (x, y) -> 
-      let x = IMap.find x acc in
-      let y = IMap.find y acc in
-      ignore (build_store y x env.builder) ;   
-      acc
-  | Get_element_ptr (x, y, n) -> 
-      let y = IMap.find y acc in
-      let n = const_int (i32_type env.ctx) n in
-      let v = build_gep y [|n|] x env.builder in
-      IMap.add x v acc *)
   | Ecast (ty, y) -> 
       let ty = Type.type_ env.mds env.types env.ctx ty in      
       let y = IMap.find y acc in
@@ -361,7 +341,7 @@ and expr proto bb env acc (ty, x) e =
       let v = IMap.find v acc in
       let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in 
       let c = build_call f [|v|] "" env.builder in
-      set_instruction_call_conv (function_call_conv f) c ; 
+      set_instruction_call_conv (function_call_conv f) c ;  
       IMap.add x (const_int (i1_type env.ctx) 0) acc      
   | Eapply (f, l) -> 
       let f = IMap.find f acc in

@@ -236,7 +236,7 @@ module PatOpt = struct
   let rec exhaustive t e = e
 
   let expr t e = 
-    let e = dummy e in 
+    let e = dummy e in  
     e
 end
 
@@ -322,6 +322,14 @@ and pat_ = function
   | Pas (x, [[p]]) -> Est.Pas (x, pat_el p)
   | Pas _ -> assert false
 
+and simpl_pat l =
+  try 
+    List.iter (
+    fun (_, p) -> match p with Pid _ | Pany -> () | _ -> raise Exit
+   ) l ;
+    true
+  with Exit -> false
+
 and get_rid = function
   | [] -> None
   | PFid x :: _ -> Some x
@@ -361,6 +369,9 @@ and expr_ t tyl = function
       let t, e = ematch 0 t tyl e in
       let t = equation t idl e in
       t, idl
+(*  | Elet ([l], e1, e2) when simpl_pat l -> 
+      let t, idl = tuple t e1 in
+      tuple t e2 *)
   | Elet (p, e1, e2) -> 
       expr_ t tyl (Ematch (e1, [p, e2]))
   | Eif (e1, e2, e3) -> 

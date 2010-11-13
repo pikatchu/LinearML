@@ -29,14 +29,15 @@ let _ =
 (*    BoundCheck.program stast ; *)
     let ist = IstOfStast.program stast in
     let est = EstOfIst.program ist in
+(*     EstPp.program est ; *)
     let est = EstCompile.program est in
     let est = EstNormalizePatterns.program est in
-(*     EstPp.program est ; *)
+     EstPp.program est ; 
     let llst = LlstOfEst.program est in
-(*    LlstPp.program llst ; *)
+    let llst = LlstFree.program llst in
     let llst = LlstOptim.program llst in 
-      LlstPp.program llst ; 
-    Emit2.program llst ;
+      LlstPp.program llst ;  
+    Emit2.program llst ; 
     module_l := new_module :: !module_l 
   done ;
   !module_l
