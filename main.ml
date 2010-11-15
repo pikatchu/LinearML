@@ -32,9 +32,10 @@ let _ =
 (*     EstPp.program est ; *)
     let est = EstCompile.program est in
     let est = EstNormalizePatterns.program est in
-     EstPp.program est ; 
+(*     EstPp.program est ;  *)
     let llst = LlstOfEst.program est in
     let llst = LlstFree.program llst in
+(*      LlstPp.program llst ;  *)
     let llst = LlstOptim.program llst in 
       LlstPp.program llst ;  
     Emit2.program llst ; 
