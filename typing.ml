@@ -400,6 +400,19 @@ module Env = struct
     let x = tapply Naming.tshared [tvar tmp] in
     tfun [x] [tapply Naming.toption [tvar tmp]]
 
+  let tspawn = 
+    let tmp1 = Ident.tmp() in
+    let tmp2 = Ident.tmp() in
+(* TODO reverse this *)
+(*    let f = tfun [tvar tmp1] [tvar tmp2] in
+    tfun [f ; tvar tmp1] [tapply Naming.tfuture [tvar tmp2]] *)
+    let f = tfun [tany] [tany] in
+    tfun [f ; tany] [tapply Naming.tfuture [tany]]
+
+  let twait = 
+    let tmp = Ident.tmp() in
+    tfun [tapply Naming.tfuture [tvar tmp]] [tvar tmp] 
+
   let rec make mdl = 
     let env = IMap.empty in
     let env = IMap.add Naming.free tfree env in
@@ -414,6 +427,8 @@ module Env = struct
     let env = IMap.add Naming.free_shared tfree_shared env in
     let env = IMap.add Naming.some tsome env in
     let env = IMap.add Naming.none tnone env in
+    let env = IMap.add Naming.spawn tspawn env in
+    let env = IMap.add Naming.wait twait env in
 (*    let env = IMap.add Naming.unshare unshare env in *)
     let env = List.fold_left module_ env mdl in
     env

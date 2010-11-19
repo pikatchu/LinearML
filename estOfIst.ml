@@ -117,7 +117,11 @@ module BreakPat = struct
 (* If you understand this code, good for you ! because I don't ... *)
   open Est
 
-  let make_idl = List.map (fun (ty, _) -> ty, Ident.tmp())
+  let make_idl l = List.map (fun (ty, _) -> ty, Ident.tmp()) l
+
+  let add_subst x y m = 
+    let l = try IMap.find x m with Not_found -> [] in
+    IMap.add x (y :: l) m
 
   let rec partition id s = function
     | [] -> s, None, []
@@ -140,7 +144,7 @@ module BreakPat = struct
 	    (ty, `V x, l1 :: rest1, (rl1, a) :: rest2) :: l)
     | ([ty, Pany], a) :: rl2 ->
 	let s, _, p = partition id s rl2 in
-	s, None, (ty, `U, [[]], [[], a]) :: p
+	s, Some a, (ty, `U, [[]], [[], a]) :: p
     | ((ty, Pany) :: rl1, a) :: rl2 ->
 	let s, _, p = partition id s rl2 in
 	s, Some a, (match p with
@@ -152,11 +156,11 @@ module BreakPat = struct
 	   ) part) 
     | ([ty, Pid x], a) :: rl2 -> 
 	let s, _, p = partition id s rl2 in
-	let s = IMap.add x id s in
-	s, None, (ty, `U, [[]], [[], a]) :: p
+	let s = add_subst x id s in
+	s, Some a, (ty, `U, [[]], [[], a]) :: p
     | ((ty, Pid x) :: rl1, a) :: rl2 -> 
 	let s, _, p = partition id s rl2 in
-	let s = IMap.add x id s in
+	let s = add_subst x id s in
 	s, Some a, (match p with
 	| [] -> [ty, `U, [[]], [rl1, a]]
 	| part ->
@@ -168,14 +172,14 @@ module BreakPat = struct
     | ((_, Pas (x, p)) :: rl1, a) :: rl2 -> 
 	let pa = (p :: rl1, a) :: rl2 in
 	let s, todo, p = partition id s pa in
-	let s = IMap.add x id s in
+	let s = add_subst x id s in
 	s, todo, p
 
   let rec pmatch subst idl pal =
     match idl with
     | [] -> assert false
     | id :: rl -> 
-	let subst, _, pal = partition (snd id) subst pal in
+	let subst, _, pal = partition id subst pal in
 	let subst, al = 
 	  lfold (
 	  fun subst (ty, x, subpl, al) -> 
@@ -241,6 +245,7 @@ module PatOpt = struct
 end
 
 
+
 type t = {
     blocks: Est.block list ;
     eqs: Est.equation list ;
@@ -252,6 +257,20 @@ let empty = {
   eqs = [] ;
   subst = IMap.empty ;
 }
+
+let add_subst subst psubst =
+  Printf.printf "Subst\n" ;
+  IMap.iter (fun x l ->
+    let l = List.map (fun (_, x) -> Ident.debug x) l in
+    Printf.printf "%s: " (Ident.debug x) ; (List.iter (Printf.printf "%s") l) ;
+    Printf.printf "\n") psubst ;
+  IMap.fold (
+  fun x y acc -> 
+    match y with
+    | [y] -> IMap.add x (snd y) acc
+    | y -> assert false ; (* TODO check this *)
+	List.fold_left (fun acc y -> IMap.add (snd y) x acc) acc y
+ ) psubst subst
 
 let new_id = Ident.tmp
 let new_label = Ident.tmp
@@ -271,11 +290,12 @@ and def (x, p, e) =
   let t, idl2 = tuple t e in
   let fblock = block t.eqs (Est.Return idl2) in 
   let def = {
-  Est.df_id = x ;
-  Est.df_args = idl1 ;
-  Est.df_return = idl2 ;
-  Est.df_body = fblock :: t.blocks ;
+    Est.df_id = x ;
+    Est.df_args = idl1 ;
+    Est.df_return = idl2 ;
+    Est.df_body = fblock :: t.blocks ;
   } in
+  IMap.iter (fun x y ->     Printf.printf "XX: %s %s\n" (Ident.debug x) (Ident.debug y)) t.subst ;
   EstSubst.def t.subst def
 
 and make_idl tyl = 
@@ -363,8 +383,9 @@ and expr_ t tyl = function
       let idl = make_idl tyl in
       let t, eidl = tuple t e in
       let t, al = List.fold_right action al (t, []) in
-      let subst, e = BreakPat.pmatch t.subst eidl al in
-      let t = { t with subst = subst } in
+      let psubst = IMap.empty in
+      let psubst, e = BreakPat.pmatch psubst eidl al in
+      let t = { t with subst = add_subst t.subst psubst } in
       let e = PatOpt.expr t e in
       let t, e = ematch 0 t tyl e in
       let t = equation t idl e in

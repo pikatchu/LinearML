@@ -128,7 +128,7 @@ and expr = function
   | Eapply (x, l) -> o "call " ; id x ; o " " ; idl l
   | Egettag x -> o "gettag " ; tid x
   | Egetargs x -> o "getargs " ; tid x
-  | Ecast (ty, x) -> o "(" ; type_expr ty ; o ") " ; id x
+  | Ecast (ty, x) -> o "cast (" ; type_expr ty ; o ") " ; id x
   | Eproj (x, n) -> tid x ; o "[" ; o (soi n) ; o "]"
   | Eptr_of_int x -> o "(pointer) " ; id x
   | Eint_of_ptr x -> o "(int) " ; id x

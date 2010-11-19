@@ -8,7 +8,6 @@ open Llst
 module Type = struct
 
   let is_public md = 
-    Ident.print md.md_id ;
     let acc = ISet.empty in
     let acc = List.fold_left (
       fun acc x ->
@@ -16,7 +15,6 @@ module Type = struct
 	| Dval (x, _) -> ISet.add x acc
 	| _ -> acc
      ) acc md.md_decls in
-    ISet.iter (fun x -> Ident.print x) acc ;
     acc
 
   let rec program ctx mdl = 
@@ -54,7 +52,7 @@ module Type = struct
 
   and def_type mds ctx t = function
     | Dtype (x, ty) -> IMap.add x (type_ mds t ctx ty) t
-    | _ -> t
+    | Dval _ -> t
 
   and def_fun pub mds t md ctx acc df = 
     let link = 
@@ -74,13 +72,15 @@ module Type = struct
     let args = List.map fst df.df_args in
     let args = Array.of_list args in
     let args = Array.map (type_ mds t ctx) args in
-    let rett = match df.df_ret with [ty] -> ty | _ -> assert false (* TODO *) in
-    let rett = type_ mds t ctx rett in 
+    let rett = match df.df_ret with [ty] -> type_ mds t ctx ty 
+    | l -> struct_type ctx (Array.of_list (List.map (type_ mds t ctx) l)) in
     let ftype = function_type rett args in
     let fdec = declare_function (Ident.to_string df.df_id) ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = Llvm.CallConv.c in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
+(*    add_function_attr fdec Attribute.Nounwind ;
+    add_function_attr fdec Attribute.Readnone ; *)
     fdec
 
   and type_path mds x y = 
@@ -92,7 +92,8 @@ module Type = struct
   and type_ mds t ctx = function
     | Tany -> pointer_type (i8_type ctx)
     | Tprim tp -> type_prim mds t ctx tp
-    | Tid x -> IMap.find x t
+(* TODO add primitive types in a cleaner way *)
+    | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
     | Tfun _ -> failwith "TODO function type" (* of type_expr_list * type_expr_list *)
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
@@ -139,6 +140,7 @@ type env = {
     prims: llvalue SMap.t ;
     bls: llbasicblock IMap.t ;
     bldone: SSet.t ;
+    orig_types: Llst.type_expr IMap.t ;
   }
 
 
@@ -156,25 +158,39 @@ let dump_module md_file md pm =
 
 let pervasives ctx md = 
   let string = pointer_type (i8_type ctx) in
+  let any = string in
   let rty = string in
   let args = i64_type ctx in
   let fty = function_type rty [|args|] in
   let malloc = declare_function "malloc" fty md in
+
   let tprint = function_type (i32_type ctx) [|string|] in
   let print = declare_function "puts" tprint md in 
+
   let tprint_int = function_type (void_type ctx) [|i32_type ctx|] in
   let print_int = declare_function "print_int" tprint_int md in 
+
   let free = declare_function "free" 
       (function_type (void_type ctx) [|pointer_type (i8_type ctx)|]) md in
+
+  let spawn = declare_function "spawn" 
+      (function_type any [|any; any|]) md in
+
+  let wait = declare_function "wait" (function_type any [|any|]) md in  
+
   set_linkage Linkage.External malloc ; 
   set_linkage Linkage.External free ; 
   set_linkage Linkage.External print ; 
   set_linkage Linkage.External print_int ; 
+  set_linkage Linkage.External spawn ; 
+  set_linkage Linkage.External wait ; 
   let prims = SMap.empty in 
   let prims = SMap.add "malloc" malloc prims in
   let prims = SMap.add "free" free prims in
   let prims = SMap.add "print" print prims in
   let prims = SMap.add "print_int" print_int prims in
+  let prims = SMap.add "spawn" spawn prims in
+  let prims = SMap.add "wait" wait prims in
   prims
 
 
@@ -192,12 +208,11 @@ let optims pm =
   add_loop_unroll pm ;
   add_loop_rotation pm ;
   add_loop_index_split pm ;
-  add_memory_to_register_promotion pm ;
-(*  add_memory_to_register_demotion pm ; *)
+  add_memory_to_register_promotion pm ; 
   add_reassociation pm ;
   add_jump_threading pm ;
   add_cfg_simplification pm ;
-  add_tail_call_elimination pm ;
+  add_tail_call_elimination pm ; 
   add_gvn pm ;
   add_memcpy_opt pm ;
   add_loop_deletion pm ;
@@ -205,7 +220,7 @@ let optims pm =
 
 
   add_ind_var_simplification pm ;
-  add_instruction_combination pm 
+  add_instruction_combination pm  
 
 
 
@@ -215,11 +230,17 @@ let rec program mdl =
   List.rev_map (module_ mds ctx t) mdl 
 
 and module_ mds ctx t md = 
+  let orig_types = List.fold_left (
+    fun acc dt -> 
+      match dt with
+      | Dtype (x, Tptr y) -> IMap.add x y acc
+      | _ -> acc
+   ) IMap.empty md.md_decls in
   let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
   let (md, tys, fs, dl) = IMap.find md_id t in
 (*   Globals.module_ ctx md strings ;*)
   let pm = PassManager.create () in
-   optims pm ;  
+    optims pm ;  
   let builder = builder ctx in
   let prims = pervasives ctx md in
   let env = 
@@ -232,6 +253,7 @@ and module_ mds ctx t md =
       prims = prims ;
       bls = IMap.empty ;
       bldone = SSet.empty ;
+      orig_types = orig_types ;
     } in
   List.iter (def env) dl ;
   dump_module (Ident.to_string md_id^".bc") md pm
@@ -263,7 +285,6 @@ and make_phi env acc (x, ty, lbls) =
   let lbls = List.map (
     fun (x, l) ->
       let bb = IMap.find l env.bls in
-      Ident.print x ; 
       IMap.find x acc, 
       bb
    ) lbls in
@@ -306,13 +327,29 @@ and block env proto acc bl =
   acc
 
 and instruction proto bb env acc (idl, e) = 
-  let id = match idl with [x] -> x | _ -> failwith "TODO idl emit2" in
-  expr proto bb env acc id e
+  match idl with 
+  | [x] -> expr proto bb env acc x e
+  | xl -> (match e with
+    | Eapply (f, l) -> 
+	let f = IMap.find f acc in
+	let l = List.map (fun (_, v) -> IMap.find v acc) l in
+	let t = Array.of_list l in
+	let v = build_call f t "" env.builder in
+	set_instruction_call_conv (function_call_conv f) v ;
+	let n = ref 0 in
+	List.fold_left (
+	fun acc (_, x) -> 
+	  let nv = build_extractvalue v !n (Ident.to_string x) env.builder in
+	  incr n ;
+	  IMap.add x nv acc
+       ) acc xl
+    | _ -> assert false)
 
 and expr proto bb env acc (ty, x) e = 
   let xs = Ident.to_string x in
   match e with
   | Eid y -> 
+      Ident.print y ;
       let y = IMap.find y acc in
       IMap.add x y acc
   | Evalue v ->
@@ -330,6 +367,8 @@ and expr proto bb env acc (ty, x) e =
       let y = IMap.find y acc in
       let v = build_bitcast y ty xs env.builder in
       IMap.add x v acc
+
+(* TODO make a cleaner mechanism for primitives *)
   | Eapply (f, [_, v]) when f = Naming.print_int ->
       let f = SMap.find "print_int" env.prims in
       let v = IMap.find v acc in
@@ -342,7 +381,29 @@ and expr proto bb env acc (ty, x) e =
       let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in 
       let c = build_call f [|v|] "" env.builder in
       set_instruction_call_conv (function_call_conv f) c ;  
-      IMap.add x (const_int (i1_type env.ctx) 0) acc      
+      IMap.add x (const_int (i1_type env.ctx) 0) acc
+  | Eapply (f, [_, v]) when f = Naming.wait ->
+      let f = SMap.find "wait" env.prims in
+      let v = IMap.find v acc in
+      let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in 
+      let c = build_call f [|v|] "" env.builder in
+      set_instruction_call_conv (function_call_conv f) c ;  
+      let ty = Type.type_ env.mds env.types env.ctx ty in
+      let c = build_bitcast c ty "" env.builder in 
+      IMap.add x c acc
+  | Eapply (f, [(_, v1) ; (_, v2)]) when f = Naming.spawn ->
+      let f = SMap.find "spawn" env.prims in
+      let v1 = IMap.find v1 acc in
+      let v1 = build_bitcast v1 (pointer_type (i8_type env.ctx)) "" env.builder in 
+      let v2 = IMap.find v2 acc in
+      let v2 = build_bitcast v2 (pointer_type (i8_type env.ctx)) "" env.builder in 
+      let c = build_call f [|v1 ; v2|] "" env.builder in
+      set_instruction_call_conv (function_call_conv f) c ;  
+      let ty = Type.type_ env.mds env.types env.ctx ty in
+      let c = build_bitcast c ty "" env.builder in 
+      IMap.add x c acc
+
+
   | Eapply (f, l) -> 
       let f = IMap.find f acc in
       let l = List.map (fun (_, v) -> IMap.find v acc) l in
@@ -364,8 +425,12 @@ and expr proto bb env acc (ty, x) e =
   | Etuple (v, fdl) -> 
       let bl = match v with
       | None ->
-	  let ty = Type.type_ env.mds env.types env.ctx ty in      
-	  let v = size_of ty in
+	  let orig_ty = match ty with Tid x -> 
+	    IMap.find x env.orig_types 
+	  | _ -> assert false in
+	  let ty = Type.type_ env.mds env.types env.ctx ty in  
+	  let oty = Type.type_ env.mds env.types env.ctx orig_ty in  
+	  let v = size_of oty in
 	  let malloc = SMap.find "malloc" env.prims in
 	  let bl = build_call malloc [|v|] "" env.builder in
 	  let bl = build_bitcast bl ty xs env.builder in 
@@ -384,11 +449,14 @@ and expr proto bb env acc (ty, x) e =
   | Eint_of_ptr _ -> failwith "TODO Eint_of_ptr"
   | Eptr_of_int _ -> failwith "TODO Eptr_of_int"
   | Egetargs _ -> failwith "TODO Egetargs"
-  | Egettag _ -> failwith "TODO Egettag"
+  | Egettag (_, v) -> 
+      let bl = IMap.find v acc in
+      let z = const_int (i32_type env.ctx) 0 in
+      let ptr = build_gep bl [|z|] "" env.builder in
+      let v = build_load ptr "" env.builder in
+      IMap.add x v acc
   | Efield (_, _) -> failwith "TODO Efield"
   | Euop (_, _) -> failwith "TODO Euop"
-
-
 (*  
   | Switch of id * (value * label) list * label
 

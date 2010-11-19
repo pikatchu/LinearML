@@ -226,8 +226,9 @@ module LoadStore = struct
        
 end
 
-let program mdl = 
-  let mdl = InlineBlocks.program mdl in
+let program mdl =
   let mdl = Inplace.program mdl in
   let mdl = LoadStore.program mdl in
   mdl
+
+let inline mdl = InlineBlocks.program mdl

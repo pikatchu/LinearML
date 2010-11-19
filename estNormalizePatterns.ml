@@ -148,9 +148,21 @@ and ret t = function
   | Return _
   | Jump _
   | If _ as x -> x
-  | Match ([ty, _] as c, al) ->
+  | Match ([ty, _] as c, al) -> 
       let al = Normalize.pmatch t.noargs ty al in
-      let al = RemoveUnderscore.pmatch t.counts ty al in
+      let al = RemoveUnderscore.pmatch t.counts ty al in 
+      let al = List.sort compare_pat al in 
       Match (c, al)
   | Match _ -> assert false
+
+and compare_pat (x, _) (y, _) = 
+  match snd (List.hd x), snd (List.hd y) with
+  | Pvariant (x, []), Pvariant (y, []) -> Ident.compare x y
+  | Pvariant (_, []), _ -> -1
+  | _, Pvariant (_, []) -> 1
+  | Pvariant (x, _), Pvariant (y, _) -> Ident.compare x y
+  | Pvariant (_, _), _ -> -1
+  | _, Pvariant (_, _) -> 1
+  | x, y -> Pervasives.compare x y
+
 

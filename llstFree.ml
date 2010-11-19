@@ -146,7 +146,6 @@ module Usage = struct
 	  fun acc (_, x) -> ty_id acc x
 	 ) acc l in
 	acc
-
 end
 
 open Llst
@@ -174,24 +173,22 @@ let rec cont acc = function
        ) acc al in
       acc
 
-(* TODO memoize this ? *)
+(* TODO memoize *)
 let rec is_used bls usage x lbl = 
   let bl = IMap.find lbl bls in
   let uses = IMap.find bl.bl_id usage in
   ISet.mem x uses || 
-  bl.bl_phi = [] &&
   is_used_ret bls usage x bl
-
+    
 and is_used_ret bls usage x bl =
   ISet.fold 
     (fun lbl acc -> acc || is_used bls usage x lbl) 
     (cont ISet.empty bl.bl_ret)
     false
 
-(* determines if we are in the last block before phi *)
-let is_last bls bl = 
-  match bl with
-  | Jump lbl -> (IMap.find lbl bls).bl_phi <> []
+let is_branching bl = 
+  match bl.bl_ret with
+  | If _ | Switch _ -> true
   | _ -> false
 
 (* TODO memoize ? *)
@@ -199,10 +196,12 @@ let rec insert bls usage ((_, x) as id) acc lbl =
   if ISet.mem x (IMap.find lbl usage)
   then acc
   else 
+(* In general it's better to push the frees within the branches *)
+(* TODO do this optimization properly *)
     let bl = IMap.find lbl bls in
-    if is_last bls bl.bl_ret
-    then Insert_free (lbl, id) :: acc
-    else insert_ret bls usage id acc bl
+    if is_branching bl || is_used bls usage x lbl 
+    then insert_ret bls usage id acc bl
+    else Insert_free (lbl, id) :: acc
 
 and insert_ret bls usage x acc bl =
   ISet.fold 
@@ -235,8 +234,8 @@ and def df =
     fun acc x -> 
       match x with
       | Insert_free (lbl, x) ->
-	  let vl = try IMap.find lbl acc with Not_found -> [] in
-	  IMap.add lbl (x :: vl) acc
+	  let xs = try IMap.find lbl acc with Not_found -> IMap.empty in
+	  IMap.add lbl (IMap.add (snd x) x xs) acc
       | _ -> acc
    ) IMap.empty todo in
   let body = List.map (block_insert ins) body in 
@@ -247,7 +246,7 @@ and block_todo bls usage acc bl =
   fun acc (_, e) -> 
     match e with
     | Eapply (f, [x]) when f = Naming.free -> 
-	if is_used_ret bls usage (snd x) bl
+	if is_branching bl || is_used_ret bls usage (snd x) bl 
 	then
 	  let acc = Remove_free (bl.bl_id, snd x) :: acc in
 	  let acc = insert_ret bls usage x acc bl in
@@ -267,7 +266,7 @@ and block_remove rm_set bl =
 and block_insert ins bl = 
   try 
     let xl = IMap.find bl.bl_id ins in
-    let eqs = List.fold_right (fun v acc -> 
+    let eqs = IMap.fold (fun _ v acc -> 
       let dummy = Llst.Tprim Tunit, Ident.tmp() in
       ([dummy], Llst.Eapply (Naming.free, [v])) :: acc) xl bl.bl_eqs in
     { bl with bl_eqs = eqs }
