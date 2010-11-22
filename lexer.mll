@@ -9,33 +9,33 @@ let error msg = raise (Lexical_error msg)
 (* Initializing the keyword table *)
 let keywords = Hashtbl.create 23  (* small prime number *)
 let assoc_keyword = [
-  "and"    , (fun lb -> AND) ;
-  "as"     , (fun lb -> AS) ;
-  "when"   , (fun lb -> WHEN) ;
-  "while"  , (fun lb -> WHILE) ;
-  "with"   , (fun lb -> WITH) ;
+  "and"    , (fun lb -> AND (Pos.make lb)) ;
+  "as"     , (fun lb -> AS (Pos.make lb)) ;
+  "when"   , (fun lb -> WHEN (Pos.make lb)) ;
+  "while"  , (fun lb -> WHILE (Pos.make lb)) ;
+  "with"   , (fun lb -> WITH (Pos.make lb)) ;
   "match"  , (fun lb -> MATCH (Pos.make lb)) ;
   "let"    , (fun lb -> LET (Pos.make lb)) ;
-  "module" , (fun lb -> MODULE) ;
-  "struct" , (fun lb -> STRUCT) ;
-  "end"    , (fun lb -> END) ;
+  "module" , (fun lb -> MODULE (Pos.make lb)) ;
+  "struct" , (fun lb -> STRUCT (Pos.make lb)) ;
+  "end"    , (fun lb -> END (Pos.make lb)) ;
   "if"     , (fun lb -> IF (Pos.make lb)) ;
-  "then"   , (fun lb -> THEN) ;
-  "else"   , (fun lb -> ELSE) ;
+  "then"   , (fun lb -> THEN (Pos.make lb)) ;
+  "else"   , (fun lb -> ELSE (Pos.make lb)) ;
   "fun"    , (fun lb -> FUN (Pos.make lb)) ;
-  "type"   , (fun lb -> TYPE) ;
+  "type"   , (fun lb -> TYPE (Pos.make lb)) ;
   "true"   , (fun lb -> TRUE (Pos.make lb)) ;
   "false"  , (fun lb -> FALSE (Pos.make lb)) ;
-  "sig"    , (fun lb -> SIG) ;
-  "val"    , (fun lb -> VAL) ;
-  "of"     , (fun lb -> OF) ;
-  "rec"    , (fun lb -> REC) ;
-  "for"    , (fun lb -> FOR) ;
-  "do"     , (fun lb -> DO) ;
-  "done"   , (fun lb -> DONE) ;
-  "to"     , (fun lb -> TO) ;
-  "begin"  , (fun lb -> BEGIN) ;
-  "in"     , (fun lb -> IN) ;
+  "sig"    , (fun lb -> SIG (Pos.make lb)) ;
+  "val"    , (fun lb -> VAL (Pos.make lb)) ;
+  "of"     , (fun lb -> OF (Pos.make lb)) ;
+  "rec"    , (fun lb -> REC (Pos.make lb)) ;
+  "for"    , (fun lb -> FOR (Pos.make lb)) ;
+  "do"     , (fun lb -> DO (Pos.make lb)) ;
+  "done"   , (fun lb -> DONE (Pos.make lb)) ;
+  "to"     , (fun lb -> TO (Pos.make lb)) ;
+  "begin"  , (fun lb -> BEGIN (Pos.make lb)) ;
+  "in"     , (fun lb -> IN (Pos.make lb)) ;
   ]
 
 let _ = 
@@ -69,7 +69,7 @@ let float = digit+ '.' digit+
 rule token = parse
   (* ignored *)
   | ws+                { token lexbuf }
-  | '\n'               { Pos.new_line() ; token lexbuf }
+  | '\n'               { Lexing.new_line lexbuf; token lexbuf }
       
   (* comments *)
   | "(*"               { comment lexbuf }
@@ -82,40 +82,40 @@ rule token = parse
   | string             { STRING (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
 
-  | "->"               { ARROW }      
-  | "<-"               { ASSIGN }
-  | ":="               { COLEQ }
-  | ":"                { COLON }
+  | "->"               { ARROW (Pos.make lexbuf) }
+  | "<-"               { ASSIGN (Pos.make lexbuf) }
+  | ":="               { COLEQ (Pos.make lexbuf) }
+  | ":"                { COLON (Pos.make lexbuf) }
   | "::"               { COLONCOLON (Pos.make lexbuf) }
   | '('                { LP (Pos.make lexbuf) }
   | ')'                { RP (Pos.make lexbuf) }      
-  | ';'                { SC }
-  | ','                { COMMA }
-  | '|'                { BAR }
-  | '='                { EQ }
-  | "=="               { EQEQ }
-  | '+'                { PLUS }
+  | ';'                { SC (Pos.make lexbuf) }
+  | ','                { COMMA (Pos.make lexbuf) }
+  | '|'                { BAR (Pos.make lexbuf) }
+  | '='                { EQ (Pos.make lexbuf) }
+  | "=="               { EQEQ (Pos.make lexbuf) }
+  | '+'                { PLUS (Pos.make lexbuf) }
   | '-'                { MINUS (Pos.make lexbuf)}
-  | '*'                { STAR }
+  | '*'                { STAR (Pos.make lexbuf) }
   | '{'                { LCB (Pos.make lexbuf) }
   | '}'                { RCB (Pos.make lexbuf) }
   | '['                { LB (Pos.make lexbuf) }
   | ']'                { RB (Pos.make lexbuf) }
   | '_'                { UNDERSCORE (Pos.make lexbuf) }
-  | '.'                { DOT }
-  | "<="               { LTE }
-  | '<'                { LT }
-  | '>'                { GT }
-  | ">="               { GTE }
+  | '.'                { DOT (Pos.make lexbuf) }
+  | "<="               { LTE (Pos.make lexbuf) }
+  | '<'                { LT (Pos.make lexbuf) }
+  | '>'                { GT (Pos.make lexbuf) }
+  | ">="               { GTE (Pos.make lexbuf) }
 
   (* others *)
   | _                  { illegal_char (Lexing.lexeme_char lexbuf 0) }
-  | eof                { EOF }
+  | eof                { EOF (Pos.make lexbuf) }
 
 
 and comment  = parse
   | eof                { error "unterminated comment" }
-  | '\n'               { Pos.new_line() ; comment lexbuf }
+  | '\n'               { comment lexbuf }
   | "*)"               { token lexbuf }
   | _                  { comment lexbuf }
 
