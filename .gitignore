@@ -1,0 +1,12 @@
+*.cmx
+*.cmi
+*.cmxa
+*.a
+*.o
+*.cmo
+*.annot
+.*.swp
+parser.ml
+parser.mli
+lexer.ml
+/limlc
