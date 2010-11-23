@@ -259,16 +259,11 @@ let empty = {
 }
 
 let add_subst subst psubst =
-  Printf.printf "Subst\n" ;
-  IMap.iter (fun x l ->
-    let l = List.map (fun (_, x) -> Ident.debug x) l in
-    Printf.printf "%s: " (Ident.debug x) ; (List.iter (Printf.printf "%s") l) ;
-    Printf.printf "\n") psubst ;
   IMap.fold (
   fun x y acc -> 
     match y with
     | [y] -> IMap.add x (snd y) acc
-    | y -> assert false ; (* TODO check this *)
+    | y -> (* TODO check this *)
 	List.fold_left (fun acc y -> IMap.add (snd y) x acc) acc y
  ) psubst subst
 
@@ -398,14 +393,14 @@ and expr_ t tyl = function
   | Eif (e1, e2, e3) -> 
       let t, id1 = expr t e1 in
       let eqs = t.eqs in
-      let t' = { t with eqs = [] } in
-      let t', idl1 = tuple t' e2 in
-      let bl1 = block t'.eqs (Est.Lreturn idl1) in
-      let t = { t with blocks = bl1 :: t'.blocks } in
       let t = { t with eqs = [] } in
-      let t', idl2 = tuple t e3 in
-      let bl2 = block t'.eqs (Est.Lreturn idl2) in
-      let t = { t with blocks = bl2 :: t'.blocks } in
+      let t, idl1 = tuple t e2 in
+      let bl1 = block t.eqs (Est.Lreturn idl1) in
+      let t = { t with blocks = bl1 :: t.blocks } in
+      let t = { t with eqs = [] } in
+      let t, idl2 = tuple t e3 in
+      let bl2 = block t.eqs (Est.Lreturn idl2) in
+      let t = { t with blocks = bl2 :: t.blocks } in
       let t = { t with eqs = eqs } in
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
