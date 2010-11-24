@@ -122,6 +122,7 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 %token SIG
 %token STRUCT 
 %token THEN
+%token <Pos.t> TILD
 %token TO
 %token <Pos.t * string> TVAR
 %token TYPE
@@ -249,6 +250,7 @@ field_type:
 pat_field:
 | ID { fst $1, PFid $1 }
 | ID EQ pat { btw $1 $3, PField ($1, $3) } 
+| TILD ID { Pos.btw $1 (fst $2), PField ($2, (fst $2, Pid $2)) }
 | UNDERSCORE { ($1, PFany) }
 
 pat_field_l:
@@ -320,6 +322,8 @@ pat_action:
 
 field:
 | ID EQ expr { Eflocl ($1, $3) }
+| TILD ID { Eflocl ($2, (fst $2, Eid $2)) }
+| TILD CSTR DOT ID { Efextr ($2, $4, (fst $4, Eid $4)) }
 | CSTR DOT ID EQ expr { Efextr ($1, $3, $5) }
 
 field_l:
