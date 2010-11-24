@@ -12,6 +12,8 @@ type env = {
 
 and acc = {
     mem: type_expr_list TMap.t ;
+(* Used in instantiation to delay typing *)
+    todo: (Pos.t * type_expr_list * type_expr_list * Pos.t Utils.IMap.t) list ; 
   }
 
 and apply_def_list = 
@@ -304,12 +306,8 @@ module Instantiate = struct
     | Tapply ((_, x), tyl1), Tany -> 
 	inst_list env acc subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
     | _, Tany -> acc, subst
-    | Tfun (tyl, rty1), Tdef ids ->
-	let pdef = pl2 in
-	let idl = IMap.fold (fun x _ acc -> (pdef, x) :: acc) ids [] in
-	let rty = pdef, [pl2, Tany] in
-	let acc, rty2 = env.apply_def_list env acc pl2 idl tyl rty in
-	inst_list env acc subst rty1 rty2
+    | Tfun (tyl, rty), Tdef ids -> 
+	{ acc with todo = (pl2, tyl, rty, ids) :: acc.todo }, subst
     | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) ->
 	let acc, subst = inst_list env acc subst tyl1 tyl2 in
 	let acc, subst = inst_list env acc subst tyl3 tyl4 in
@@ -334,6 +332,26 @@ module Instantiate = struct
       else inst env (acc, subst) ty1 (p, ty2)
     with Not_found -> acc, IMap.add x (p, ty2) subst
 
+  let rec inst_def env acc subst (p, tyl, rty1, ids) =
+    let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
+    let rty = p, [p, Tany] in
+    let acc, tyl = replace_list subst env acc tyl in
+    let acc, rty = replace_list subst env acc rty in
+    let acc, rty2 = env.apply_def_list env acc p idl tyl rty in
+    inst_list env acc subst rty1 rty2
+
+  and inst_list_todos env acc subst = 
+    match acc.todo with
+    | [] -> acc, subst
+    | x :: rl -> 
+	let acc = { acc with todo = rl } in
+	let acc, subst = inst_def env acc subst x in
+	inst_list_todos env acc subst
+
+  and inst_type env acc subst tyl1 tyl2 = 
+    let acc, subst = inst_list env acc subst tyl1 tyl2 in
+    inst_list_todos env acc subst
+
   and replace subst env acc (p, ty) = 
     match ty with
     | Tvar v -> replace_var subst env acc v
@@ -357,6 +375,11 @@ module Instantiate = struct
   and replace_list subst env acc (p, tyl) = 
     let acc, tyl = lfold (replace subst env) acc tyl in
     let tyl = p, tyl in
+    acc, tyl
+
+  let call env acc rty pty pty2 = 
+    let acc, subst = inst_type env acc IMap.empty rty pty in
+    let acc, tyl = replace_list subst env acc pty2 in 
     acc, tyl
 
 end
@@ -403,11 +426,8 @@ module Env = struct
   let tspawn = 
     let tmp1 = Ident.tmp() in
     let tmp2 = Ident.tmp() in
-(* TODO reverse this *)
-(*    let f = tfun [tvar tmp1] [tvar tmp2] in
-    tfun [f ; tvar tmp1] [tapply Naming.tfuture [tvar tmp2]] *)
-    let f = tfun [tany] [tany] in
-    tfun [f ; tany] [tapply Naming.tfuture [tany]]
+    let f = tfun [tvar tmp1] [tvar tmp2] in
+    tfun [f ; tvar tmp1] [tapply Naming.tfuture [tvar tmp2]] 
 
   let twait = 
     let tmp = Ident.tmp() in
@@ -501,7 +521,7 @@ and module_ tenv md =
   let env = List.fold_left def env md.md_defs in
   let decls = List.fold_left get_decl TMap.empty md.md_decls in
   let env = { env with decls = decls } in
-  let acc = { mem = TMap.empty } in
+  let acc = { mem = TMap.empty ; todo = [] } in
   let acc = List.fold_left (decl env) acc md.md_decls in
 (*  TMap.iter (fun ((_, x), args) rty ->
     Ident.print x ;
@@ -535,7 +555,7 @@ and decl env acc = function
 	let env, acc, _ = pat env acc args tyl in
 	let acc, (rty2, _) = tuple env acc e in
 	let acc, rty = Unify.unify_list env acc rty2 rty in
-	let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
+	let acc = { acc with mem = TMap.add (fid, tyl) rty acc.mem } in
 	acc
       with Error.Type err_l -> Error.unify err_l)
   | Dval _ -> assert false
@@ -653,8 +673,7 @@ and pat_variant is_obs env acc x args pty =
   | _, Tfun (tyl, rty) -> tyl, rty
   | _ -> Error.no_argument (fst pty) in
   let pty = fst pty, [pty] in
-  let acc, subst = Instantiate.inst_list env acc IMap.empty rty pty in
-  let acc, tyl = Instantiate.replace_list subst env acc argty in 
+  let acc, tyl = Instantiate.call env acc rty pty argty in 
   let obs_tyl = 
     if is_obs 
     then fst tyl, List.map make_observed (snd tyl) 
@@ -772,7 +791,7 @@ and expr_ env acc (p, e) =
       let tyl = List.map fst fdl in
       let fdl = List.map snd fdl in
       let acc, ty = Unify.fold_types env acc tyl in
-      let acc, ty = Unify.unify_el env acc ty ty1 in
+      let acc, ty = Unify.unify_el env acc ty1 ty in
       acc, (ty, Tast.Ewith (e, fdl))
   | Eobs ((p, x) as id) ->
       let ty = IMap.find x env.tenv in
@@ -809,8 +828,7 @@ and proj env acc ty fty =
     (p2, Tfun (ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
-      let acc, subst = Instantiate.inst_list env acc IMap.empty argl2 argl1 in
-      Instantiate.replace_list subst env acc ty
+      Instantiate.call env acc argl2 argl1 ty 
   | (p1, _), (p2, _) -> Error.unify_proj p1 p2
 
 and binop env acc bop p ty1 ty2 = 
@@ -835,9 +853,7 @@ and value = function
 and apply env acc p (fp, x) tyl = 
   match IMap.find x env.tenv with
   | (_, Tfun (tyl1, tyl2)) ->
-      let acc, subst = Instantiate.inst_list env acc IMap.empty tyl1 tyl in
-      let acc, rty = Instantiate.replace_list subst env acc tyl2 in
-      acc, rty
+      Instantiate.call env acc tyl1 tyl tyl2
   | (_, Tdef ids) ->
       let rty = p, [p, Tany] in
       let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
@@ -864,7 +880,7 @@ and apply_def env acc pl fid tyl rty =
     let acc, rty = Unify.unify_list env acc rty mem_rty in
     acc, rty 
   with Not_found -> try
-    let acc = { mem = TMap.add (fid, tyl) rty acc.mem } in
+    let acc = { acc with mem = TMap.add (fid, tyl) rty acc.mem } in
     let acc, rty = apply_def_ env acc fid tyl rty in 
     let acc, rty = apply_def_ env acc fid tyl rty in (* Retyping *)
     acc, rty
@@ -875,5 +891,5 @@ and apply_def_ env acc fid tyl rty =
   let (_, argl, el) = IMap.find (snd fid) env.defs in
   let env, acc, _ = pat env acc argl tyl in 
   let acc, (new_rty, _) = tuple env acc el in
-  let acc = { mem = TMap.add (fid, tyl) new_rty acc.mem } in
+  let acc = { acc with mem = TMap.add (fid, tyl) new_rty acc.mem } in
   Unify.unify_list env acc new_rty rty

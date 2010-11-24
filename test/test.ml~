@@ -6,15 +6,15 @@ module T: sig
     | B
 
 
-  val rev_append: t obs * t obs -> t
+  val rev_append: t   -> int32
 end = struct
 
-  let rec rev_append l1 l2 = 
-    match l1, l2 with
-    | Empty, l -> Empty
-    | l, Empty -> Empty
-    | _, _ -> B
-
+  let rec rev_append l = 
+    match obs l with
+    | Empty -> 0
+    | B -> 
+    let x = match l with Empty -> 0 | B -> 1 in
+    x
 
 
 end
