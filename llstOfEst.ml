@@ -147,13 +147,13 @@ module VEnv = struct
     end
     else acc
 
-  and unboxed t is_tagged x (_, args) acc = 
-    if ISet.mem x is_tagged
-    then acc
-    else match args with
+  and unboxed t is_tagged x (tag, args) acc = 
+    if tag = Naming.some
+    then match args with
     | [] -> acc
     | [ty] when Pointer.type_expr t.pointers ty -> ISet.add x acc
     | _ -> acc
+    else acc
 
   and has_args _ (_, args) n = 
     if args = []

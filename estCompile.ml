@@ -13,21 +13,58 @@ module MakeOrigins = struct
 
   and phi orig t (x, _, _) = IMap.add x orig t 
   and equation orig t (idl, _) = 
-    List.fold_left (fun acc (_, x) -> IMap.add x orig t) t idl
+    List.fold_left (
+    fun t (_, x) -> 
+      IMap.add x orig t
+   ) t idl
   
+end
+
+module MakePreds = struct
+
+  let rec def df = 
+    let t = IMap.empty in
+    List.fold_left block t df.df_body 
+
+  and block t bl = 
+    let succs = ret ISet.empty bl.bl_ret in 
+    ISet.fold (
+    fun x acc ->
+      let preds = try IMap.find x acc with Not_found -> ISet.empty in
+      let preds = ISet.add bl.bl_id preds in
+      IMap.add x preds acc
+   ) succs t
+
+  and ret t = function
+    | Lreturn _
+    | Return _ -> t
+    | Jump lbl -> ISet.add lbl t 
+    | If (_, x1, x2) -> ISet.add x1 (ISet.add x2 t)
+    | Match (_, l) -> 
+	List.fold_left (fun t (_, lbl) -> ISet.add lbl t) t l
+
 end
 
 module MakePhi = struct
 
   let rec def df = 
+    let preds = MakePreds.def df in
+    Ident.print df.df_id ;
     let t = MakeOrigins.def df in
-    { df with df_body = List.map (block t) df.df_body }
+    o "\n\n" ;
+    { df with df_body = List.map (block t preds) df.df_body }
 
-  and block t bl = 
-    { bl with bl_phi = List.map (phi t) bl.bl_phi }
+  and block t preds bl = 
+    let preds = try IMap.find bl.bl_id preds with Not_found -> ISet.empty in
+    { bl with bl_phi = List.map (phi t preds) bl.bl_phi }
 
-  and phi t (x, ty, vl) = x, ty, List.map (
-    fun (x, _) -> x, IMap.find x t) vl 
+  and phi t preds (x, ty, vl) = x, ty, List.fold_right (
+    fun (x, _) acc ->
+      let orig = IMap.find x t in
+      if ISet.mem orig preds
+      then (x, IMap.find x t) :: acc
+      else (Printf.printf "TODO Check this in estCompile\n" ; acc)
+   ) vl []
 end
 
 let rec program mdl = 
@@ -101,7 +138,19 @@ and equation bls ret acc eq =
       let acc = rest :: acc in
       let b = { b with bl_ret = Jump btarget } in
       let acc = block bls acc b in
-      acc, Jump lbl, []
+      acc, Jump lbl, [] 
+
+(*  | (idl, Ecall lbl) :: rl -> 
+      let acc, ret, eqs = equation bls ret acc rl in
+      let bl = IMap.find lbl bls in
+      let idl' = match bl.bl_ret with Lreturn l -> l | _ -> assert false in
+      let eqs_rl = List.fold_right2 (
+	fun x1 (_, x2) acc ->
+	  ([x1], Eid x2) :: acc
+       ) idl idl' eqs in
+      let acc, ret, eqs = equation bls ret acc bl.bl_eqs in
+      acc, ret, eqs @ eqs_rl *)
+
   | (idl, Ematch (cl, al)) :: rl -> 
       let acc, ret, rl = equation bls ret acc rl in
       let al = List.map (

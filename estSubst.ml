@@ -1,14 +1,15 @@
 open Utils
 open Est
 
-let id t x = try IMap.find x t with Not_found -> x
 
-let rec def t df = {
-  Est.df_id = id t df.df_id ;
-  Est.df_args = ty_idl t df.df_args;
-  Est.df_return = ty_idl t df.df_return ;
-  Est.df_body = List.map (block t) df.df_body ;
-}
+let rec id t x = try id t (IMap.find x t) with Not_found -> x
+
+let rec def t df = 
+  { Est.df_id = id t df.df_id ;
+    Est.df_args = ty_idl t df.df_args;
+    Est.df_return = ty_idl t df.df_return ;
+    Est.df_body = List.map (block t) df.df_body ;
+  }
 
 and ty_id t (ty, x) = ty, id t x
 and ty_idl t l = List.map (ty_id t) l
@@ -48,4 +49,18 @@ and fields t l = List.map (field t) l
 and field t (fd, e) = fd, ty_idl t e
 
 and actions t l = List.map (action t) l
-and action t (p, e) = p, expr t e
+and action t (p, e) = pat t p, expr t e
+
+and pat t pel = List.map (pat_el t) pel
+and pat_el t (ty, p) = ty, pat_ t p
+and pat_ t = function
+  | Pany -> Pany
+  | Pid x -> Pid (id t x) 
+  | Pvariant (x, p) -> Pvariant (x, pat t p)
+  | Precord (x, pfl) -> 
+      let x = match x with None -> None | Some x -> Some (id t x) in
+      let pfl = List.map (pfield t) pfl in
+      Precord (x, pfl)
+  | Pas (x, pel) -> Pas (id t x, pat_el t pel)
+
+and pfield t (x, p) = x, pat t p

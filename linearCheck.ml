@@ -44,7 +44,6 @@ module OnlyUnderscores = struct
   let pat p = pat true p
 end
 
-
 type ty = 
   | Prim
   | Obs of Pos.t
@@ -122,6 +121,20 @@ let check_alive t =
     | _ -> ()
  ) t
 
+module IsPrim = struct
+
+  let rec tuple (_, tpl) = List.iter tuple_pos tpl
+  and tuple_pos (_, x) = expr_ x 
+  and expr (_, x) = expr_ x
+  and expr_ = function
+  | Evalue _
+  | Evariant (_, (_, [])) -> ()
+  | _ -> raise Exit
+
+  let tuple tpl = try tuple tpl ; true with Exit -> false
+
+end
+
 let rec program mdl = 
   List.iter (module_ IMap.empty) mdl
 
@@ -190,6 +203,7 @@ and expr_ t = function
       let t' = List.fold_left (unify_map t) (List.hd tl) (List.tl tl) in
       let t' = snd t' in
       union t t'
+  | Elet (_, e1, e2) when IsPrim.tuple e1 -> tuple t e2
   | Elet (p, e1, e2) -> 
       let t = tuple t e1 in
       let t = pat t p in

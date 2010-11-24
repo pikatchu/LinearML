@@ -107,6 +107,7 @@ rule token = parse
   | '<'                { LT (Pos.make lexbuf) }
   | '>'                { GT (Pos.make lexbuf) }
   | ">="               { GTE (Pos.make lexbuf) }
+  | '~'                { TILD (Pos.make lexbuf) }
 
   (* others *)
   | _                  { illegal_char (Lexing.lexeme_char lexbuf 0) }

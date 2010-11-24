@@ -1,22 +1,24 @@
 
-module List: sig
-  type t = 
-    | Empty
-    | Cons of int32 * t
+module X: sig
 
-
-  val merge: t * t -> t
+  val f: ('a -> 'a) * ('a -> 'a) -> unit
+  
 end = struct
 
+  let f g h = ()
+end
 
-  let rec merge l1 l2 = 
-    match l1, l2 with
-    | [], l -> l
-    | l, [] -> l
-    | (Cons x1 rl1 as l1), (Cons x2 rl2 as l2) ->
-	if x1 <= x2
-	then x1 :: merge rl1 l2
-	else x2 :: merge l1 rl2
+module T: sig
 
+  type t1 = { field1: int32 }
+
+  val main: unit -> unit
+
+end = struct
+
+  let g x = { x with field1 = 0 } 
+  let h x = x
+
+  let main() = X.f g h
 
 end

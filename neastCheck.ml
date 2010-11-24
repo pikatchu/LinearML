@@ -30,8 +30,10 @@ end = struct
   let get x t = 
     try IMap.find x t 
     with Not_found -> 
-      Ident.print x ;
-      assert false
+      (* TODO add all primitive types in a cleaner way *)
+      if x = Naming.tfuture
+      then Pos.none, 1
+      else assert false
 
   let rec check mdl = 
     let env = () in
