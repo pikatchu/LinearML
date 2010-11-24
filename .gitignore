@@ -9,4 +9,5 @@
 parser.ml
 parser.mli
 lexer.ml
+Makefile.config
 /limlc
