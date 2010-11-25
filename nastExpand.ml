@@ -96,10 +96,10 @@ end = struct
 	let mem, tdl = List.fold_left (type_def abbr) (mem, []) tdl in
 	mem, Dtype tdl 
 
-    | Dval (id, ty) -> 
+    | Dval (id, ty, x) -> 
 	let mem, ty = type_expr abbr mem ty in
 	let ty = Tuple.type_expr_tuple ty in
-	mem, Dval (id, ty)
+	mem, Dval (id, ty, x)
 
   and type_def abbr (mem, acc) (id, ty) = 
     let mem, ty = type_expr abbr mem ty in
@@ -256,10 +256,10 @@ and module_ md = {
 
 and decl acc = function
   | Dtype tdl -> List.fold_left tdef acc tdl
-  | Dval (x, (_, Tabs (_, ty)))
-  | Dval (x, ty) -> 
+  | Dval (x, (_, Tabs (_, ty)), v)
+  | Dval (x, ty, v) -> 
       match type_expr ty with
-      | _, Neast.Tfun _ as ty -> Neast.Dval (x, ty) :: acc
+      | _, Neast.Tfun _ as ty -> Neast.Dval (x, ty, v) :: acc
       | p, _ -> Error.expected_function p
 
 and tdef acc (id, (p, ty)) = 

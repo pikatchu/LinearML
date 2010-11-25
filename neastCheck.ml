@@ -64,7 +64,7 @@ end = struct
   and check_decl env = function
     | Drecord td
     | Dalgebric td -> tdef env td
-    | Dval (_, ty) -> type_expr env ty
+    | Dval (_, ty, _) -> type_expr env ty
 
   and tdef env td = 
     IMap.iter (fun _ (_, tyl) -> type_expr_list env tyl) td.td_map

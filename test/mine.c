@@ -60,3 +60,4 @@ void print_int(int x){
   printf("%d\n", x) ;
 }
 
+int f(int x){ return x+1 ; }

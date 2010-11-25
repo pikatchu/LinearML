@@ -14,7 +14,7 @@ and module_ = {
 and decl = 
   | Dalgebric of tdef
   | Drecord of tdef
-  | Dval of id * type_expr
+  | Dval of id * type_expr * pstring option
 
 and tdef = {
     td_id: id ;

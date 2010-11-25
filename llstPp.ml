@@ -43,8 +43,11 @@ and decl = function
   | Dtype (x, ty) -> 
       o "type " ; id x ; o " = " ; type_expr ty ;
       nl () ;
-  | Dval (x, ty) -> 
+  | Dval (x, ty, v) -> 
       o "val " ; id x ; o ": " ; type_expr ty ;
+      (match v with 
+      | None -> ()
+      | Some x -> o " = " ; o x) ;
       nl () ;
 
 and type_expr = function

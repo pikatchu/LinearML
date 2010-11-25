@@ -62,8 +62,8 @@ estOptim.cmo: utils.cmx est.cmx
 estOptim.cmx: utils.cmx est.cmx 
 estCompile.cmo: utils.cmx ident.cmi est.cmx 
 estCompile.cmx: utils.cmx ident.cmx est.cmx 
-estNormalizePatterns.cmo: utils.cmx naming.cmx ist.cmx est.cmx 
-estNormalizePatterns.cmx: utils.cmx naming.cmx ist.cmx est.cmx 
+estNormalizePatterns.cmo: utils.cmx naming.cmx ist.cmx ident.cmi est.cmx 
+estNormalizePatterns.cmx: utils.cmx naming.cmx ist.cmx ident.cmx est.cmx 
 estOptimizePatterns.cmo: utils.cmx ist.cmx est.cmx 
 estOptimizePatterns.cmx: utils.cmx ist.cmx est.cmx 
 llst.cmo: utils.cmx nast.cmx ident.cmi ast.cmx 
@@ -74,8 +74,8 @@ llstOfEst.cmo: utils.cmx naming.cmx llst.cmx ist.cmx ident.cmi estPp.cmx \
     est.cmx 
 llstOfEst.cmx: utils.cmx naming.cmx llst.cmx ist.cmx ident.cmx estPp.cmx \
     est.cmx 
-llstFree.cmo: utils.cmx naming.cmx llst.cmx 
-llstFree.cmx: utils.cmx naming.cmx llst.cmx 
+llstFree.cmo: utils.cmx naming.cmx llst.cmx ident.cmi 
+llstFree.cmx: utils.cmx naming.cmx llst.cmx ident.cmx 
 llstOptim.cmo: utils.cmx naming.cmx llst.cmx ident.cmi 
 llstOptim.cmx: utils.cmx naming.cmx llst.cmx ident.cmx 
 emit2.cmo: utils.cmx naming.cmx /home/pika/godi/lib/llvm_target.cmi \
@@ -91,10 +91,10 @@ emit2.cmx: utils.cmx naming.cmx /home/pika/godi/lib/llvm_target.cmi \
 main.cmo: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmi neastCheck.cmx nastExtractFuns.cmx nastExpand.cmx \
     nastCheck.cmx naming.cmx llstPp.cmx llstOptim.cmx llstOfEst.cmx \
-    llstFree.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estOfIst.cmx \
-    estNormalizePatterns.cmx estCompile.cmx error.cmx emit2.cmx 
+    llstFree.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx \
+    estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx emit2.cmx 
 main.cmx: typing.cmx stastOfTast.cmx stastCheck.cmx recordCheck.cmx pos.cmx \
     parser.cmx neastCheck.cmx nastExtractFuns.cmx nastExpand.cmx \
     nastCheck.cmx naming.cmx llstPp.cmx llstOptim.cmx llstOfEst.cmx \
-    llstFree.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estOfIst.cmx \
-    estNormalizePatterns.cmx estCompile.cmx error.cmx emit2.cmx 
+    llstFree.cmx linearCheck.cmx lexer.cmx istOfStast.cmx estPp.cmx \
+    estOfIst.cmx estNormalizePatterns.cmx estCompile.cmx error.cmx emit2.cmx 

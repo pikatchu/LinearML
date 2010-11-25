@@ -12,7 +12,7 @@ module Type = struct
     let acc = List.fold_left (
       fun acc x ->
 	match x with
-	| Dval (x, _) -> ISet.add x acc
+	| Dval (x, _, _) -> ISet.add x acc
 	| _ -> acc
      ) acc md.md_decls in
     acc
@@ -32,15 +32,16 @@ module Type = struct
   and module_refine ctx mds acc md = 
     let md_name, dl = Ident.to_string md.md_id, md.md_decls in
     let (llmd, t) = IMap.find md.md_id mds in
-    let t' = List.fold_left (def_type mds ctx) t dl in
+    let t' = List.fold_left (def_type mds llmd ctx) t dl in
     List.iter (refine t t') dl ;
     IMap.add md.md_id (llmd, t') acc
 
   and module_funs ctx mds acc md = 
     let pub = is_public md in
-    let md_name, dl = md.md_id, md.md_defs in
+    let md_name, dl, decl = md.md_id, md.md_defs, md.md_decls in
     let (md, tys) = IMap.find md_name mds in
     let fs = List.fold_left (def_fun pub mds tys md ctx) IMap.empty dl in
+    let fs = List.fold_left (def_external mds tys md ctx) fs decl in
     IMap.add md_name (md, tys, fs, dl) acc
 
   and opaques md ctx t = function
@@ -50,9 +51,9 @@ module Type = struct
 	IMap.add x ty t
     | _ -> t
 
-  and def_type mds ctx t = function
+  and def_type mds md ctx t = function
     | Dtype (x, ty) -> IMap.add x (type_ mds t ctx ty) t
-    | Dval _ -> t
+    | _ -> t
 
   and def_fun pub mds t md ctx acc df = 
     let link = 
@@ -61,6 +62,13 @@ module Type = struct
       else Llvm.Linkage.Private
     in
     IMap.add df.df_id (function_ link mds t md ctx df) acc
+
+  and def_external mds t md ctx acc = function
+    | Dval (x, ty, Some v) ->
+	let ty = type_ mds t ctx ty in
+	let fdec = declare_function v ty md in
+	IMap.add x fdec acc
+    | _ -> acc
 
   and refine t t' = function
     | Dtype (x, _) -> 
@@ -94,6 +102,10 @@ module Type = struct
     | Tprim tp -> type_prim mds t ctx tp
 (* TODO add primitive types in a cleaner way *)
     | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
+    | Tfun (ty1, [ty2]) -> 
+	let ty1 = List.map (type_ mds t ctx) ty1 in
+	let ty2 = type_ mds t ctx ty2 in
+	function_type ty2 (Array.of_list ty1) 
     | Tfun _ -> failwith "TODO function type" (* of type_expr_list * type_expr_list *)
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in

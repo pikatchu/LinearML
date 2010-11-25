@@ -71,6 +71,7 @@ module LocalUtils = struct
 	partial_tundef tyl || partial_tundef_ rl
     | _ :: rl -> partial_tundef_ rl
 
+(* TODO move this to stastOfTast *)
   let check_numeric p ty = 
     match ty with
     | _, Tany
@@ -99,7 +100,7 @@ module LocalUtils = struct
     | _, x -> p, x
 
   let get_decl acc = function
-    | Dval (fid, (_, Tfun (tyl, _))) -> 
+    | Dval (fid, (_, Tfun (tyl, _)), None) -> 
 	TMap.add (fid, tyl) true acc
     | _ -> acc
 
@@ -459,7 +460,7 @@ module Env = struct
   and decl env = function
     | Dalgebric tdef
     | Drecord tdef -> algebric env tdef
-    | Dval ((p, x), (_, ty)) -> IMap.add x (p, ty) env
+    | Dval ((p, x), (_, ty), _) -> IMap.add x (p, ty) env
 
   and algebric env tdef =
     IMap.fold (variant tdef.td_args tdef.td_id) tdef.td_map env
@@ -493,7 +494,7 @@ module Usage = struct
 
   let add_decl acc d =
     match d with
-    | Dval ((_, x), _) -> ISet.add x acc
+    | Dval ((_, x), _, _) -> ISet.add x acc
     | _ -> acc
 
   let add_call ((_, x), _) _ y =
@@ -517,6 +518,7 @@ let rec program mdl =
   List.map (module_ tenv) mdl
   
 and module_ tenv md = 
+  let tenv = List.fold_left extern tenv md.md_decls in
   let env = empty_env tenv apply_def_list in
   let env = List.fold_left def env md.md_defs in
   let decls = List.fold_left get_decl TMap.empty md.md_decls in
@@ -543,13 +545,17 @@ and fresh_module env acc md =
   let md = Tast.DeadCode.module_ md in
   md
 
+and extern tenv = function
+  | Dval (x, ty, Some _) -> IMap.add (snd x) ty tenv
+  | _ -> tenv
+
 and def env (((p, x), _, _) as d) =
   let tenv = IMap.add x (p, Tdef (IMap.add x p IMap.empty)) env.tenv in
   let defs = IMap.add x d env.defs in
   { env with tenv = tenv ; defs = defs }
 
 and decl env acc = function
-  | Dval (fid, (_, Tfun (tyl, rty))) ->
+  | Dval (fid, (_, Tfun (tyl, rty)), None) ->
       (try 
 	let (_, args, e) = IMap.find (snd fid) env.defs in      
 	let env, acc, _ = pat env acc args tyl in
@@ -558,6 +564,7 @@ and decl env acc = function
 	let acc = { acc with mem = TMap.add (fid, tyl) rty acc.mem } in
 	acc
       with Error.Type err_l -> Error.unify err_l)
+  | Dval (_, _, Some _) -> acc
   | Dval _ -> assert false
   | _ -> acc
 
