@@ -79,7 +79,8 @@ rule token = parse
   | word               { keyword lexbuf } 
   | qword              { TVAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | cword              { CSTR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
-  | string             { STRING (Pos.make lexbuf, Lexing.lexeme lexbuf) }
+  | string             { STRING (Pos.make lexbuf, let s = Lexing.lexeme lexbuf in 
+			         String.sub s 1 (String.length s - 2)) }
   | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
 
   | "->"               { ARROW (Pos.make lexbuf) }

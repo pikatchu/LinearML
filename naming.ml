@@ -63,7 +63,6 @@ module Env:sig
   val try_value: t -> Ast.id -> Nast.id option
   val field: t -> Ast.id -> Nast.id
   val type_: t -> Ast.id -> Nast.id
-  val try_type: t -> Ast.id -> Nast.id option
   val tvar: t -> Ast.id -> Nast.id
   val cstr: t -> Ast.id -> Nast.id
 
@@ -174,10 +173,6 @@ end = struct
     try p, SMap.find x t.types
     with Not_found -> Error.unbound_name p x
 
-  let try_type t (p, x) = 
-    try Some (p, SMap.find x t.types)
-    with Not_found -> None
-
   let tvar t (p, x) =
     try p, SMap.find x t.tvars
     with Not_found -> Error.unbound_name p x
@@ -199,7 +194,7 @@ end = struct
     add_value t x id
 
   let check_value t = function
-    | Dval ((p,v),_) when not (SMap.mem v t.values) -> 
+    | Dval ((p,v),_,None) when not (SMap.mem v t.values) -> 
 	Error.undefined_sig p v
     | _ -> ()
 
@@ -260,7 +255,7 @@ end = struct
 
   and decl env = function
     | Dtype tdef_l -> List.fold_left tdef env tdef_l
-    | Dval (id, _) -> fst (Env.new_decl env id)
+    | Dval (id, _, _) -> fst (Env.new_decl env id)
 
   and tdef env (id, (_, ty)) = 
     let env, _ = Env.new_type env id in
@@ -314,7 +309,8 @@ and module_ genv md =
   let md_id = Genv.module_id genv md.md_id in
   let sig_ = Genv.sig_ genv md_id in
   let _, decls = lfold (decl genv sig_) Env.empty md.md_decls in
-  let acc = genv, Env.empty, [] in
+  let env = List.fold_left (external_ sig_) Env.empty md.md_decls in
+  let acc = genv, env, [] in
   let _, env, defs = List.fold_left (def sig_) acc md.md_defs in
   Env.check_signature md.md_decls env ;
   let defs = List.rev defs in
@@ -327,15 +323,19 @@ and decl genv sig_ env = function
   | Dtype tdl -> 
       let env = List.fold_left (bind_type sig_) env tdl in
       env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
-  | Dval (id, ((p, Tfun (_, _)) as ty)) -> 
+  | Dval (id, ((p, Tfun (_, _)) as ty), def) -> 
       let id = Env.value sig_ id in
       let tvarl = FreeVars.type_expr ty in
       let sub_env, tvarl = lfold Env.new_tvar env tvarl in
       let ty = type_expr genv sig_ sub_env ty in
       (* The declaration of the type variables is implicit *)
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
-      env, Nast.Dval (id, ty)
-  | Dval ((p, _), _) -> Error.value_function p
+      env, Nast.Dval (id, ty, def)
+  | Dval ((p, _), _, _) -> Error.value_function p
+
+and external_ sig_ env = function
+  | Dval (x, _, Some _) -> Env.add_value env x (Env.value sig_ x)
+  | _ -> env
 
 and bind_type sig_ env (x, _) = 
   let id = Env.type_ sig_ x in

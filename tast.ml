@@ -169,11 +169,11 @@ module DeadCode = struct
     IMap.add x e t
 
   and add_decl acc = function
-    | Neast.Dval ((_, x), _) -> ISet.add x acc
+    | Neast.Dval ((_, x), _, _) -> ISet.add x acc
     |  _ -> acc
 
   and decl t = function
-    | Neast.Dval ((_, x), _) -> def t x
+    | Neast.Dval ((_, x), _, _) -> def t x
     |  _ -> t
 
   and def t x =

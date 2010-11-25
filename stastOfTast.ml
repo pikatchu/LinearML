@@ -61,7 +61,7 @@ and module_ md =
 and decl t = function
   | Neast.Dalgebric td -> Stast.Dalgebric (tdef t td)
   | Neast.Drecord td -> Stast.Drecord (tdef t td)
-  | Neast.Dval (x, ty) -> Stast.Dval (x, type_expr t ty) 
+  | Neast.Dval (x, ty, v) -> Stast.Dval (x, type_expr t ty, v) 
 
 and tdef t td = {
   Stast.td_id = td.Neast.td_id ;

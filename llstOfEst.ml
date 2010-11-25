@@ -261,9 +261,9 @@ and decl t (types, acc) = function
       let ty = Llst.Tptr (Llst.Tstruct tyl) in
       let types = IMap.add td.td_id ty types in
       types, Llst.Dtype (td.td_id, ty) :: acc
-  | Dval (x, ty) -> 
+  | Dval (x, ty, v) -> 
       let ty = type_expr ty in
-      IMap.add x ty types, Llst.Dval (x, ty) :: acc
+      IMap.add x ty types, Llst.Dval (x, ty, v) :: acc
 
 and make_variants t acc td = 
   IMap.fold (make_variant t) td.td_map acc

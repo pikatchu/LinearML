@@ -191,7 +191,11 @@ expr_l:
 
 type_def:
 | TYPE type_decl type_decl_l { dtype ($2 :: $3)}
-| VAL ID COLON type_expr { Dval ($2, $4) }
+| VAL ID COLON type_expr external_opt { Dval ($2, $4, $5) }
+
+external_opt:
+| { None }
+| EQ STRING { Some $2 }
 
 type_decl:
 | type_id EQ LCB field_type_seq RCB { $1, (fst (fst $1), Trecord $4) }
@@ -400,6 +404,7 @@ expr:
   let cons = Eecstr (($2, "List"), ($2, "Cons")) in
   pos, Eapply (($2, cons), [$1 ; $3])
 }
+| ID COLEQ expr SC expr { btw $1 $5, Elet ((fst $1, Pid $1), $3, $5) }
 | simpl_expr simpl_expr_l { 
   match $2 with 
   | [] -> $1 
