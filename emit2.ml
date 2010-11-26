@@ -84,7 +84,7 @@ module Type = struct
     | l -> struct_type ctx (Array.of_list (List.map (type_ mds t ctx) l)) in
     let ftype = function_type rett args in
     let fdec = declare_function (Ident.to_string df.df_id) ftype md in
-    let cconv = Llvm.CallConv.c in
+    let cconv = Llvm.CallConv.fast in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
 (*    add_function_attr fdec Attribute.Nounwind ;

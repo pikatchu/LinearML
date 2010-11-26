@@ -5,7 +5,7 @@ type t = type_expr IMap.t
 
 let check_terminates (p, tyl) = 
   List.iter (function
-    | _, Stast.Tany -> () (* Error.infinite_loop p *)
+    | _, Stast.Tany -> Error.infinite_loop p 
     | _ -> ()) tyl
 
 let check_apply (p, ty) = 
