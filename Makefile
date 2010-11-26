@@ -1,6 +1,6 @@
 
 OCAMLBIN =
-OCAMLLIB = /home/pika/godi/lib
+OCAMLLIB ?= /home/pika/godi/lib
 
 OCAMLC   = ocamlc.opt -dtypes
 OCAMLOPT = ocamlopt.opt
@@ -97,7 +97,7 @@ limlc.bc: $(OBJECTS_CMO)
 	$(OCAMLC) $(OCAMLOPT_CFLAGS) $(INCLUDE) $<  
 
 %.cmx : %.ml
-	$(OCAMLOPT) $(OCAMLOPT_CFLAGS) $(INCLUDE) $(PP) -c $<  
+	$(OCAMLOPT) $(OCAMLOPT_CFLAGS) $(INCLUDE) $(PP) -annot -c $<  
 
 %.ml : %.mll
 	$(OCAMLLEX) $<
@@ -107,11 +107,12 @@ limlc.bc: $(OBJECTS_CMO)
 
 ###############################################################################
 
-depend: $(OBJECTS_ML)
+.depend: $(OBJECTS_ML)
 	$(OCAMLDEP) -native -slash $(INCLUDE) $(OBJECTS_ML) > .depend
 
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
-	rm -f limlc limlc.bc *.annot
+	rm -f limlc limlc.bc *.annot .depend
 
-include .depend
+-include .depend
+-include Makefile.config

@@ -72,65 +72,65 @@ let dtype l = Dtype (List.map (fun ((x, idl), ty) ->
 
 %}
 
-%token AND
-%token ARROW 
-%token AS
-%token ASSIGN
-%token BAR
-%token BEGIN
+%token <Pos.t> AND
+%token <Pos.t> ARROW 
+%token <Pos.t> AS
+%token <Pos.t> ASSIGN
+%token <Pos.t> BAR
+%token <Pos.t> BEGIN
 %token <Pos.t * string> CHAR
-%token COLEQ
-%token COLON
-%token COMMA
+%token <Pos.t> COLEQ
+%token <Pos.t> COLON
+%token <Pos.t> COMMA
 %token <Pos.t * string> CSTR
-%token DO
-%token DONE
-%token DOT
-%token ELSE
-%token END
-%token EOF 
-%token EQ
-%token EQEQ
-%token FOR
-%token FROM
+%token <Pos.t> DO
+%token <Pos.t> DONE
+%token <Pos.t> DOT
+%token <Pos.t> ELSE
+%token <Pos.t> END
+%token <Pos.t> EOF 
+%token <Pos.t> EQ
+%token <Pos.t> EQEQ
+%token <Pos.t> FOR
+%token <Pos.t> FROM
 %token <Pos.t> FUN
-%token GT
-%token GTE
+%token <Pos.t> GT
+%token <Pos.t> GTE
 %token <Pos.t * string> ID
 %token <Pos.t> IF
-%token IN
+%token <Pos.t> IN
 %token <Pos.t * string> INT
 %token <Pos.t * string> FLOAT
 %token <Pos.t> LET
 %token <Pos.t> LB
 %token <Pos.t> LCB
 %token <Pos.t> LP
-%token LT
-%token LTE
+%token <Pos.t> LT
+%token <Pos.t> LTE
 %token <Pos.t> MATCH
 %token <Pos.t> MINUS
-%token MODULE
-%token OF
+%token <Pos.t> MODULE
+%token <Pos.t> OF
 %token <Pos.t> RB
 %token <Pos.t> RCB
 %token <Pos.t> RP
-%token PLUS
-%token REC
-%token SC   
-%token STAR 
+%token <Pos.t> PLUS
+%token <Pos.t> REC
+%token <Pos.t> SC   
+%token <Pos.t> STAR 
 %token <Pos.t * string> STRING
-%token SIG
-%token STRUCT 
-%token THEN
+%token <Pos.t> SIG
+%token <Pos.t> STRUCT 
+%token <Pos.t> THEN
 %token <Pos.t> TILD
-%token TO
+%token <Pos.t> TO
 %token <Pos.t * string> TVAR
-%token TYPE
+%token <Pos.t> TYPE
 %token <Pos.t> UNDERSCORE
-%token VAL
-%token WITH
-%token WHEN
-%token WHILE
+%token <Pos.t> VAL
+%token <Pos.t> WITH
+%token <Pos.t> WHEN
+%token <Pos.t> WHILE
 %token <Pos.t> TRUE FALSE
 %token <Pos.t> COLONCOLON
 
