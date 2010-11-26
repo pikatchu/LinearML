@@ -20,7 +20,8 @@ let make (lb:Lexing.lexbuf) =
  let pos_start = lexeme_start_p lb in
  let pos_end = lexeme_end_p lb in
  let pos_history = ref [] in
- { pos_file = !file; pos_start; pos_end; pos_history }
+ { pos_file = !file; pos_start = pos_start ; 
+   pos_end = pos_end ; pos_history = pos_history }
 
 let btw x1 x2 = 
   if x1.pos_file <> x2.pos_file 
