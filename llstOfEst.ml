@@ -195,7 +195,7 @@ module ExtractArgs = struct
 	  then [] 
 	  else 
 	    let dummy = Llst.Tprim Tunit, Ident.tmp() in
-	    [[dummy], Llst.Eapply (Naming.free, [v])] 
+	    [[dummy], Llst.Eapply (false, Naming.free, [v])] 
 	in
 	let start = if ISet.mem x t.is_tagged then 1 else 0 in
 	let eqs = extract_args mkty tmp start l eqs in
@@ -439,11 +439,11 @@ and equation t (idl, e) acc =
       let vl = ty_idl vl in
 (* TODO add cast for parameters *)
       (match get_rty t x with
-      | None -> (idl, Llst.Eapply (x, vl)) :: acc
+      | None -> (idl, Llst.Eapply (false, x, vl)) :: acc
       | Some rty ->
 	  let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
 	  let acc = add_casts idl xl acc in
-	  let acc = (xl, Llst.Eapply (x, vl)) :: acc in
+	  let acc = (xl, Llst.Eapply (false, x, vl)) :: acc in
 	  acc) 
   | Efield (v, y) -> 
       let v = ty_id v in
@@ -476,6 +476,7 @@ and add_casts idl1 idl2 acc =
       let acc = ([x1], Llst.Ecast (ty, x2)) :: acc in
       acc
   | x1 :: rl1, x2 :: rl2 -> 
+      let acc = add_casts rl1 rl2 acc in
       ([x1], Llst.Eid (snd x2)) :: acc
 
 and expr t = function

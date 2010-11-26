@@ -128,7 +128,7 @@ and expr = function
   | Etuple (x, l) -> o "{ " ; maybe ty_id x ; o " | " ; 
       print_list o (fun _ (n, x) -> o "[" ; o (soi n) ; o "]=" ; tid x) ", " l ; o " }"
   | Efield (x, y) -> tid x ; o "." ; o (soi y)
-  | Eapply (x, l) -> o "call " ; id x ; o " " ; idl l
+  | Eapply (b, x, l) -> if b then o "tail " else () ; o "call " ; id x ; o " " ; idl l
   | Egettag x -> o "gettag " ; tid x
   | Egetargs x -> o "getargs " ; tid x
   | Ecast (ty, x) -> o "cast (" ; type_expr ty ; o ") " ; id x

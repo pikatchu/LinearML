@@ -76,20 +76,17 @@ end
 
 module FilterOut = struct
   
-  let rec def t df = 
-    { df with df_body = List.map (block t) df.df_body }
-
-  and block t bl = 
-    let phi = List.fold_left (phi t) [] bl.bl_phi in
+  let rec block t bl = 
+    let t, phi = List.fold_left phi (t, []) bl.bl_phi in
     let eqs = List.filter (equation t) bl.bl_eqs in
-    { bl with bl_eqs = eqs ; bl_phi = phi }
+    t, { bl with bl_eqs = eqs ; bl_phi = phi }
 
   and equation t (_, e) = 
     match e with
     | Eid x when ISet.mem x t -> false
     | _ -> true
 
-  and phi t acc (x, ty, l) = 
+  and phi (t, acc) (x, ty, l) = 
     let l = List.fold_left (
       fun acc (v, lbl) ->
 	if ISet.mem v t
@@ -97,9 +94,11 @@ module FilterOut = struct
 	else (v, lbl) :: acc
      ) [] l in
     match l with
-    | [] -> acc
-    | _ -> (x, ty, l) :: acc
-
+    | [] -> t, acc
+    | _ -> 
+	(* The variable cannot be removed because not all
+	  of its predecessors have been removed *)
+	ISet.remove x t, (x, ty, l) :: acc
       
 end
 
@@ -113,7 +112,7 @@ module Cut = struct
     let cuts, bls = lfold (block nbr cands) ISet.empty df.df_body in
     let cuts = Graph.closure (Graph.invert g) cuts in
     ISet.iter Ident.print cuts ;
-    let bls = List.map (FilterOut.block cuts) bls in
+    let _, bls = lfold FilterOut.block cuts bls in
     { df with df_body = bls }
 
   and block n t acc bl = 
@@ -127,7 +126,13 @@ module Cut = struct
     
   and equation n cands (idl, e) (cut, eqs) = 
     if is_cut n cands idl && eqs = []
-    then Some idl, [idl, e]
+    then 
+      let e = 
+	match e with 
+	| Eapply (_, f, args) -> Eapply (true, f, args) 
+	| e -> e 
+      in
+      Some idl, [idl, e]
     else cut, (idl, e) :: eqs
 
   and is_cut n cands idl = 
@@ -135,6 +140,42 @@ module Cut = struct
     fun b (_, x) -> b && ISet.mem x cands
    ) (List.length idl = n) idl
 
+end
+
+module RemoveDeadBlocks = struct
+
+  let rec def df = 
+    let bls = List.fold_left (
+      fun acc bl -> IMap.add bl.bl_id bl acc
+     ) IMap.empty df.df_body in
+    let hd = 
+      match df.df_body with
+      | hd :: _ -> hd.bl_id
+      | _ -> assert false
+    in
+    let used = mark ISet.empty bls hd in
+    let bll = List.filter (fun bl -> ISet.mem bl.bl_id used) df.df_body in
+    { df with df_body = bll }
+
+  and mark acc bls x = 
+    try 
+      let bl = IMap.find x bls in
+      let bls = IMap.remove x bls in
+      mark_ret (ISet.add x acc) bls bl.bl_ret
+    with Not_found -> acc
+
+  and mark_ret acc bls = function
+  | Return _ -> acc
+  | Jump x -> mark acc bls x 
+  | If (_, x1, x2) -> 
+      let acc = mark acc bls x1 in
+      let acc = mark acc bls x2 in
+      acc
+  | Switch (_, l, d) -> 
+      let acc = List.fold_left (
+	fun acc (_, x) -> mark acc bls x
+       ) acc l in
+      mark acc bls d
 end
 
 let rec program mdl = 
@@ -145,4 +186,5 @@ and module_ md =
 
 and def df = 
   let df = Cut.def df in  
+  let df = RemoveDeadBlocks.def df in
   df

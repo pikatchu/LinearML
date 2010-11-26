@@ -303,12 +303,13 @@ and make_phi env acc (x, ty, lbls) =
   let v = build_phi lbls (Ident.to_string x) env.builder in
   IMap.add x v acc
 
-and block env proto acc bl = 
+and block env proto acc bl =
+  let is_tailc = ref false in
   let bb = IMap.find bl.bl_id env.bls in
   position_at_end bb env.builder ;  
   let acc = List.fold_left (make_phi env) acc bl.bl_phi in
-  let acc = List.fold_left (instruction proto bb env) acc bl.bl_eqs in
-  (match bl.bl_ret with
+  let acc = List.fold_left (instruction proto bb env is_tailc) acc bl.bl_eqs in
+  if not !is_tailc then (match bl.bl_ret with
   | Return [] -> assert false
   | Return [_, x] -> 
        ignore (build_ret (IMap.find x acc) env.builder)
@@ -338,23 +339,30 @@ and block env proto acc bl =
   );
   acc
 
-and instruction proto bb env acc (idl, e) = 
+and instruction proto bb env is_tailc acc (idl, e) = 
   match idl with 
   | [x] -> expr proto bb env acc x e
   | xl -> (match e with
-    | Eapply (f, l) -> 
+    | Eapply (tail, f, l) -> 
 	let f = IMap.find f acc in
 	let l = List.map (fun (_, v) -> IMap.find v acc) l in
 	let t = Array.of_list l in
 	let v = build_call f t "" env.builder in
 	set_instruction_call_conv (function_call_conv f) v ;
-	let n = ref 0 in
-	List.fold_left (
-	fun acc (_, x) -> 
-	  let nv = build_extractvalue v !n (Ident.to_string x) env.builder in
-	  incr n ;
-	  IMap.add x nv acc
-       ) acc xl
+	if tail 
+	then begin
+	  is_tailc := true ;
+	  ignore (build_ret v env.builder) ;
+	  acc
+	end
+	else 
+	  let n = ref 0 in
+	  List.fold_left (
+	  fun acc (_, x) -> 
+	    let nv = build_extractvalue v !n (Ident.to_string x) env.builder in
+	    incr n ;
+	    IMap.add x nv acc
+	 ) acc xl
     | _ -> assert false)
 
 and expr proto bb env acc (ty, x) e = 
@@ -381,20 +389,20 @@ and expr proto bb env acc (ty, x) e =
       IMap.add x v acc
 
 (* TODO make a cleaner mechanism for primitives *)
-  | Eapply (f, [_, v]) when f = Naming.print_int ->
+  | Eapply (_, f, [_, v]) when f = Naming.print_int ->
       let f = SMap.find "print_int" env.prims in
       let v = IMap.find v acc in
       let c = build_call f [|v|] "" env.builder in
       set_instruction_call_conv (function_call_conv f) c ; 
       IMap.add x (const_int (i1_type env.ctx) 0) acc            
-  | Eapply (f, [_, v]) when f = Naming.free ->
+  | Eapply (_, f, [_, v]) when f = Naming.free ->
       let f = SMap.find "free" env.prims in
       let v = IMap.find v acc in
       let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in 
       let c = build_call f [|v|] "" env.builder in
       set_instruction_call_conv (function_call_conv f) c ;  
       IMap.add x (const_int (i1_type env.ctx) 0) acc
-  | Eapply (f, [_, v]) when f = Naming.wait ->
+  | Eapply (_, f, [_, v]) when f = Naming.wait ->
       let f = SMap.find "wait" env.prims in
       let v = IMap.find v acc in
       let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in 
@@ -403,7 +411,7 @@ and expr proto bb env acc (ty, x) e =
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let c = build_bitcast c ty "" env.builder in 
       IMap.add x c acc
-  | Eapply (f, [(_, v1) ; (_, v2)]) when f = Naming.spawn ->
+  | Eapply (_, f, [(_, v1) ; (_, v2)]) when f = Naming.spawn ->
       let f = SMap.find "spawn" env.prims in
       let v1 = IMap.find v1 acc in
       let v1 = build_bitcast v1 (pointer_type (i8_type env.ctx)) "" env.builder in 
@@ -415,8 +423,7 @@ and expr proto bb env acc (ty, x) e =
       let c = build_bitcast c ty "" env.builder in 
       IMap.add x c acc
 
-
-  | Eapply (f, l) -> 
+  | Eapply (_, f, l) -> 
       let f = IMap.find f acc in
       let l = List.map (fun (_, v) -> IMap.find v acc) l in
       let t = Array.of_list l in

@@ -82,7 +82,7 @@ module Liveness = struct
 	acc
     | Euop (_, x) -> ty_id acc x 
     | Efield (x, _) -> ty_id acc x 
-    | Eapply (_, l) -> ty_idl acc l
+    | Eapply (_, _, l) -> ty_idl acc l
     | Etuple (v, l) -> 
 	let acc = match v with None -> acc | Some v -> ty_id acc v in
 	let acc = List.fold_left (
@@ -139,7 +139,7 @@ module Usage = struct
 	acc
     | Euop (_, x) -> ty_id acc x 
     | Efield (x, _) -> ty_id acc x 
-    | Eapply (_, l) -> ty_idl acc l
+    | Eapply (_, _, l) -> ty_idl acc l
     | Etuple (v, l) -> 
 	let acc = match v with None -> acc | Some v -> ty_id acc v in
 	let acc = List.fold_left (
@@ -245,7 +245,7 @@ and block_todo bls usage acc bl =
   List.fold_left (
   fun acc (_, e) -> 
     match e with
-    | Eapply (f, [x]) when f = Naming.free -> 
+    | Eapply (_, f, [x]) when f = Naming.free -> 
 	if is_branching bl || is_used_ret bls usage (snd x) bl 
 	then
 	  let acc = Remove_free (bl.bl_id, snd x) :: acc in
@@ -259,7 +259,7 @@ and block_remove rm_set bl =
   { bl with bl_eqs = List.filter (
     fun (_, e) -> 
       match e with
-      | Eapply (f, [_, x]) -> not (f = Naming.free && ISet.mem x rm_set)
+      | Eapply (_, f, [_, x]) -> not (f = Naming.free && ISet.mem x rm_set)
       | _ -> true
    ) bl.bl_eqs }
 
@@ -268,7 +268,7 @@ and block_insert ins bl =
     let xl = IMap.find bl.bl_id ins in
     let eqs = IMap.fold (fun _ v acc -> 
       let dummy = Llst.Tprim Tunit, Ident.tmp() in
-      ([dummy], Llst.Eapply (Naming.free, [v])) :: acc) xl bl.bl_eqs in
+      ([dummy], Llst.Eapply (false, Naming.free, [v])) :: acc) xl bl.bl_eqs in
     { bl with bl_eqs = eqs }
   with Not_found -> bl
 

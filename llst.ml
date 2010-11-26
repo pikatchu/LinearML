@@ -68,7 +68,7 @@ and expr =
   | Ebinop of Ast.bop * ty_id * ty_id
   | Euop of Ast.uop * ty_id
   | Efield of ty_id * int
-  | Eapply of id * ty_idl
+  | Eapply of bool * id * ty_idl
   | Etuple of ty_id option * (int * ty_id) list
   | Egettag of ty_id
   | Egetargs of ty_id
