@@ -510,5 +510,5 @@ and const env ty = function
       const_int (i32_type env.ctx) x 
   | Efloat s -> 
       const_float_of_string ty s
-  | _ -> failwith "TODO constant"
-
+  | Estring s -> failwith "TODO constant string"
+  | Echar c -> failwith "TODO constant char"
