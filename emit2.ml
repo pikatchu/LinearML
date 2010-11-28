@@ -188,7 +188,7 @@ let pervasives ctx md =
   let spawn = declare_function "spawn" 
       (function_type any [|any; any|]) md in
 
-  let wait = declare_function "wait" (function_type any [|any|]) md in  
+  let wait = declare_function "mwait" (function_type any [|any|]) md in  
 
   set_linkage Linkage.External malloc ; 
   set_linkage Linkage.External free ; 

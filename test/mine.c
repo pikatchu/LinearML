@@ -1,4 +1,3 @@
-#include<malloc.h>
 #include<pthread.h>
 #include<stdlib.h>
 #include<stdio.h>
@@ -43,7 +42,7 @@ future* spawn(void* (*f)(void*), void* args){
   return res ;
 }
 
-void* wait(future* t){
+void* mwait(future* t){
   void* res ;
   pthread_mutex_lock(&(t->m)) ;
   while(t->v == NULL){
