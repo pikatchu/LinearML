@@ -302,6 +302,7 @@ and module_ genv md =
   let env, decls = List.fold_left (decl genv sig_) (Env.empty, []) md.md_defs in
   let decls = List.rev decls in
   let env = List.fold_left (external_ sig_) Env.empty md.md_defs in
+  let env = List.fold_left (def_name sig_) env md.md_defs in
   let acc = genv, env, [] in
   let _, env, defs = List.fold_left (def sig_) acc md.md_defs in
   let defs = List.rev defs in
@@ -394,30 +395,23 @@ and tvariant genv sig_ env (id, ty) =
 
 and tfield genv sig_ env (id, ty) = 
   Env.field sig_ id, type_expr genv sig_ env ty  
-  
+
+and def_name sig_ env = function
+  | Dlet ((p, _) as x, pl, e) -> 
+      (match Env.try_value sig_  x with
+      | None -> Error.type_missing p
+      | Some id -> Env.add_value env x id)
+  | _ -> env
+
 and def sig_ (genv, env, acc) = function
   | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
   | Dlet (id, pl, e) -> 
       let sub_env, pl = lfold (pat genv sig_) env pl in
       let e = expr genv sig_ sub_env e in
-      let env = bind_val sig_ env id in
       let id = Env.value env id in
       genv, env, (id, pl, e) :: acc
-  | Dletrec dl  -> 
-      let env = List.fold_left (bind_let sig_) env dl in
-      let acc = List.fold_left (dlet genv sig_ env) acc dl in
-      genv, env, acc
-  | Dalias (id1, id2) -> genv, Env.alias env id1 id2, acc
   | Dtype _
   | Dval _ -> genv, env, acc
-
-and bind_let sig_ env (x, _, _) = bind_val sig_ env x
-and bind_val sig_ env ((p, v) as x) = 
-  if Env.has_value env x
-  then Error.multiple_def p v ;
-  match Env.try_value sig_  x with
-  | None -> Error.type_missing p
-  | Some id -> Env.add_value env x id
 
 and dlet genv sig_ env acc (id, pl, e) = 
   let id = Env.value env id in

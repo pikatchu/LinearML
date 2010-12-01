@@ -28,8 +28,6 @@ and type_expr_ =
 and def = 
   | Dmodule of id * id
   | Dlet of id * pat list * expr
-  | Dletrec of (id * pat list * expr) list
-  | Dalias of id * id
   | Dtype of (id * type_expr) list
   | Dval of id * type_expr * pstring option
 

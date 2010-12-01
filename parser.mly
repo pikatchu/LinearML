@@ -113,9 +113,9 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> OF
 %token <Pos.t> RB
 %token <Pos.t> RCB
+%token <Pos.t> REC
 %token <Pos.t> RP
 %token <Pos.t> PLUS
-%token <Pos.t> REC
 %token <Pos.t> SC   
 %token <Pos.t> STAR 
 %token <Pos.t * string> STRING
@@ -179,13 +179,11 @@ def:
 | MODULE CSTR EQ CSTR { Dmodule ($2, $4) }
 | TYPE type_decl type_decl_l { Dtype (dtype ($2 :: $3))}
 | VAL ID COLON type_expr external_opt { Dval ($2, $4, $5) }
-| LET ID EQ ID { Dalias ($2, $4) }
-| LET ID simpl_pat_l EQ expr { Dlet ($2, $3, $5) }
-| LET REC ID simpl_pat_l EQ expr expr_l { Dletrec (($3, $4, $6) :: $7) }
+| LET rec_opt ID simpl_pat_l EQ expr { Dlet ($3, $4, $6) }
 
-expr_l:
-| { [] }
-| AND ID simpl_pat_l EQ expr expr_l { ($2, $3, $5) :: $6 }
+rec_opt:
+| { }
+| REC { } 
 
 external_opt:
 | { None }
