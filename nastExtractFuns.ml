@@ -50,10 +50,13 @@ and expr_ p acc = function
       let acc, e3 = expr acc e3 in
       acc, Eif (e1, e2, e3)
   | Efun (pl, e) -> 
-      let acc, e = expr acc e in
+      Error.pos p ;
+      Printf.fprintf stderr "Anonymous functions not implemented\n" ;
+      exit 2 
+(*      let acc, e = expr acc e in
       let x = Ident.make "anonymous" in
       let id = p, x in
-      (id, pl, e) :: acc, Eid id
+      (id, pl, e) :: acc, Eid id *)
   | Eapply (e, el) -> 
       let acc, e = expr acc e in
       let acc, el = lfold expr acc el in
