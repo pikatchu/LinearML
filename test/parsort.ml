@@ -7,14 +7,14 @@ module T = struct
     | Lazy of t future
 
   val rev_append: t * t -> t
-  let rec rev_append l1 l2 = 
+  let rev_append l1 l2 = 
     match l1 with
     | Empty -> l2
     | Cons x rl -> rev_append rl (Cons x l2)
     | Lazy l -> rev_append (wait l) l2
 
   val merge: t * t * t -> t
-  let rec merge acc l1 l2 = 
+  let merge acc l1 l2 = 
     match l1, l2 with
     | Lazy l1, l2 -> merge acc (wait l1) l2
     | l1, Lazy l2 -> merge acc l1 (wait l2)
@@ -26,7 +26,7 @@ module T = struct
 	else merge (Cons x2 acc) l1 rl2
 
   val split: int32 * t * t * t -> int32 * t * t
-  let rec split n l1 l2 l = 
+  let split n l1 l2 l = 
     match l with
     | Empty -> n, l1, l2
     | Lazy x -> split n l1 l2 (wait x)
@@ -35,7 +35,7 @@ module T = struct
     | Cons x (Lazy rl) -> split n l1 l2 (Cons x (wait rl))
 
   val sort: t -> t
-  let rec sort l = 
+  let sort l = 
     match l with
     | Empty -> Empty
     | Lazy l -> sort (wait l)
@@ -45,23 +45,23 @@ module T = struct
 	merge Empty (sort l1) (sort l2)
 
   val make: t * int32 -> t
-  let rec make acc n = 
+  let make acc n = 
     if n = 0
     then acc 
     else make (Cons n acc) (n-1)
 
   val sum: int32 * t -> int32
-  let rec sum acc l = 
+  let sum acc l = 
     match l with
     | Empty -> acc
     | Cons n rl -> sum (n + acc) rl
     | Lazy x -> sum acc (wait x)
 
   val loop: int32 * int32 -> int32
-  let rec loop n acc = 
+  let loop n acc = 
     if n <= 0
     then acc
-    else loop (n-1) (acc + sum 0 (sort (make Empty 2000000)))
+    else loop (n-1) (acc + sum 0 (sort (make Empty 20000)))
 
   val main: unit -> unit
   let main _ = 

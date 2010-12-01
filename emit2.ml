@@ -369,7 +369,6 @@ and expr proto bb env acc (ty, x) e =
   let xs = Ident.to_string x in
   match e with
   | Eid y -> 
-      Ident.print y ;
       let y = IMap.find y acc in
       IMap.add x y acc
   | Evalue v ->

@@ -49,9 +49,7 @@ module MakePhi = struct
 
   let rec def df = 
     let preds = MakePreds.def df in
-    Ident.print df.df_id ;
     let t = MakeOrigins.def df in
-    o "\n\n" ;
     { df with df_body = List.map (block t preds) df.df_body }
 
   and block t preds bl = 
