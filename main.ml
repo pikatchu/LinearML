@@ -34,10 +34,8 @@ let _ =
     let llst = LlstOfEst.program est in
     let llst = LlstOptim.inline llst in
     let llst = LlstFree.program llst in
-      LlstPp.program llst ;  
     let llst = LlstOptim.program llst in
-    let llst = LlstPullRet.program llst in  
-      LlstPp.program llst ;   
+    let llst = LlstPullRet.program llst in   
     ignore (Emit2.program llst) ; 
     module_l := new_module :: !module_l 
   done ;

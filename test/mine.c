@@ -54,9 +54,18 @@ void* mwait(future* t){
   return res ;
 }
 
+void* try_get(future* t){
+  void *res = t-> v ;
+  return res ;
+}
+
+int is_ready(future* t){
+  return (t->v != NULL) ;
+}
 
 void print_int(int x){
   printf("%d\n", x) ;
 }
 
 int f(int x){ return x+1 ; }
+

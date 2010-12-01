@@ -399,3 +399,8 @@ let undef_field p fd =
   pos p ;
   err ("The field "^fd^" is undefined") ;
   exit 2
+
+let type_missing p = 
+  pos p ;
+  err "Missing type definition" ;
+  exit 2

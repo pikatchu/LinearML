@@ -7,13 +7,8 @@ type program = module_ list
 
 and module_ = {
     md_id: id ;
-    md_decls: decl list ;
     md_defs: def list ;
   }
-
-and decl = 
-  | Dtype of (id * type_expr) list
-  | Dval of id * type_expr * pstring option
 
 and type_def = (id * id list) * type_expr
 
@@ -35,6 +30,8 @@ and def =
   | Dlet of id * pat list * expr
   | Dletrec of (id * pat list * expr) list
   | Dalias of id * id
+  | Dtype of (id * type_expr) list
+  | Dval of id * type_expr * pstring option
 
 and pat = Pos.t * pat_
 and pat_ = 

@@ -25,7 +25,6 @@ and tdef = {
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
-  | Tdef of Pos.t IMap.t
   | Tprim of type_prim
   | Tvar of id 
   | Tid of id
@@ -136,14 +135,6 @@ module CompareType = struct
     | Tfun (ty1, ty2), Tfun (ty3, ty4) ->
 	list ty ty1 ty3 &&&
 	list ty ty2 ty4	  
-    | Tfun _, _ -> -1
-    | _, Tfun _ -> 1
-
-    | Tdef s1, Tdef s2 -> 
-	let add x _ acc = ISet.add x acc in
-	let set1 = IMap.fold add s1 ISet.empty in
-	let set2 = IMap.fold add s2 ISet.empty in
-	ISet.compare set1 set2
 
   and prim ty1 ty2 = 
     match ty1, ty2 with
@@ -179,7 +170,5 @@ module FreeVars = struct
     | Tfun ((_, tyl1), (_, tyl2)) -> 
 	let t = List.fold_left type_expr t tyl1 in
 	List.fold_left type_expr t tyl2
-
-    | Tdef _ -> assert false
 
 end

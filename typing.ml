@@ -3,22 +3,7 @@ open Neast
 
 module TMap = Map.Make (CompareType)
 
-type env = {
-    tenv: type_expr IMap.t ;
-    defs: def IMap.t ;
-    apply_def_list: apply_def_list ;
-  }
-
-and acc = {
-    mem: type_expr_list TMap.t ;
-(* Used in instantiation to delay typing *)
-    todo: (Pos.t * type_expr_list * type_expr_list * Pos.t Utils.IMap.t) list ; 
-  }
-
-and apply_def_list = 
-    env -> acc -> Pos.t -> id list -> type_expr_list -> type_expr_list 
-	-> acc * type_expr_list
-
+type env = type_expr IMap.t
 
 module LocalUtils = struct
 
@@ -107,22 +92,6 @@ module LocalUtils = struct
 end
 open LocalUtils
 
-module NormalizeType = struct
-
-  let rec type_expr (p, ty) = p, type_expr_ ty
-  and type_expr_ = function
-  | Tany 
-  | Tdef _
-  | Tid _
-  | Tprim _ as x -> x
-  | Tvar _ -> Tany
-  | Tapply (x, tyl) -> Tapply (x, type_expr_list tyl)
-  | Tfun (tyl1, tyl2) -> Tfun (type_expr_list tyl1, type_expr_list tyl2)
-
-  and type_expr_list (p, tyl) = p, List.map type_expr tyl
-
-end
-
 module Print = struct
 
   let id o (_, x) =
@@ -142,15 +111,10 @@ module Print = struct
     | Tany -> o "_"
     | Tprim ty -> type_prim o ty
     | Tvar x | Tid x -> id o x
-    | Tdef m -> 
-	let l = clist_of_imap m in
-	def_list o l
-
     | Tapply (x, tyl) -> 
 	type_expr_list o tyl ;
 	o " " ; 
 	id o x
-
     | Tfun (tyl1, tyl2) -> 
 	o "(" ; 
 	type_expr_list o tyl1 ; 
@@ -186,8 +150,8 @@ end
 
 module Unify = struct
 
-  let rec unify_list env acc ((p1, _) as l1) ((p2, _) as l2) = 
-    try unify_list_ env acc l1 l2
+  let rec unify_list env ((p1, _) as l1) ((p2, _) as l2) = 
+    try unify_list_ env l1 l2
     with Error.Type err_l -> 
       let err = Error.Unify {
 	Error.pos1 = p1 ;
@@ -197,19 +161,17 @@ module Unify = struct
       } in
       raise (Error.Type (err :: err_l))
 
-  and unify_list_ env acc ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
+  and unify_list_ env ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
     let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
     let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
     if List.length tyl1 <> List.length tyl2
-    then begin
-      Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
-    end
+    then Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
     else 
-      let acc, tyl = lfold2 (unify_el_ env) acc tyl1 tyl2 in
-      acc, (p1, tyl)
+      let tyl = List.map2 (unify_el_ env) tyl1 tyl2 in
+      (p1, tyl)
 	
-  and unify_el env acc ty1 ty2 = 
-    try unify_el_ env acc ty1 ty2
+  and unify_el env ty1 ty2 = 
+    try unify_el_ env ty1 ty2
     with Error.Type _ -> 
       let err = Error.Unify {
 	Error.pos1 = fst ty1 ;
@@ -219,37 +181,26 @@ module Unify = struct
       } in
       raise (Error.Type [err])
 
-  and unify_el_ env acc ty1 ty2 = 
-    match ty1, ty2 with
-    | (p, Tdef ids), (_, Tfun (tyl, rty))
-    | (_, Tfun (tyl, rty)), (p, Tdef ids) ->
-	let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
-	let acc, rty = env.apply_def_list env acc p idl tyl rty in
-	acc, (p, Tfun (tyl, rty))
-
-    | (p1, Tapply ((_, x) as id, tyl1)), (p2, Tapply ((_, y), tyl2)) when x = y -> 
-	let tyl1 = p1, snd tyl1 in
+  and unify_el_ env ((p, _) as ty1) ty2 = 
+    p, match ty1, ty2 with
+    | (_, Tapply ((_, x) as id, tyl1)), (p2, Tapply ((_, y), tyl2)) when x = y -> 
+	let tyl1 = p, snd tyl1 in
 	let tyl2 = p2, snd tyl2 in
-	let acc, tyl = unify_list env acc tyl1 tyl2 in 
-	acc, (p1, Tapply (id, tyl))
+	let tyl = unify_list env tyl1 tyl2 in 
+	Tapply (id, tyl)
+    | (_, Tfun (tyl1, tyl2)), (_, Tfun (tyl3, tyl4)) ->
+	let tyl1 = unify_list_ env tyl1 tyl3 in
+	let tyl2 = unify_list_ env tyl2 tyl4 in
+	Tfun (tyl1, tyl2)
+    | _ -> unify_el_prim env ty1 ty2
 
-    | (p, Tfun (tyl1, tyl2)), (_, Tfun (tyl3, tyl4)) ->
-	let acc, tyl1 = unify_list_ env acc tyl1 tyl3 in
-	let acc, tyl2 = unify_list_ env acc tyl2 tyl4 in
-	acc, (p, Tfun (tyl1, tyl2))
-	  
-    | (p, _), _ -> 
-	let ty = unify_el_prim env acc ty1 ty2 in
-	acc, (p, ty)
-
-  and unify_el_prim env acc ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
+  and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
     | Tany, ty 
     | ty, Tany -> ty
     | Tprim x, Tprim y when x = y -> ty1
     | Tvar (_, x), Tvar (_, y) when (x = y) -> ty1
     | Tid (_, x), Tid (_, y) when x = y -> ty1
-    | Tdef s1, Tdef s2 -> Tdef (IMap.fold IMap.add s1 s2)
     | _ -> 
       let pty1 = Print.type_expr pty1 in
       let pty2 = Print.type_expr pty2 in
@@ -261,29 +212,21 @@ module Unify = struct
       } in
       raise (Error.Type [err])
 
-  let rec fold_types env acc tyl = 
+  let fold_types env tyl = 
     match tyl with
     | [] -> assert false
-    | ty :: tyl -> 
-	List.fold_left 
-	  (fun (acc, rty) ty -> 
-	    unify_el env acc rty ty
-	  ) (acc, ty) tyl
+    | ty :: tyl -> List.fold_left (unify_el env) ty tyl
 
-  let rec fold_type_lists env acc tyll = 
+  let fold_type_lists env tyll = 
     match tyll with
     | [] -> assert false
-    | tyl :: rl ->
-	List.fold_left 
-	  (fun (acc, rty) ty -> 
-	    unify_list env acc rty ty 
-	  ) (acc, tyl) rl
+    | tyl :: rl -> List.fold_left (unify_list env) tyl rl
 
 end
 
 module Instantiate = struct
 
-  let rec inst_list env acc subst ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
+  let rec inst_list env subst ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
     let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
     let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
     let size1 = List.length tyl1 in
@@ -292,26 +235,24 @@ module Instantiate = struct
     then begin
       Error.arity p1 p2 size1 size2
     end
-    else List.fold_left2 (inst env) (acc, subst) tyl1 tyl2
+    else List.fold_left2 (inst env) subst tyl1 tyl2
         
-  and inst env (acc, subst) (pl1, ty1) (pl2, ty2) = 
+  and inst env subst (pl1, ty1) (pl2, ty2) = 
     match ty1, ty2 with
-    | Tany, _  -> acc, subst
-    | Tprim ty1, Tprim ty2 when ty1 = ty2 -> acc, subst
-    | Tvar (_, x), Tvar (_, y) when x = y -> acc, subst
-    | Tvar v, _ -> inst_var env acc subst v (pl2, ty2)
-    | Tid (_, x), Tid (_, y) when x = y -> acc, subst
+    | Tany, _  -> subst
+    | Tprim ty1, Tprim ty2 when ty1 = ty2 -> subst
+    | Tvar (_, x), Tvar (_, y) when x = y -> subst
+    | Tvar v, _ -> inst_var env subst v (pl2, ty2)
+    | Tid (_, x), Tid (_, y) when x = y -> subst
     | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
-	inst_list env acc subst tyl1 tyl2
+	inst_list env subst tyl1 tyl2
     | Tapply ((_, x), tyl1), Tany -> 
-	inst_list env acc subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
-    | _, Tany -> acc, subst
-    | Tfun (tyl, rty), Tdef ids -> 
-	{ acc with todo = (pl2, tyl, rty, ids) :: acc.todo }, subst
+	inst_list env subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
+    | _, Tany -> subst
     | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) ->
-	let acc, subst = inst_list env acc subst tyl1 tyl2 in
-	let acc, subst = inst_list env acc subst tyl3 tyl4 in
-	acc, subst
+	let subst = inst_list env subst tyl1 tyl2 in
+	let subst = inst_list env subst tyl3 tyl4 in
+	subst
     | ty1, ty2 -> 
 	let err = Error.Unify {
 	  Error.pos1 = pl1 ;
@@ -321,133 +262,44 @@ module Instantiate = struct
 	} in
 	raise (Error.Type [err])
 
-  and inst_var env acc subst (_, x) (p, ty2) =
+  and inst_var env subst (_, x) (p, ty2) =
     try 
       let ty1 = IMap.find x subst in
       let fv = FreeVars.type_expr ISet.empty ty1 in
       if ISet.mem x fv
       then Error.recursive_type p
       else if ty2 = Tany
-      then acc, subst
-      else inst env (acc, subst) ty1 (p, ty2)
-    with Not_found -> acc, IMap.add x (p, ty2) subst
+      then subst
+      else inst env subst ty1 (p, ty2)
+    with Not_found -> IMap.add x (p, ty2) subst
 
-  let rec inst_def env acc subst (p, tyl, rty1, ids) =
-    let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
-    let rty = p, [p, Tany] in
-    let acc, tyl = replace_list subst env acc tyl in
-    let acc, rty = replace_list subst env acc rty in
-    let acc, rty2 = env.apply_def_list env acc p idl tyl rty in
-    inst_list env acc subst rty1 rty2
-
-  and inst_list_todos env acc subst = 
-    match acc.todo with
-    | [] -> acc, subst
-    | x :: rl -> 
-	let acc = { acc with todo = rl } in
-	let acc, subst = inst_def env acc subst x in
-	inst_list_todos env acc subst
-
-  and inst_type env acc subst tyl1 tyl2 = 
-    let acc, subst = inst_list env acc subst tyl1 tyl2 in
-    inst_list_todos env acc subst
-
-  and replace subst env acc (p, ty) = 
+  and replace subst env (p, ty) = 
     match ty with
-    | Tvar v -> replace_var subst env acc v
+    | Tvar v -> replace_var subst env v
     | Tapply (x, (p, tyl)) -> 
-	let acc, tyl = lfold (replace subst env) acc tyl in
+	let tyl = List.map (replace subst env) tyl in
 	let tyl = p, tyl in
-	acc, (p, Tapply (x, tyl))
-
+	(p, Tapply (x, tyl))
     | Tfun (tyl1, tyl2) -> 
-	let acc, tyl1 = replace_list subst env acc tyl1 in
-	let acc, tyl2 = replace_list subst env acc tyl2 in
-	acc, (p, Tfun (tyl1, tyl2))
+	let tyl1 = replace_list subst env tyl1 in
+	let tyl2 = replace_list subst env tyl2 in
+	(p, Tfun (tyl1, tyl2))
+    | _ -> (p, ty)
 
-    | _ -> acc, (p, ty)
-
-  and replace_var subst env acc (p, x) =
+  and replace_var subst env (p, x) =
     try 
-      replace subst env acc (IMap.find x subst)
-    with Not_found -> acc, (p, Tvar (p, x))
+      replace subst env (IMap.find x subst)
+    with Not_found -> (p, Tvar (p, x))
 
-  and replace_list subst env acc (p, tyl) = 
-    let acc, tyl = lfold (replace subst env) acc tyl in
+  and replace_list subst env (p, tyl) = 
+    let tyl = List.map (replace subst env) tyl in
     let tyl = p, tyl in
-    acc, tyl
+    tyl
 
-  let call env acc rty pty pty2 = 
-    let acc, subst = inst_type env acc IMap.empty rty pty in
-    let acc, tyl = replace_list subst env acc pty2 in 
-    acc, tyl
-
-end
-
-module Monomorphize = struct
-
-  let add (p, x) y t = 
-    let l = try snd (IMap.find x t) with Not_found -> [] in
-    IMap.add x (p, (y :: l)) t
-
-  let rec type_expr path env acc (p, ty) = 
-    match ty with
-    | Tdef ids -> 
-	let get_ty x = let ty = IMap.find x env.tenv in fst ty, [ty] in
-	let env, acc, tyl = IMap.fold (
-	  fun x _ (env, acc, l) -> 
-	    if ISet.mem x path
-	    then Error.recursive_type p ; 
-	    let path = ISet.add x path in
-	    let env, acc, ty = type_expr_list path env acc (get_ty x) in
-	    env, acc, ty :: l) ids (env, acc, []) in
-	let acc, fty = Unify.fold_type_lists env acc tyl in
-	let fty = match fty with _, [fty] -> fty | _ -> assert false in
-	env, acc, fty
-    | Tany
-    | Tprim _
-    | Tvar _
-    | Tid _ as x -> env, acc, (p, x)
-    | Tapply (x, tyl) -> 
-	let env, acc, tyl = type_expr_list path env acc tyl in
-	env, acc, (p, Tapply (x, tyl))
-    | Tfun (tyl1, tyl2) -> 
-	let env, acc, tyl1 = type_expr_list path env acc tyl1 in
-	let env, acc, tyl2 = type_expr_list path env acc tyl2 in
-	env, acc, (p, Tfun (tyl1, tyl2))
-
-  and type_expr_list path env acc (p, tyl) = 
-    let (env, acc), tyl = lfold (
-      fun (env, acc) ty ->
-	let env, acc, ty = type_expr path env acc ty in
-	(env, acc), ty
-     ) (env, acc) tyl in
-    env, acc, (p, tyl)
-
-  let defs env acc mem = 
-    let t = TMap.fold (
-      fun (x, tyl) rty acc ->
-	add x (tyl, rty) acc
-     ) mem IMap.empty in
-    let env, acc, defs = IMap.fold (
-      fun x (p, l) (env, acc, defs) ->
-	let argl = List.map fst l in
-	let retl = List.map snd l in
-	let acc, argl = Unify.fold_type_lists env acc argl in
-	let acc, rty = Unify.fold_type_lists env acc retl in
-	let env, acc, argl = type_expr_list ISet.empty env acc argl in
-	let env, acc, rty = type_expr_list ISet.empty env acc rty in
-	let fty = p, Tfun (argl, rty) in
-	let env = { env with tenv = IMap.add x fty env.tenv } in
-	env, acc,  IMap.add x (argl, rty) defs
-     ) t (env, acc, IMap.empty) in
-    let env, acc = IMap.fold (
-      fun x ty (env, acc) -> 
-	let env, acc, fty = type_expr ISet.empty env acc ty in
-	let env = { env with tenv = IMap.add x fty env.tenv } in
-	env, acc
-     ) env.tenv (env, acc) in
-    env, acc, defs
+  let call env rty pty pty2 = 
+    let subst = inst_list env IMap.empty rty pty in
+    let tyl = replace_list subst env pty2 in 
+    tyl
 
 end
 
@@ -551,90 +403,35 @@ module Env = struct
     else Tany
 end
 
-module Usage = struct
-
-  let check_used uset ((p, x), _, _) = 
-    if not (ISet.mem x uset) 
-    then Error.unused p
-    else ()
-
-  let add_decl acc d =
-    match d with
-    | Dval ((_, x), _, _) -> ISet.add x acc
-    | _ -> acc
-
-  let add_call ((_, x), _) _ y =
-    ISet.add x y
-
-  let check acc md = 
-    let used = List.fold_left add_decl ISet.empty md.md_decls in
-    let used = TMap.fold add_call acc.mem used in
-    List.iter (check_used used) md.md_defs ;
-end
-
-let empty_env tenv app = {
-  tenv = tenv ; 
-  defs = IMap.empty ; 
-  apply_def_list = app ;
-} 
-
 let rec program mdl = 
-  let tenv = Env.make mdl in
-  List.map (module_ tenv) mdl
+  let env = Env.make mdl in
+  List.map (module_ env) mdl
   
-and module_ tenv md = try
-  let tenv = List.fold_left declare tenv md.md_decls in
-  let env = empty_env tenv apply_def_list in
-  let env = List.fold_left def env md.md_defs in
-  let acc = { mem = TMap.empty ; todo = [] } in
-  let env, acc = List.fold_left decl (env, acc) md.md_decls in
-  Usage.check acc md ;
-  let env, acc, _ = Monomorphize.defs env acc acc.mem in 
-  let defs = List.map (make_def env) md.md_defs in
+and module_ env md = try
+  let _ = List.fold_left declare env md.md_decls in
+  let defs = List.map (def env) md.md_defs in
   { Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
     Tast.md_defs = defs ;
   }
-with Error.Type err_l -> Error.unify err_l
+with Error.Type errl -> Error.unify errl
   
-and declare tenv = function
-  | Dval (x, ty, Some _) -> IMap.add (snd x) ty tenv
-  | Dval (x, ty, None) -> IMap.add (snd x) ty tenv
-  | _ -> tenv
+and declare env = function
+  | Dval (x, ty, Some _) -> IMap.add (snd x) ty env
+  | Dval (x, ty, None) -> IMap.add (snd x) ty env
+  | _ -> env
 
-and def env (((p, x), _, _) as d) =
-  let tenv = 
-    if not (IMap.mem x env.tenv)
-    then IMap.add x (p, Tdef (IMap.add x p IMap.empty)) env.tenv 
-    else env.tenv
-  in
-  let defs = IMap.add x d env.defs in
-  { env with tenv = tenv ; defs = defs }
-
-and decl (env, acc) = function
-  | Dval (fid, (_, Tfun (tyl, rty)), None) ->
-      let (_, args, e) = IMap.find (snd fid) env.defs in      
-      let env, acc, _ = pat env acc args tyl in
-      let acc, (rty2, _) = tuple env acc e in
-      let acc, rty = Unify.unify_list env acc rty2 rty in
-      let acc = { acc with mem = TMap.add (fid, tyl) rty acc.mem } in
-      env, acc
-  | Dval (_, _, Some _) -> env, acc
-  | Dval _ -> assert false
-  | _ -> env, acc
-
-and make_def env ((pos, x) as id, p, e) =
-  if not (IMap.mem x env.tenv) 
-  then Error.unused pos ;
-  match IMap.find x env.tenv with
+and def env (fid, p, e) = 
+  match IMap.find (snd fid) env with
   | _, Tfun (tyl, rty) -> 
-      let acc = { mem = TMap.empty ; todo = [] } in
-      let env, acc, p = pat env acc p tyl in
-      let _, e = tuple env acc e in
-      id, p, e
+      let env, p = pat env p tyl in
+      let rty', e = tuple env e in
+      let rty = Unify.unify_list env rty' rty in
+      let e = rty, e in
+      (fid, p, e)
   | _ -> assert false
 
-and pat env acc (p1, pl) (p2, tyl) = 
+and pat env (p1, pl) (p2, tyl) = 
   match pl with
   | [] -> assert false
   | [(p1, l_) as l] -> 
@@ -648,181 +445,183 @@ and pat env acc (p1, pl) (p2, tyl) =
       let size2 = List.length tyl in
       if size1 <> size2
       then Error.arity p1 p2 size1 size2 ;
-      let env, acc, (tyl, pl) = pat_tuple env acc l tyl in
-      env, acc, (tyl, [pl])
+      let env, (tyl, pl) = pat_tuple env l tyl in
+      env, (tyl, [pl])
 
   | ((p1, _) as l) :: rl -> 
-      let env, acc, (_, rl) = pat env acc (p1, rl) (p2, tyl) in
-      let env, acc, (tyl, pl) = pat_tuple env acc l tyl in
-      env, acc, (tyl, pl :: rl)
+      let env, (_, rl) = pat env (p1, rl) (p2, tyl) in
+      let env, (tyl, pl) = pat_tuple env l tyl in
+      env, (tyl, pl :: rl)
 
-and pat_tuple env acc (p, l) tyl = 
-  let env, acc, (tyl, pl) = pat_tuple_ env acc l tyl in
+and pat_tuple env (p, l) tyl = 
+  let env, (tyl, pl) = pat_tuple_ env l tyl in
   let tyl = p, tyl in
-  env, acc, (tyl, (tyl, pl))
+  env, (tyl, (tyl, pl))
 
-and pat_tuple_ env acc l tyl =
+and pat_tuple_ env l tyl =
   match l, tyl with
-  | [], [] -> env, acc, ([], [])
+  | [], [] -> env, ([], [])
   | [], _ | _, [] -> assert false
   | p :: rl1, ty :: rl2 ->
-      let env, acc, (tyl, pl) = pat_tuple_ env acc rl1 rl2 in
-      let env, acc, ((ty, _) as p) = pat_el env acc p ty in
-      env, acc, (ty :: tyl, p :: pl)
+      let env, (tyl, pl) = pat_tuple_ env rl1 rl2 in
+      let env, ((ty, _) as p) = pat_el env p ty in
+      env, (ty :: tyl, p :: pl)
 
-and pat_el env acc (pos, p) ((hpos, ty)) =
+and pat_el env (pos, p) ((hpos, ty)) =
   let pty = pos, ty in 
   let is_obs = is_observed pty in
-  let env, acc, (rty, p) = 
+  let env, (rty, p) = 
     match p with
-    | Pany -> env, acc, (pty, Tast.Pany)
+    | Pany -> env, (pty, Tast.Pany)
     | Pid ((_, x) as id) -> 
-	let env = { env with tenv = IMap.add x pty env.tenv } in
-	env, acc, (pty, Tast.Pid id)
+	let env = IMap.add x pty env in
+	env, (pty, Tast.Pid id)
     | Pvariant (x, (_, [])) -> 
 	let pty = get_true_type pty in
-	let ty2 = IMap.find (snd x) env.tenv in
+	let ty2 = IMap.find (snd x) env in
 	let ty2 = pos, (snd ty2) in
-	let acc, ty = Unify.unify_el env acc ty2 pty in
-	env, acc, (ty, Tast.Pvariant (x, ((pos, []), [])))
+	let ty = Unify.unify_el env ty2 pty in
+	env, (ty, Tast.Pvariant (x, ((pos, []), [])))
     | Pvariant (x, args) ->
       let pty = get_true_type pty in
-      let env, acc, rty, args = pat_variant is_obs env acc x args pty in
-      env, acc, (rty, Tast.Pvariant (x, args))
+      let env, rty, args = pat_variant is_obs env x args pty in
+      env, (rty, Tast.Pvariant (x, args))
     | Pvalue v -> 
 	let pty = get_true_type pty in
-	let acc, rty = Unify.unify_el env acc (pos, Tprim (value v)) pty in
-	env, acc, (rty, Tast.Pvalue v)
+	let rty = Unify.unify_el env (pos, Tprim (value v)) pty in
+	env, (rty, Tast.Pvalue v)
     | Precord pfl -> 
 	let pty = get_true_type pty in
-	let (env, acc), pfl = lfold (pat_field is_obs pty) (env, acc) pfl in
+	let env, pfl = lfold (pat_field is_obs pty) env pfl in
 	let tyl = List.map fst pfl in
 	let pfl = List.map snd pfl in
-	let acc, ty = Unify.fold_types env acc tyl in 
-	env, acc, (ty, Tast.Precord pfl) 
+	let ty = Unify.fold_types env tyl in 
+	env, (ty, Tast.Precord pfl) 
     | Pas (((_, x) as id), p) -> 
-	let env = { env with tenv = IMap.add x pty env.tenv } in
-	let env, acc, p = pat env acc p (fst pty, [pty]) in
-	env, acc, ((fst pty, ty), Tast.Pas (id, p))
+	let env = IMap.add x pty env in
+	let env, p = pat env p (fst pty, [pty]) in
+	env, ((fst pty, ty), Tast.Pas (id, p))
   in
   let rty = if is_obs 
   then make_observed rty
   else rty in
-  env, acc, (rty, p)
+  env, (rty, p)
 
-and pat_field is_obs pty (env, acc) (p, pf) = 
+and pat_field is_obs pty env (p, pf) = 
   let pty = p, snd pty in
   match pf with 
   | PFany -> 
       let pty = if is_obs then make_observed pty else pty in
-      (env, acc), (pty, (p, Tast.PFany))
+      env, (pty, (p, Tast.PFany))
   | PFid ((_, x) as id) -> 
       let pty = if is_obs then make_observed pty else pty in
-      let env = { env with tenv = IMap.add x pty env.tenv } in
-      (env, acc), (pty, (p, Tast.PFid id))
+      let env = IMap.add x pty env in
+      env, (pty, (p, Tast.PFid id))
   | PField (id, args) ->
-      let env, acc, rty, args = pat_variant is_obs env acc id args pty in
+      let env, rty, args = pat_variant is_obs env id args pty in
       let rty = if is_obs then make_observed rty else rty in
-      (env, acc), (rty, (p, Tast.PField (id, args)))
+      env, (rty, (p, Tast.PField (id, args)))
 
-and pat_variant is_obs env acc x args pty =
-  let argty, rty = match IMap.find (snd x) env.tenv with
-  | _, Tfun (tyl, rty) -> tyl, rty
-  | _ -> Error.no_argument (fst pty) in
+and pat_variant is_obs env x args pty =
+  let argty, rty = 
+    match IMap.find (snd x) env with
+    | _, Tfun (tyl, rty) -> tyl, rty
+    | _ -> Error.no_argument (fst pty) 
+  in
   let pty = fst pty, [pty] in
-  let acc, tyl = Instantiate.call env acc rty pty argty in 
+  let tyl = Instantiate.call env rty pty argty in 
   let obs_tyl = 
     if is_obs 
     then fst tyl, List.map make_observed (snd tyl) 
     else tyl 
-  in let env, acc, ((tyl, _) as args) = pat env acc args obs_tyl in
+  in let env, ((tyl, _) as args) = pat env args obs_tyl in
   let tyl = fst tyl, List.map get_true_type (snd tyl) in
-  let acc, rty = apply env acc (fst pty) x tyl in
+  let rty = apply env (fst pty) x tyl in
   let rty = match rty with 
   | _, [_, x] -> fst pty, x
   | _ -> assert false in
-  env, acc, rty, args
+  env, rty, args
 
-and tuple env acc (p, el) = 
-  let acc, el = lfold (tuple_pos env) acc el in
+and tuple env (p, el) = 
+  let el = List.map (tuple_pos env) el in
   let tyl = List.map fst el in
   let tyl = List.map snd tyl in
   let tyl = List.flatten tyl in
-  acc, ((p, tyl), el)
+  ((p, tyl), el)
 
-and tuple_pos env acc (p, e) = 
-  let acc, (tyl, e) = tuple_ env acc p e in
-  acc, ((p, snd tyl), e)
+and tuple_pos env (p, e) = 
+  let (tyl, e) = tuple_ env p e in
+  ((p, snd tyl), e)
     
-and tuple_ env acc p = function
+and tuple_ env p = function
   | Eapply (x, el) ->
-      let acc, ((tyl, _) as el) = tuple env acc el in
-      let acc, rty = apply env acc p x tyl in
+      let ((tyl, _) as el) = tuple env el in
+      let rty = apply env p x tyl in
       let res = rty, Tast.Eapply (x, el) in
-      acc, res 
+      res 
   | Eif (e1, el1, el2) -> 
-      let acc, e1 = expr env acc e1 in
+      let e1 = expr env e1 in
       check_bool e1 ;
-      let acc, ((tyl1, _) as el1) = tuple env acc el1 in
-      let acc, ((tyl2, _) as el2) = tuple env acc el2 in
-      let acc, tyl = Unify.unify_list env acc tyl1 tyl2 in
-      acc, (tyl, Tast.Eif (e1, el1, el2))
+      let ((tyl1, _) as el1) = tuple env el1 in
+      let ((tyl2, _) as el2) = tuple env el2 in
+      let tyl = Unify.unify_list env tyl1 tyl2 in
+      (tyl, Tast.Eif (e1, el1, el2))
   | Elet (argl, e1, e2) -> 
-      let acc, ((tyl, _) as e1) = tuple env acc e1 in
-      let env, acc, argl = pat env acc argl tyl in 
-      let acc, ((tyl, _) as e2) = tuple env acc e2 in
-      acc, (tyl, Tast.Elet (argl, e1, e2))
+      let ((tyl, _) as e1) = tuple env e1 in
+      let env, argl = pat env argl tyl in 
+      let ((tyl, _) as e2) = tuple env e2 in
+      (tyl, Tast.Elet (argl, e1, e2))
   | Efield (e, ((p, x) as fd_id)) -> 
-      let acc, ((ty, _) as e) = expr env acc e in
-      let fdtype = IMap.find x env.tenv in 
+      let ((ty, _) as e) = expr env e in
+      let fdtype = IMap.find x env in 
       let fdtype = p, snd fdtype in
-      let acc, tyl = proj env acc ty fdtype in
-      acc, (tyl, Tast.Efield (e, fd_id))
+      let tyl = proj env ty fdtype in
+      (tyl, Tast.Efield (e, fd_id))
   | Ematch (el, pel) -> 
-      let acc, ((tyl, _) as el) = tuple env acc el in
-      let acc, pel = lfold (action env tyl) acc pel in
+      let ((tyl, _) as el) = tuple env el in
+      let pel = List.map (action env tyl) pel in
       let tyl = List.map fst pel in
       let pel = List.map snd pel in
-      let acc, tyl = Unify.fold_type_lists env acc tyl in
-      acc, (tyl, Tast.Ematch (el, pel)) 
+      let tyl = Unify.fold_type_lists env tyl in
+      (tyl, Tast.Ematch (el, pel)) 
   | Eseq (((p, _) as e1), e2) -> 
-      let acc, (ty1, e1) = expr env acc e1 in
-      let acc, ty1 = Unify.unify_el env acc ty1 (p, Tprim Tunit) in
+      let (ty1, e1) = expr env e1 in
+      let ty1 = Unify.unify_el env ty1 (p, Tprim Tunit) in
       let e1 = ty1, e1 in
-      let acc, (ty, _ as e2) = tuple env acc e2 in
-      acc, (ty, Tast.Eseq (e1, e2))
+      let (ty, _ as e2) = tuple env e2 in
+      (ty, Tast.Eseq (e1, e2))
   | e ->
-      let acc, (ty, e) = expr_ env acc (p, e) in
-      acc, ((p, [ty]), e)
+      let (ty, e) = expr_ env (p, e) in
+      ((p, [ty]), e)
 
-and expr env acc ((p, _) as e) = 
-  let acc, el = tuple env acc (p, [e]) in
+and expr env ((p, _) as e) = 
+  let el = tuple env (p, [e]) in
   match snd el with
   | [] -> assert false
-  | [(_, [_, ty]), e] -> acc, ((p, ty), e)
+  | [(_, [_, ty]), e] -> ((p, ty), e)
   | _ -> Error.no_tuple p
 
-and expr_ env acc (p, e) =
+and expr_ env (p, e) =
   match e with    
   | Eid ((_, x) as id) -> 
-      let ty = IMap.find x env.tenv in
+      let ty = IMap.find x env in
       let ty = p, (snd ty) in
-      acc, (ty, Tast.Eid id)
+      (ty, Tast.Eid id)
   | Evalue v -> 
       let ty = p, Tprim (value v) in
-      acc, (ty, Tast.Evalue v)
+      (ty, Tast.Evalue v)
   | Evariant ((p1, x), (p2, [])) -> 
-      let rty = IMap.find x env.tenv in
+      let rty = IMap.find x env in
       let rty = pos_variant p1 rty in
       let argty = p2, [] in
-      acc, (rty, Tast.Evariant ((p1, x), (argty, [])))
+      (rty, Tast.Evariant ((p1, x), (argty, [])))
   | Evariant (x, el) -> 
-      let acc, (ty, (x, el)) = variant env acc (x, el) in
+      let (ty, (x, el)) = variant env (x, el) in
       let ty = pos_variant p ty in
-      acc, (ty, Tast.Evariant (x, el))
+      (ty, Tast.Evariant (x, el))
   | Ebinop (bop, e1, e2) ->
-      let acc, ((ty1, _) as e1) = expr env acc e1 in
-      let acc, ((ty2, _) as e2) = expr env acc e2 in
+      let ((ty1, _) as e1) = expr env e1 in
+      let ((ty2, _) as e2) = expr env e2 in
       (match bop with
       | Ast.Eplus
       | Ast.Eminus
@@ -830,31 +629,31 @@ and expr_ env acc (p, e) =
 	  check_numeric p ty1 ;
 	  check_numeric p ty2 
       | _ -> ()) ;
-      let acc, _ = Unify.unify_el env acc ty1 ty2 in
-      let acc, ty = binop env acc bop p ty1 ty2 in
-      acc, (ty, Tast.Ebinop (bop, e1, e2))
+      let _ = Unify.unify_el env ty1 ty2 in
+      let ty = binop env bop p ty1 ty2 in
+      (ty, Tast.Ebinop (bop, e1, e2))
   | Euop (Ast.Euminus, e) -> 
-      let acc, (ty, _ as e) = expr env acc e in
-      acc, (ty, Tast.Euop (Ast.Euminus, e))
+      let (ty, _ as e) = expr env e in
+      (ty, Tast.Euop (Ast.Euminus, e))
   | Erecord fdl -> 
-      let acc, fdl = lfold (variant env) acc fdl in
+      let fdl = List.map (variant env) fdl in
       let tyl = List.map fst fdl in
       let fdl = List.map snd fdl in
-      let acc, ty = Unify.fold_types env acc tyl in
-      acc, (ty, Tast.Erecord fdl)
+      let ty = Unify.fold_types env tyl in
+      (ty, Tast.Erecord fdl)
   | Ewith (e, fdl) -> 
-      let acc, ((ty1, _) as e) = expr env acc e in
-      let acc, fdl = lfold (variant env) acc fdl in
+      let ((ty1, _) as e) = expr env e in
+      let fdl = List.map (variant env) fdl in
       let tyl = List.map fst fdl in
       let fdl = List.map snd fdl in
-      let acc, ty = Unify.fold_types env acc tyl in
-      let acc, ty = Unify.unify_el env acc ty1 ty in
-      acc, (ty, Tast.Ewith (e, fdl))
+      let ty = Unify.fold_types env tyl in
+      let ty = Unify.unify_el env ty1 ty in
+      (ty, Tast.Ewith (e, fdl))
   | Eobs ((p, x) as id) ->
-      let ty = IMap.find x env.tenv in
+      let ty = IMap.find x env in
       let ty = p, (snd ty) in
       let obs_ty = make_observed ty in
-      acc, (obs_ty, Tast.Eobs id)
+      (obs_ty, Tast.Eobs id)
   | Eapply (_, _)
   | Eif (_, _, _)
   | Elet (_, _, _)
@@ -862,42 +661,42 @@ and expr_ env acc (p, e) =
   | Eseq (_, _)
   | Efield (_, _) -> assert false
 
-and action env tyl acc (p, e) = 
-  let env, acc, p = pat env acc p tyl in
-  let acc, ((tyl, _) as e) = tuple env acc e in
-  acc, (tyl, (p, e))
+and action env tyl (p, e) = 
+  let env, p = pat env p tyl in
+  let ((tyl, _) as e) = tuple env e in
+  (tyl, (p, e))
 
-and variant env acc (x, el) = 
+and variant env (x, el) = 
   let p = Pos.btw (fst x) (fst el) in
-  let acc, ((tyl, _) as el) = tuple env acc el in
-  let acc, rty = apply env acc p x tyl in
+  let ((tyl, _) as el) = tuple env el in
+  let rty = apply env p x tyl in
   match rty with 
-  | _, [rty] -> acc, (rty, (x, el))
+  | _, [rty] -> (rty, (x, el))
   | _ -> assert false
 
-and proj env acc ty fty = 
+and proj env ty fty = 
   match unobserve ty, fty with
   | (p1, Tid (_, x1)), (p2, Tfun ((_, ty), (_, [_, Tid (_, x2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
-      acc, (p1, ty)
+      (p1, ty)
   | (p1, Tapply ((_, x1), argl1)), 
     (p2, Tfun (ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
-      Instantiate.call env acc argl2 argl1 ty 
+      Instantiate.call env argl2 argl1 ty 
   | (p1, _), (p2, _) -> Error.unify_proj p1 p2
 
-and binop env acc bop p ty1 ty2 = 
+and binop env bop p ty1 ty2 = 
   match bop with
   | Ast.Eeq 
   | Ast.Elt
   | Ast.Elte
   | Ast.Egt
-  | Ast.Egte -> acc, (p, Tprim Tbool)
+  | Ast.Egte -> (p, Tprim Tbool)
   | Ast.Eplus
   | Ast.Eminus
-  | Ast.Estar -> Unify.unify_el env acc ty1 ty2
+  | Ast.Estar -> Unify.unify_el env ty1 ty2
 
 and value = function
   | Nast.Eunit -> Tunit
@@ -907,46 +706,15 @@ and value = function
   | Nast.Echar _ -> Tchar
   | Nast.Estring _ -> Tstring
 
-and apply env acc p (fp, x) tyl = 
-  match IMap.find x env.tenv with
+and apply env p (fp, x) tyl = 
+  match IMap.find x env with
   | (_, Tfun (tyl1, tyl2)) ->
-      Instantiate.call env acc tyl1 tyl tyl2
-  | (_, Tdef ids) ->
-      let rty = p, [p, Tany] in
-      let idl = IMap.fold (fun x _ acc -> (p, x) :: acc) ids [] in
-      apply_def_list env acc p idl tyl rty
+      Instantiate.call env tyl1 tyl tyl2
   | (_, Tany) ->
       let rty = p, [p, Tany] in
-      let tenv = IMap.add x (p, Tfun (tyl, rty)) env.tenv in
-      let env = { env with tenv = tenv } in
-      apply env acc p (fp, x) tyl
+      let env = IMap.add x (p, Tfun (tyl, rty)) env in
+      apply env p (fp, x) tyl
   | p2, ty -> 
       Print.debug [p2, ty] ;
       Error.expected_function fp (* TODO *)
 
-and apply_def_list env acc pl idl tyl rty = 
-  List.fold_left 
-    (fun (acc, rty) fid -> 
-      apply_def env acc pl fid tyl rty) 
-    (acc, rty) 
-    idl
-    
-and apply_def env acc pl fid tyl rty = 
-  try 
-    let mem_rty = TMap.find (fid, tyl) acc.mem in 
-    let acc, rty = Unify.unify_list env acc rty mem_rty in
-    acc, rty 
-  with Not_found -> try
-    let acc = { acc with mem = TMap.add (fid, tyl) rty acc.mem } in
-    let acc, rty = apply_def_ env acc fid tyl rty in 
-    let acc, rty = apply_def_ env acc fid tyl rty in (* Retyping *)
-    acc, rty
-  with Error.Type err_l -> 
-    raise (Error.Type (Error.Fun_call pl :: err_l))
-    
-and apply_def_ env acc fid tyl rty = 
-  let (_, argl, el) = IMap.find (snd fid) env.defs in
-  let env, acc, _ = pat env acc argl tyl in 
-  let acc, (new_rty, _) = tuple env acc el in
-  let acc = { acc with mem = TMap.add (fid, tyl) new_rty acc.mem } in
-  Unify.unify_list env acc new_rty rty

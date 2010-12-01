@@ -111,7 +111,6 @@ module Cut = struct
     let cands = Graph.closure g rets in
     let cuts, bls = lfold (block nbr cands) ISet.empty df.df_body in
     let cuts = Graph.closure (Graph.invert g) cuts in
-    ISet.iter Ident.print cuts ;
     let _, bls = lfold FilterOut.block cuts bls in
     { df with df_body = bls }
 

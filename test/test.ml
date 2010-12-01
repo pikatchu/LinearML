@@ -1,12 +1,19 @@
 
 
-module T: sig
+module T = struct
 
-  val main: unit -> unit
+  type t = 
+    | Empty
+    | Cons of int32 * t
+    | Lazy of t future
 
-end = struct
-
-  let main() = (fun x -> x x) (fun x -> x x)
-    
+  val split: int32 * t * t * t -> int32 * t * t
+  let rec split n l1 l2 l = 
+    match l with
+    | Empty -> n, l1, l2
+    | Lazy x -> split n l1 l2 (wait x)
+    | Cons x Empty -> n, l1, l2
+    | Cons x (Cons y rl) -> split (n+1) (Cons x l1) (Cons y l2) rl
+    | Cons x (Lazy rl) -> split n l1 l2 (Cons x (wait rl))
 
 end

@@ -80,8 +80,6 @@ module Env:sig
 
   val alias: t -> Ast.id -> Ast.id -> t
 
-  val check_signature: Ast.decl list -> t -> unit
-
   val pattern_env: t -> t
   val add_env: t -> t -> t
   val check_penv: Pos.t -> t -> t -> unit
@@ -193,14 +191,6 @@ end = struct
     let id = value t y in
     add_value t x id
 
-  let check_value t = function
-    | Dval ((p,v),_,None) when not (SMap.mem v t.values) -> 
-	Error.undefined_sig p v
-    | _ -> ()
-
-  let check_signature l t = 
-    List.iter (check_value t) l
-
   let print_values penv = 
     SMap.iter (fun x _ -> o x ; o " ") penv.values ;
     o "\n"
@@ -249,13 +239,14 @@ end = struct
     List.fold_left module_decl empty mdl
 
   and module_decl t md =
-    let env = List.fold_left decl Env.empty md.md_decls in
+    let env = List.fold_left decl Env.empty md.md_defs in
     let t, md_id = new_module t md.md_id in
     { t with sigs = IMap.add md_id env t.sigs }
 
   and decl env = function
     | Dtype tdef_l -> List.fold_left tdef env tdef_l
     | Dval (id, _, _) -> fst (Env.new_decl env id)
+    | _ -> env
 
   and tdef env (id, (_, ty)) = 
     let env, _ = Env.new_type env id in
@@ -308,30 +299,43 @@ let rec program mdl =
 and module_ genv md = 
   let md_id = Genv.module_id genv md.md_id in
   let sig_ = Genv.sig_ genv md_id in
-  let _, decls = lfold (decl genv sig_) Env.empty md.md_decls in
-  let env = List.fold_left (external_ sig_) Env.empty md.md_decls in
+  let env, decls = List.fold_left (decl genv sig_) (Env.empty, []) md.md_defs in
+  let decls = List.rev decls in
+  let env = List.fold_left (external_ sig_) Env.empty md.md_defs in
   let acc = genv, env, [] in
   let _, env, defs = List.fold_left (def sig_) acc md.md_defs in
-  Env.check_signature md.md_decls env ;
   let defs = List.rev defs in
   { Nast.md_id = md_id ;
     Nast.md_decls = decls ;
     Nast.md_defs = defs ;
   }
 
-and decl genv sig_ env = function
+and decl genv sig_ (env, acc) = function
   | Dtype tdl -> 
-      let env = List.fold_left (bind_type sig_) env tdl in
-      env, Nast.Dtype (List.map (type_def genv sig_ env) tdl)
-  | Dval (id, ((p, Tfun (_, _)) as ty), def) -> 
+      let env, ty = dtype genv sig_ env tdl in
+      let ty = Nast.Dtype ty in
+      env, ty :: acc
+  | Dval (x, y, z) -> 
+      let env, (x, y, z) = dval genv sig_ env x y z in
+      let dval = Nast.Dval (x, y, z) in
+      env, dval :: acc
+  | _ -> env, acc
+
+and dval genv sig_ env id ((p, ty_) as ty) def = 
+  match ty_ with 
+  | Tfun (_, _) ->
       let id = Env.value sig_ id in
       let tvarl = FreeVars.type_expr ty in
       let sub_env, tvarl = lfold Env.new_tvar env tvarl in
       let ty = type_expr genv sig_ sub_env ty in
       (* The declaration of the type variables is implicit *)
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
-      env, Nast.Dval (id, ty, def)
-  | Dval ((p, _), _, _) -> Error.value_function p
+      env, (id, ty, def)  
+  | _ -> Error.value_function p
+
+and dtype genv sig_ env tdl = 
+  let env = List.fold_left (bind_type sig_) env tdl in
+  env, (List.map (type_def genv sig_ env) tdl)
 
 and external_ sig_ env = function
   | Dval (x, _, Some _) -> Env.add_value env x (Env.value sig_ x)
@@ -399,20 +403,20 @@ and def sig_ (genv, env, acc) = function
       let env = bind_val sig_ env id in
       let id = Env.value env id in
       genv, env, (id, pl, e) :: acc
-
   | Dletrec dl  -> 
       let env = List.fold_left (bind_let sig_) env dl in
       let acc = List.fold_left (dlet genv sig_ env) acc dl in
       genv, env, acc
-
   | Dalias (id1, id2) -> genv, Env.alias env id1 id2, acc
+  | Dtype _
+  | Dval _ -> genv, env, acc
 
 and bind_let sig_ env (x, _, _) = bind_val sig_ env x
 and bind_val sig_ env ((p, v) as x) = 
   if Env.has_value env x
   then Error.multiple_def p v ;
   match Env.try_value sig_  x with
-  | None -> fst (Env.new_value env x)
+  | None -> Error.type_missing p
   | Some id -> Env.add_value env x id
 
 and dlet genv sig_ env acc (id, pl, e) = 

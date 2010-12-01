@@ -65,7 +65,7 @@ let rec cstr_arg id = function
   | `Cstr x -> btw id x, Eecstr (id, x)
   | `Id f -> btw id f, Eextern (id, f)
 
-let dtype l = Dtype (List.map (fun ((x, idl), ty) -> 
+let dtype l = (List.map (fun ((x, idl), ty) -> 
   match idl with
   | [] -> x, ty
   | _ -> x, (fst x, Tabs (idl, ty))) l)
@@ -166,14 +166,10 @@ module_l:
 | module_ module_l      { $1 :: $2 }
 
 module_: 
-| MODULE CSTR COLON SIG decl_l
-    EQ STRUCT def_l { { md_id = $2 ; 
-			md_decls = $5 ; 
-			md_defs = $8 } }
-
-decl_l:
-| END { [] }
-| type_def decl_l { $1 :: $2 }
+| MODULE CSTR EQ STRUCT def_l 
+    { { md_id = $2 ; 
+	md_defs = $5 } 
+    }
 
 def_l:
 | END { [] }
@@ -181,6 +177,8 @@ def_l:
 
 def:
 | MODULE CSTR EQ CSTR { Dmodule ($2, $4) }
+| TYPE type_decl type_decl_l { Dtype (dtype ($2 :: $3))}
+| VAL ID COLON type_expr external_opt { Dval ($2, $4, $5) }
 | LET ID EQ ID { Dalias ($2, $4) }
 | LET ID simpl_pat_l EQ expr { Dlet ($2, $3, $5) }
 | LET REC ID simpl_pat_l EQ expr expr_l { Dletrec (($3, $4, $6) :: $7) }
@@ -188,10 +186,6 @@ def:
 expr_l:
 | { [] }
 | AND ID simpl_pat_l EQ expr expr_l { ($2, $3, $5) :: $6 }
-
-type_def:
-| TYPE type_decl type_decl_l { dtype ($2 :: $3)}
-| VAL ID COLON type_expr external_opt { Dval ($2, $4, $5) }
 
 external_opt:
 | { None }

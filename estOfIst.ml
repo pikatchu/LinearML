@@ -290,7 +290,6 @@ and def (x, p, e) =
     Est.df_return = idl2 ;
     Est.df_body = fblock :: t.blocks ;
   } in
-  IMap.iter (fun x y ->     Printf.printf "XX: %s %s\n" (Ident.debug x) (Ident.debug y)) t.subst ;
   EstSubst.def t.subst def
 
 and make_idl tyl = 
