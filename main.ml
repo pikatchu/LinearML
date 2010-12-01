@@ -38,7 +38,7 @@ let _ =
     let llst = LlstOptim.program llst in
     let llst = LlstPullRet.program llst in  
       LlstPp.program llst ;   
-    Emit2.program llst ; 
+    ignore (Emit2.program llst) ; 
     module_l := new_module :: !module_l 
   done ;
   !module_l
