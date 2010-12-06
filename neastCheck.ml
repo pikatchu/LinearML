@@ -79,12 +79,15 @@ end = struct
 	if arity <> 0
 	then Error.type_arity p x 0 arity pdef
 	else ()
-    | Tapply ((p, x), (_, l)) -> 
+    | Tapply ((p, x), ((_, l) as tl)) -> 
 	let pdef, arity = get x env in
 	let arg_length = List.length l in
 	if arity <> arg_length 
 	then Error.type_arity p x arg_length arity pdef
-	else List.iter check_apply l
+	else begin 
+	  List.iter check_apply l ;
+	  type_expr_list env tl 
+	end
     | Tfun (ty1, ty2) -> type_expr_list env ty1 ; type_expr_list env ty2
 
   and check_apply (p, ty) = 

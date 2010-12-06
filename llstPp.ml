@@ -77,6 +77,7 @@ and def df =
   id df.df_id ; 
   o " " ; 
   List.iter (fun (ty, x) -> o "(" ; id x ; o ": " ; type_expr ty ; o ") ") df.df_args ;
+  o ": " ; type_expr_list df.df_ret ;
   o " = " ;
   push() ;
   List.iter block df.df_body ;

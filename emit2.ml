@@ -105,7 +105,8 @@ module Type = struct
     | Tfun (ty1, [ty2]) -> 
 	let ty1 = List.map (type_ mds t ctx) ty1 in
 	let ty2 = type_ mds t ctx ty2 in
-	function_type ty2 (Array.of_list ty1) 
+	let ty = function_type ty2 (Array.of_list ty1) in
+	pointer_type ty
     | Tfun _ -> failwith "TODO function type" (* of type_expr_list * type_expr_list *)
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
@@ -375,10 +376,11 @@ and expr proto bb env acc (ty, x) e =
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = const env ty v in
       IMap.add x v acc
-  | Ebinop (bop, (_, x1), (_, x2)) -> 
+  | Ebinop (bop, (ty, x1), (_, x2)) -> 
       let x1 = IMap.find x1 acc in
       let x2 = IMap.find x2 acc in
-      let bop = binop bop in
+      let ty = match ty with Tprim ty -> ty | _ -> assert false in
+      let bop = binop ty bop in
       let v = bop x1 x2 xs env.builder in
       IMap.add x v acc
   | Ecast (ty, y) -> 
@@ -421,11 +423,12 @@ and expr proto bb env acc (ty, x) e =
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let c = build_bitcast c ty "" env.builder in 
       IMap.add x c acc
-
   | Eapply (_, f, l) -> 
       let f = IMap.find f acc in
       let l = List.map (fun (_, v) -> IMap.find v acc) l in
       let t = Array.of_list l in
+      dump_value f ;
+      Array.iter dump_value t ;
       let v = build_call f t xs env.builder in
       set_instruction_call_conv (function_call_conv f) v ;
       IMap.add x v acc
@@ -489,12 +492,44 @@ and expr proto bb env acc (ty, x) e =
 
 *)
 
-and binop = function
-  | Eeq -> build_icmp Llvm.Icmp.Eq 
-  | Elt -> build_icmp Llvm.Icmp.Slt 
-  | Elte -> build_icmp Llvm.Icmp.Sle
-  | Egt -> build_icmp Llvm.Icmp.Sgt 
-  | Egte -> build_icmp Llvm.Icmp.Sge
+and binop ty = function
+  | Eeq -> 
+      (match ty with
+      | Tfloat -> build_fcmp Llvm.Fcmp.Oeq
+      | Tint32 -> build_icmp Llvm.Icmp.Eq
+      | _ -> failwith "TODO rest of comparisons emit2.ml")
+  | Elt -> 
+      (match ty with
+      | Tint32 -> 
+	  build_icmp Llvm.Icmp.Slt 
+      | Tfloat ->
+	  build_fcmp Llvm.Fcmp.Olt 
+      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      )
+  | Elte -> 
+      (match ty with
+      | Tint32 -> 
+	  build_icmp Llvm.Icmp.Sle
+      | Tfloat ->
+	  build_fcmp Llvm.Fcmp.Ole
+      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      )
+  | Egt -> 
+      (match ty with
+      | Tint32 -> 
+	  build_icmp Llvm.Icmp.Sgt 
+      | Tfloat ->
+	  build_fcmp Llvm.Fcmp.Ogt 
+      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      )
+  | Egte -> 
+      (match ty with
+      | Tint32 -> 
+	  build_icmp Llvm.Icmp.Sge
+      | Tfloat ->
+	  build_fcmp Llvm.Fcmp.Oge
+      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      )
   | Eplus -> build_add
   | Eminus -> build_sub
   | Estar -> build_mul

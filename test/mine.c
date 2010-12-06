@@ -67,5 +67,9 @@ void print_int(int x){
   printf("%d\n", x) ;
 }
 
+void print_float(float x){
+  printf("%f\n", x) ;
+}
+
 int f(int x){ return x+1 ; }
 
