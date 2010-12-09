@@ -16,10 +16,12 @@ and ty_idl t l = List.map (ty_id t) l
 
 and block t bl = {
   Est.bl_id = bl.bl_id ;
-  Est.bl_phi = [] ;
+  Est.bl_phi = List.map (phi t) bl.bl_phi ;
   Est.bl_eqs = List.map (equation t) bl.bl_eqs ;
   Est.bl_ret = ret t bl.bl_ret ;
 }
+
+and phi t (x, ty, l) = id t x, ty, List.map (fun (x, y) -> id t x, y) l
 
 and ret t = function
   | Lreturn l -> Lreturn (ty_idl t l)
@@ -31,7 +33,8 @@ and ret t = function
 and equation t (idl, e) = ty_idl t idl, expr t e
 
 and expr t = function
-  | Eid x -> Eid (id t x)
+  | Enull -> Enull
+  | Eid x -> Eid (ty_id t x)
   | Evalue _ as e -> e
   | Evariant (x, idl) -> Evariant (x, ty_idl t idl)
   | Ebinop (bop, x1, x2) -> Ebinop (bop, ty_id t x1, ty_id t x2)
@@ -41,9 +44,10 @@ and expr t = function
   | Efield (x, y) -> Efield (ty_id t x, y) 
   | Ematch (l, al) -> Ematch (ty_idl t l, actions t al) 
   | Ecall _ as e -> e
-  | Eapply (x, l) -> Eapply (id t x, ty_idl t l)
+  | Eapply (x, l) -> Eapply (ty_id t x, ty_idl t l)
   | Eseq (x, xl) -> Eseq (ty_id t x, ty_idl t xl)
   | Eif (x1, l1, l2) -> Eif (ty_id t x1, l1, l2)
+  | Eis_null x -> Eis_null (ty_id t x)
 
 and fields t l = List.map (field t) l
 and field t (fd, e) = fd, ty_idl t e

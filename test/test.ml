@@ -1,19 +1,26 @@
 
-
 module T = struct
 
-  type t = 
-    | Empty
-    | Cons of int32 * t
-    | Lazy of t future
+  type ('a, 'b) cple = {
+      fst: 'a ;
+      snd: 'b ;
+    }
 
-  val split: int32 * t * t * t -> int32 * t * t
-  let split n l1 l2 l = 
-    match l with
-    | Empty -> n, l1, l2
-    | Lazy x -> split n l1 l2 (wait x)
-    | Cons x Empty -> n, l1, l2
-    | Cons x (Cons y rl) -> split (n+1) (Cons x l1) (Cons y l2) rl
-    | Cons x (Lazy rl) -> split n l1 l2 (Cons x (wait rl))
+  type ibox = { v: int32 }
+
+  type ('a, 'b) tree = 
+    | Empty
+    | Node of int32 * ('a, 'b) tree * 'a * 'b * ('a, 'b) tree
+
+
+  val main: unit -> unit
+  let main () = 
+    let x = Some { v = 0 } in
+    match x with
+    | None -> print_int 0
+    | Some t -> 
+	let { t ; ~v } = t in
+	free t;
+	print_int v
 
 end

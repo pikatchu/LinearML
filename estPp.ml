@@ -79,7 +79,10 @@ and pfield (x, p) =
   id x ; o " = " ; pat p ; o " ; "
 
 and idl = List.iter (fun (_, x) -> id x ; o " ")
-and ty_idl l = List.iter (fun (ty, x) -> id x ; o ": " ; type_expr ty) l
+and ty_idl l = 
+  List.iter (
+  fun (ty, x) -> o "(" ; id x ; o ": " ; type_expr ty ; o ") "
+ ) l
 
 and block bl = 
   nl() ;
@@ -110,13 +113,14 @@ and phi (x, _, l) =
   nl()
 
 and equation (idl, e) = 
-  List.iter (fun (_, x) -> id x) idl ; 
+  ty_idl idl ;
   o " = " ;
   expr e ;
   nl()
 
 and expr = function
-  | Eid x -> id x
+  | Enull -> o "null"
+  | Eid x -> tid x
   | Evalue v -> value v
   | Evariant (x, ty_idl) -> id x ; o "(" ; idl ty_idl ; o ")"
   | Ebinop (bop, id1, id2) -> binop bop ; o " " ; tid id1 ; o " " ; tid id2 
@@ -126,12 +130,13 @@ and expr = function
   | Efield (x, y) -> tid x ; o "." ; id y
   | Ematch (xl, al) -> 
       o "match " ; idl xl ; push() ; nl() ;List.iter action al ; pop()
-  | Eapply (x, l) -> o "call " ; id x ; o " " ; idl l
+  | Eapply (x, l) -> o "call " ; tid x ; o " " ; idl l
   | Eseq _ -> failwith "TODO seq"
   | Ecall x -> o "lcall " ; o (Ident.debug x)
   | Eif (x, l1, l2) -> 
       o "if " ; tid x ; o " then lcall " ; label l1 ; 
       o " else lcall " ; label l2 
+  | Eis_null x -> o "is_null " ; id (snd x)
 
 and field (x, l) = id x ; o " = " ; idl l
 and action (p, e) = 

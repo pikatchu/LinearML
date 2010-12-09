@@ -370,7 +370,7 @@ and expr_ t pos = function
       expr t e1 ;
       tuple t e2 ;
       tuple t e3
-  | Eapply (_, e) -> tuple t e
+  | Eapply (_, _, e) -> tuple t e
   | Eseq (e1, e2) -> 
       expr t e1 ;
       tuple t e2

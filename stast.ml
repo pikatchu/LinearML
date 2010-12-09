@@ -75,7 +75,7 @@ and expr_ =
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
-  | Eapply of id * tuple
+  | Eapply of type_expr * id * tuple
   | Eseq of expr * tuple
   | Eobs of id
 

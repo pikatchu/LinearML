@@ -56,9 +56,11 @@ and type_expr = function
   | Tid x -> id x 
   | Tptr x -> type_expr x ; o "*"
   | Tfun (tyl1, tyl2) -> 
+      o "(" ;
       type_expr_list tyl1 ;
       o " -> " ;
       type_expr_list tyl2 ;
+      o ")"
   | Tstruct tyl -> 
       o "{ " ; print_list o (fun _ x -> type_expr x) ", " tyl ; o " }"
 

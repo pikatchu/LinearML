@@ -123,7 +123,7 @@ and equation bls ret acc eq =
       let b = IMap.find lbl bls in
       let idl' = match b.bl_ret with Lreturn l -> l | _ -> assert false in
       let eqs = List.fold_right2 (
-	fun x1 (_, x2) acc ->
+	fun x1 x2 acc ->
 	  ([x1], Eid x2) :: acc
        ) idl idl' eqs in
       let btarget = Ident.tmp() in

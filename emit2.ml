@@ -427,10 +427,8 @@ and expr proto bb env acc (ty, x) e =
       let f = IMap.find f acc in
       let l = List.map (fun (_, v) -> IMap.find v acc) l in
       let t = Array.of_list l in
-      dump_value f ;
-      Array.iter dump_value t ;
       let v = build_call f t xs env.builder in
-      set_instruction_call_conv (function_call_conv f) v ;
+      set_instruction_call_conv Llvm.CallConv.fast v ;
       IMap.add x v acc
   | Eis_null (_, v) -> 
       let v = IMap.find v acc in
@@ -458,11 +456,13 @@ and expr proto bb env acc (ty, x) e =
 	  bl
       | Some (_, v) -> IMap.find v acc in
       let z = const_int (i32_type env.ctx) 0 in
-      List.iter (fun (n, (_, v)) -> 
+      List.iter (
+      fun (n, (_, v)) -> 
 	let n = const_int (i32_type env.ctx) n in
 	let v = IMap.find v acc in
 	let ptr = build_gep bl [|z;n|] "" env.builder in
-	ignore (build_store v ptr env.builder)) fdl ;
+	ignore (build_store v ptr env.builder)
+     ) fdl ;
       IMap.add x bl acc      
   | Enull -> 
       let v = const_null (Type.type_ env.mds env.types env.ctx ty) in

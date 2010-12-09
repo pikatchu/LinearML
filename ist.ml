@@ -61,6 +61,7 @@ and pat_field =
 and tuple = expr list
 and expr = type_expr_list * expr_
 and expr_ = 
+  | Enull
   | Eid of id
   | Evalue of value
   | Evariant of id * tuple
@@ -72,7 +73,7 @@ and expr_ =
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
-  | Eapply of id * tuple
+  | Eapply of type_expr * id * tuple
   | Eseq of expr * tuple
 
 and value =

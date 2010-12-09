@@ -1,15 +1,26 @@
 
+module T = struct
 
-module T: sig
+  type t = {
+      fd: int32 ;
+    }
+
+  type 'a tree = 
+    | Empty
+    | Node of 'a
+    | Bob of 'a
+
+  val free_opt: t option option -> unit
+  let free_opt t = 
+    match t with
+    | None -> print_int 0
+    | Some x -> 
+	match x with
+	| None -> print_int 1 (* Unreachable *)
+	| Some y -> free y ; print_int 2
 
   val main: unit -> unit
+  let main () = free_opt (Some (Some { fd = 0 } ))
 
-end = struct
-
-
-  let main () = 
-    let _ = 1 + 2 in
-    ()
     
-
 end

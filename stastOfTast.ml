@@ -3,15 +3,19 @@ open Tast
 
 type t = type_expr IMap.t
 
-let check_terminates (p, tyl) = 
-  List.iter (function
-    | _, Stast.Tany -> Error.infinite_loop p 
-    | _ -> ()) tyl
-
 let check_apply (p, ty) = 
   match ty with
   | Stast.Tprim _ -> Error.poly_is_not_prim p
   | _ -> ()
+
+let check_free t x (ty, _) =
+  if x = Naming.free then
+  match snd ty with
+  | [] -> assert false
+  | [_, Neast.Tprim Nast.Tstring] -> ()
+  | [_, Neast.Tapply ((_, x), _)]
+  | [_, Neast.Tid (_, x)] when ISet.mem x t -> ()
+  | tyl -> Error.cannot_free (fst ty) (Typing.Print.type_expr_list ty) 
 
 module ObsCheck = struct
   open Stast
@@ -41,22 +45,27 @@ end
 
 module Env = struct
 
-  let rec module_ md = 
-    List.fold_left def IMap.empty md.md_defs
+  let rec program mdl = 
+    let t = ISet.empty in
+    List.fold_left module_ t mdl
 
-  and def t ((p, x), (tyl1, _), (tyl2, _)) = 
-    IMap.add x (p, Neast.Tfun (tyl1, tyl2)) t
+  and module_ t md = 
+    List.fold_left decl t md.md_decls
+
+  and decl t = function
+    | Neast.Drecord td -> ISet.add (snd td.Neast.td_id) t
+    | _ -> t
 end
 
 let rec program mdl = 
-  List.map module_ mdl 
+  let t = Env.program mdl in
+  List.map (module_ t) mdl 
 
-and module_ md = 
-  let t = Env.module_ md in {
-    Stast.md_id = md.md_id ;
-    Stast.md_decls = List.map (decl t) md.md_decls ;
-    Stast.md_defs = List.map (def t) md.md_defs ;
-  }
+and module_ t md = {
+  Stast.md_id = md.md_id ;
+  Stast.md_decls = List.map (decl t) md.md_decls ;
+  Stast.md_defs = List.map (def t) md.md_defs ;
+}
 
 and decl t = function
   | Neast.Dalgebric td -> Stast.Dalgebric (tdef t td)
@@ -86,16 +95,6 @@ and type_expr_ t = function
 	Stast.Tapply (x, tyl)
     | Neast.Tfun (tyl1, tyl2) -> 
 	Stast.Tfun (type_expr_list t tyl1, type_expr_list t tyl2)
-
-and local_def t x =
-  let l = IMap.fold (fun x _ acc -> x :: acc) x [] in
-  match l with
-  | [] -> assert false 
-  | x :: _ -> 
-      (* TODO bug fix on   let rec f x = f f *)
-      (* TODO bug fix on (fun x -> x x) (fun x -> x x) must check for loops *)
-      (* This could probably be memoized ... not sure it is worth it *)
-      type_expr_ t (snd (IMap.find x t))
 
 and type_expr_list t (p, tyl) = p, List.map (type_expr t) tyl
 
@@ -158,9 +157,10 @@ and expr_ t ty = function
       ObsCheck.tuple e2 ;
       ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
-  | Eapply (x, e) -> 
-      check_terminates ty ;
-      Stast.Eapply (x, tuple t e)
+  | Eapply (ty, x, e) -> 
+      check_free t (snd x) e ;
+      let e = tuple t e in
+      Stast.Eapply (type_expr t ty, x, e)
   | Eseq (e1, e2) -> 
       let e2 = tuple t e2 in
       ObsCheck.tuple e2 ;

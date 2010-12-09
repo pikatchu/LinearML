@@ -72,6 +72,7 @@ and make_field rid x acc p =
 and tuple l = List.map expr l
 and expr (ty, e) = ty, expr_ ty e
 and expr_ ty = function
+  | Enull
   | Eid _
   | Evalue _ as e -> e
   | Evariant (x, e) -> 
@@ -110,9 +111,9 @@ and expr_ ty = function
       let e1 = tuple e1 in
       let e2 = tuple e2 in
       Eif (c, e1, e2)
-  | Eapply (x, e) -> 
+  | Eapply (ty, x, e) -> 
       let e = tuple e in
-      Eapply (x, e)
+      Eapply (ty, x, e)
   | Eseq (e1, e2) -> 
       let e1 = expr e1 in
       let e2 = tuple e2 in

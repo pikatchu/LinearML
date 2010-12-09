@@ -28,7 +28,7 @@ module ExtractRecords = struct
 
   and pat_field ty v acc = function
     | PFany -> acc
-    | PFid x -> ([ty, x], Est.Eid v) :: acc 
+    | PFid x -> ([ty, x], Est.Eid (ty, v)) :: acc 
     | PField (fd_id, [l]) -> 
 	let xl = List.map get_field_id l in
 	(xl, Est.Efield ((ty, v), fd_id)) :: acc
@@ -366,7 +366,8 @@ and expr t (tyl, e) =
 and expr_ t tyl = function
   | Eid x -> (* t, [lone tyl, x] *)
       let idl = make_idl tyl in
-      let t = equation t idl (Est.Eid x) in
+      let ty = match tyl with [ty] -> ty | _ -> assert false in
+      let t = equation t idl (Est.Eid (ty, x)) in
       t, idl 
   | Efield (e, x) -> 
       let idl = make_idl tyl in
@@ -404,10 +405,10 @@ and expr_ t tyl = function
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
       t, ridl
-  | Eapply (x, e) -> 
+  | Eapply (ty, x, e) -> 
       let t, idl1 = tuple t e in
       let idl2 = make_idl tyl in
-      let t = equation t idl2 (Est.Eapply (x, idl1)) in
+      let t = equation t idl2 (Est.Eapply ((ty, x), idl1)) in
       t, idl2
   | Eseq (e1, e2) -> 
       let t, _ = expr t e1 in
@@ -424,6 +425,7 @@ and simpl_expr t tyl e =
   t, [id]
   
 and simpl_expr_ t ty = function
+  | Enull -> t, Est.Enull 
   | Evalue v -> t, Est.Evalue v
   | Evariant (x, e') -> 
       let t, idl = tuple t e' in
@@ -442,7 +444,8 @@ and simpl_expr_ t ty = function
       let t, id = expr t e in
       let t, fdl = lfold field t fdl in
       t, Est.Ewith (id, fdl)
-  | _ -> assert false
+  | (Eseq (_, _)|Eapply (_, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)|
+    Efield (_, _)|Eid _) -> assert false
 
 and field t (x, e) = 
   let t, idl = tuple t e in

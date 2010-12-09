@@ -1,8 +1,6 @@
 open Utils
 open Neast
 
-module TMap = Map.Make (CompareType)
-
 type env = type_expr IMap.t
 
 module LocalUtils = struct
@@ -39,55 +37,33 @@ module LocalUtils = struct
     | (_, Tapply ((_, x), (_, [y]))) when x = Naming.tobs -> y
     | x -> x
 
-  let rec tundef (_, tyl) = tundef_ tyl
-  and tundef_ tyl = 
-    match tyl with
-    | [] -> false
-    | (_, Tany ) :: _ -> true
-    | _ :: rl -> tundef_ rl
-
-  let rec partial_tundef (_, tyl) = partial_tundef_ tyl
-  and partial_tundef_ tyl = 
-    match tyl with
-    | [] -> false
-    | (_, Tany ) :: _ -> true
-    | (_, Tapply (_, tyl) ) :: rl -> 
-	partial_tundef tyl || partial_tundef_ rl
-    | _ :: rl -> partial_tundef_ rl
-
 (* TODO move this to stastOfTast *)
   let check_numeric p ty = 
     match ty with
-    | _, Tany
     | _, Tprim (Tint32 _ | Tfloat _) -> ()
     | _, _ -> Error.expected_numeric p
 
   let check_bool ((p, ty), _) = 
     match ty with
-    | Tany | Tprim Tbool -> ()
+    | Tprim Tbool -> ()
     | _ -> Error.expected_bool p
 
-  let filter_undef ((x, tyl) as call) rty acc = 
-    if partial_tundef tyl
-    then acc
-    else TMap.add call rty acc
 
-  let rec make_undef p n = 
-    if n = 0
-    then []
-    else (p, Tany) :: make_undef p (n-1)
+  let pos_variant p ty = p, (snd ty)
 
-  let rec pos_variant p ty =
+  let rec has_any b (_, ty) = 
     match ty with
-    | _, Tapply (id, (_, argl)) ->
-	p, Tapply (id, (p, List.map (fun (_, x) -> p, x) argl)) 
-    | _, x -> p, x
+    | Tany -> true
+    | Tprim _ -> b
+    | Tvar _ -> b
+    | Tid _ -> b
+    | Tapply (_, l) -> has_any_list b l 
+    | Tfun (l1, l2) -> has_any_list b l1 || has_any_list b l2
 
-  let get_decl acc = function
-    | Dval (fid, (_, Tfun (tyl, _)), None) -> 
-	TMap.add (fid, tyl) true acc
-    | _ -> acc
+  and has_any_list b (_, l) = 
+    List.fold_left has_any b l
 
+  let has_any ty = has_any false ty
 
 end
 open LocalUtils
@@ -152,40 +128,34 @@ module Unify = struct
 
   let rec unify_list env ((p1, _) as l1) ((p2, _) as l2) = 
     try unify_list_ env l1 l2
-    with Error.Type err_l -> 
+    with Error.Type err_l ->
       let err = Error.Unify {
 	Error.pos1 = p1 ;
 	Error.pos2 = p2 ;
 	Error.print1 = Print.type_expr_list l1 ;
 	Error.print2 = Print.type_expr_list l2 ; 
       } in
-      raise (Error.Type (err :: err_l))
+      raise (Error.Type (err :: err_l)) 
 
-  and unify_list_ env ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
-    let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
-    let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
+  and unify_list_ env (p1, tyl1) (p2, tyl2) = 
     if List.length tyl1 <> List.length tyl2
     then Error.arity p1 p2 (List.length tyl1) (List.length tyl2)
-    else 
-      let tyl = List.map2 (unify_el_ env) tyl1 tyl2 in
-      (p1, tyl)
+    else (p1, List.map2 (unify_el_ env) tyl1 tyl2)
 	
   and unify_el env ty1 ty2 = 
     try unify_el_ env ty1 ty2
-    with Error.Type _ -> 
+    with Error.Type _ ->
       let err = Error.Unify {
 	Error.pos1 = fst ty1 ;
 	Error.pos2 = fst ty2 ;
 	Error.print1 = Print.type_expr ty1 ;
 	Error.print2 = Print.type_expr ty2 ;
       } in
-      raise (Error.Type [err])
+      raise (Error.Type [err]) 
 
-  and unify_el_ env ((p, _) as ty1) ty2 = 
+  and unify_el_ env ty1 ((p, _) as ty2) = 
     p, match ty1, ty2 with
-    | (_, Tapply ((_, x) as id, tyl1)), (p2, Tapply ((_, y), tyl2)) when x = y -> 
-	let tyl1 = p, snd tyl1 in
-	let tyl2 = p2, snd tyl2 in
+    | (_, Tapply ((_, x) as id, tyl1)), (_, Tapply ((_, y), tyl2)) when x = y -> 
 	let tyl = unify_list env tyl1 tyl2 in 
 	Tapply (id, tyl)
     | (_, Tfun (tyl1, tyl2)), (_, Tfun (tyl3, tyl4)) ->
@@ -196,11 +166,13 @@ module Unify = struct
 
   and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
-    | Tany, ty 
-    | ty, Tany -> ty
-    | Tprim x, Tprim y when x = y -> ty1
-    | Tvar (_, x), Tvar (_, y) when (x = y) -> ty1
-    | Tid (_, x), Tid (_, y) when x = y -> ty1
+    | Tprim _, (Tany | Tvar _) -> Error.prim_is_not_poly p2
+    | (Tany | Tvar _), Tprim _ -> Error.poly_is_not_prim p2
+    | Tany, _ -> ty2
+    | _, Tany -> ty1
+    | Tprim x, Tprim y when x = y -> ty2
+    | Tvar (_, x), Tvar (_, y) when (x = y) -> ty2
+    | Tid (_, x), Tid (_, y) when x = y -> ty2
     | _ -> 
       let pty1 = Print.type_expr pty1 in
       let pty2 = Print.type_expr pty2 in
@@ -226,19 +198,17 @@ end
 
 module Instantiate = struct
 
-  let rec inst_list env subst ((p1, tyl1) as l1) ((p2, tyl2) as l2) = 
-    let tyl1 = if tundef l1 then make_undef p1 (List.length tyl2) else tyl1 in
-    let tyl2 = if tundef l2 then make_undef p2 (List.length tyl1) else tyl2 in
+  let rec inst_list env subst (p1, tyl1) (p2, tyl2) = 
     let size1 = List.length tyl1 in
     let size2 = List.length tyl2 in
     if size1 <> size2
-    then begin
-      Error.arity p1 p2 size1 size2
-    end
+    then Error.arity p1 p2 size1 size2
     else List.fold_left2 (inst env) subst tyl1 tyl2
         
   and inst env subst (pl1, ty1) (pl2, ty2) = 
     match ty1, ty2 with
+    | Tprim _, (Tany | Tvar _) -> Error.prim_is_not_poly pl2
+    | (Tany | Tvar _), Tprim _ -> Error.poly_is_not_prim pl2
     | Tany, _  -> subst
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> subst
     | Tvar (_, x), Tvar (_, y) when x = y -> subst
@@ -246,14 +216,12 @@ module Instantiate = struct
     | Tid (_, x), Tid (_, y) when x = y -> subst
     | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
 	inst_list env subst tyl1 tyl2
-    | Tapply ((_, x), tyl1), Tany -> 
-	inst_list env subst tyl1 (pl2, (make_undef pl1 (List.length (snd tyl1))))
     | _, Tany -> subst
     | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) ->
 	let subst = inst_list env subst tyl1 tyl2 in
 	let subst = inst_list env subst tyl3 tyl4 in
 	subst
-    | ty1, ty2 -> 
+    | ty1, ty2 ->
 	let err = Error.Unify {
 	  Error.pos1 = pl1 ;
 	  Error.pos2 = pl2 ;
@@ -268,8 +236,6 @@ module Instantiate = struct
       let fv = FreeVars.type_expr ISet.empty ty1 in
       if ISet.mem x fv
       then Error.recursive_type p
-      else if ty2 = Tany
-      then subst
       else inst env subst ty1 (p, ty2)
     with Not_found -> IMap.add x (p, ty2) subst
 
@@ -307,8 +273,6 @@ end
 module Env = struct
 
   let tfree = tfun [tany] [tprim Tunit]
-  let tget = tfun [tany ; tany] [tany] (* TODO type *)
-  let tlength = tfun [tany] [tprim Tint32] (* TODO type *)
   let tprint = tfun [tprim Tstring] [tprim Tint32]
   let tprint_int = tfun [tprim Tint32] [tprim Tunit]
 
@@ -355,8 +319,6 @@ module Env = struct
   let rec make mdl = 
     let env = IMap.empty in
     let env = IMap.add Naming.free tfree env in
-    let env = IMap.add Naming.get tget env in
-    let env = IMap.add Naming.length tlength env in
     let env = IMap.add Naming.print tprint env in
     let env = IMap.add Naming.print_int tprint_int env in
     let env = IMap.add Naming.share share env in
@@ -414,7 +376,8 @@ and module_ env md = try
     Tast.md_decls = md.md_decls ;
     Tast.md_defs = defs ;
   }
-with Error.Type errl -> Error.unify errl
+with Error.Type errl -> 
+  Error.unify errl
   
 and declare env = function
   | Dval (x, ty, Some _) -> IMap.add (snd x) ty env
@@ -435,12 +398,6 @@ and pat env (p1, pl) (p2, tyl) =
   match pl with
   | [] -> assert false
   | [(p1, l_) as l] -> 
-      let tyl = 
-	if tundef (p2, tyl)
-	then List.map (
-	  fun (p, _) -> p, Tany
-	 ) l_
-	else tyl in
       let size1 = List.length l_ in
       let size2 = List.length tyl in
       if size1 <> size2
@@ -557,7 +514,8 @@ and tuple_ env p = function
   | Eapply (x, el) ->
       let ((tyl, _) as el) = tuple env el in
       let rty = apply env p x tyl in
-      let res = rty, Tast.Eapply (x, el) in
+      let fty = IMap.find (snd x) env in
+      let res = rty, Tast.Eapply (fty, x, el) in
       res 
   | Eif (e1, el1, el2) -> 
       let e1 = expr env e1 in
@@ -710,10 +668,6 @@ and apply env p (fp, x) tyl =
   match IMap.find x env with
   | (_, Tfun (tyl1, tyl2)) ->
       Instantiate.call env tyl1 tyl tyl2
-  | (_, Tany) ->
-      let rty = p, [p, Tany] in
-      let env = IMap.add x (p, Tfun (tyl, rty)) env in
-      apply env p (fp, x) tyl
   | p2, ty -> 
       Print.debug [p2, ty] ;
       Error.expected_function fp (* TODO *)

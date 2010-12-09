@@ -389,6 +389,12 @@ let poly_is_not_prim p =
   err "You cannot use a primitive type here, a pointer is expected" ;
   exit 2
 
+let prim_is_not_poly p = 
+  pos p ;
+  err "You cannot use a pointer here, a primitive type is expected" ;
+  exit 2
+
+
 let cannot_free_field p v = 
   pos p ;
   err ("This record cannot be freed because the field ["^(Ident.to_string v)^
@@ -403,4 +409,11 @@ let undef_field p fd =
 let type_missing p = 
   pos p ;
   err "Missing type definition" ;
+  exit 2
+
+let cannot_free p fty = 
+  pos p ;
+  err "This expression has type: " ;
+  fty oerr ;
+  err "You can only free records or strings" ;
   exit 2

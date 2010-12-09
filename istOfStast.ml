@@ -32,6 +32,8 @@ and type_expr (_, ty) =
   | Tprim x -> Ist.Tprim x
   | Tvar x -> Ist.Tvar (id  x)
   | Tid x -> Ist.Tid (id x)
+  (* Special case *)
+(*  | Tapply ((_, x), (_, [ty])) when x = Naming.toption -> type_expr ty *)
   | Tapply (x, tyl) -> Ist.Tapply (id x, type_expr_list tyl)
   | Tfun (tyl1, tyl2) -> Ist.Tfun (type_expr_list tyl1, type_expr_list tyl2)
 
@@ -59,9 +61,12 @@ and pat_field (_, pf) =
 and tuple (_, tpl) = List.map tuple_pos tpl
 and tuple_pos (tyl, e) = type_expr_list tyl, expr_ e
 and expr (ty, e) = [type_expr ty], expr_ e
+
 and expr_ = function
   | Eid x -> Ist.Eid (id x)
   | Evalue x -> Ist.Evalue (value x)
+(*  | Evariant ((_, x), (_, [])) when x = Naming.none -> Ist.Enull
+  | Evariant ((_, x), (_, [_, y])) when x = Naming.some -> expr_ y *)
   | Evariant (x, e) -> Ist.Evariant (id x, tuple e)
   | Ebinop (x, e1, e2) -> Ist.Ebinop (x, expr e1, expr e2)
   | Euop (x, e) -> Ist.Euop (x, expr e)
@@ -71,7 +76,7 @@ and expr_ = function
   | Ematch (e, al) -> Ist.Ematch (tuple e, List.map action al)
   | Elet (p, e1, e2) -> Ist.Elet (pat p, tuple e1, tuple e2)
   | Eif (e1, e2, e3) -> Ist.Eif (expr e1, tuple e2, tuple e3)
-  | Eapply (x, e) -> Ist.Eapply (id x, tuple e)
+  | Eapply (ty, x, e) -> Ist.Eapply (type_expr ty, id x, tuple e)
   | Eseq (e1, e2) -> Ist.Eseq (expr e1, tuple e2)
   | Eobs x -> Ist.Eid (id x)
 

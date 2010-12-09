@@ -72,7 +72,7 @@ end = struct
   and type_expr_list env (_, tyl) = List.iter (type_expr env) tyl
   and type_expr env (pos, ty) = type_expr_ env ty
   and type_expr_ env = function
-    | Tany 
+    | Tany
     | Tprim _   | Tvar _  -> ()
     | Tid (p, x) -> 
 	let pdef, arity = get x env in

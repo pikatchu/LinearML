@@ -6,7 +6,7 @@ open Est
 (* This is because an algebric data type can be represented as an *)
 (* enum, as just a record or as a discriminated union. *)
 (* Variants with arguments don't necessarely need a tag *)
-(* Variants with only one argument which is a pointer are unboxed 
+(* Variant "Some" with only one argument which is a pointer are unboxed 
    if the argument is not a pointer, it would be dangerous to unbox it 
 *)
 (* Variants without arguments can be represented as a null pointer *)
@@ -47,6 +47,19 @@ end = struct
   
 end
 
+module PredefTypes = struct
+  open Llst
+
+  let (++) acc (x, y) = IMap.add x y acc 
+
+  let make() = 
+    IMap.empty ++ 
+      (Naming.print_int, Tfun ([Tprim Tint32], [Tprim Tunit])) ++
+      (Naming.free, Tfun ([Tany], [Tprim Tunit]))
+      (* TODO add the others *)
+
+end
+
 module VEnv = struct
 
   type t = {
@@ -54,7 +67,6 @@ module VEnv = struct
       is_enum: ISet.t ;
       is_tagged: ISet.t ;
       is_null: ISet.t ;
-      is_unboxed: ISet.t ;
       values: int IMap.t ;
       types: Llst.type_expr IMap.t ;
       is_rec: ISet.t ;
@@ -64,8 +76,7 @@ module VEnv = struct
     pointers = Pointer.empty;
     is_enum = ISet.empty;
     is_tagged = ISet.empty;
-    is_null = ISet.empty;
-    is_unboxed = ISet.empty;
+    is_null = ISet.singleton Naming.none;
     values = IMap.empty;
     types = IMap.empty ;
     is_rec = ISet.empty ;
@@ -76,11 +87,10 @@ module VEnv = struct
     then ISet.add x acc 
     else acc
 
-  let update t en tag nu un vals ir = { t with
+  let update t en tag nu vals ir = { t with
     is_enum = en ;
     is_tagged = tag ;
     is_null = nu ;
-    is_unboxed = un ;
     values = vals ;
     is_rec = ir ;			      
   }
@@ -123,14 +133,13 @@ module VEnv = struct
     in
     let is_tagged = IMap.fold (add (nzargs > 1)) td.td_map is_tagged in
     let is_null = IMap.fold (add (zargs = 1)) td.td_map t.is_null in
-    let is_unboxed = IMap.fold (unboxed t is_tagged) td.td_map t.is_unboxed in
     let values = IMap.fold (add_simpl_value (ref (-1))) td.td_map t.values in
     let values = IMap.fold (add_cplx_value (ref (-1))) td.td_map values in
     let is_rec = 
       if zargs = 1 && nzargs = 1 && false (* TODO check if this is usefull *)
       then ISet.add td.td_id t.is_rec 
       else t.is_rec in
-    let t = update t is_enum is_tagged is_null is_unboxed values is_rec in
+    let t = update t is_enum is_tagged is_null values is_rec in
     t
 
   and add_simpl_value counter x (_, l) acc = 
@@ -145,14 +154,6 @@ module VEnv = struct
       incr counter ; 
       IMap.add x !counter acc
     end
-    else acc
-
-  and unboxed t is_tagged x (tag, args) acc = 
-    if tag = Naming.some
-    then match args with
-    | [] -> acc
-    | [ty] when Pointer.type_expr t.pointers ty -> ISet.add x acc
-    | _ -> acc
     else acc
 
   and has_args _ (_, args) n = 
@@ -216,9 +217,10 @@ end
 
 open VEnv
 
+
 let rec program mdl = 
   let t = VEnv.program mdl in
-  let tydecls = (IMap.empty, IMap.empty) in
+  let tydecls = (PredefTypes.make(), IMap.empty) in
   let types, tdecls = List.fold_left (module_decl t) tydecls mdl in
   List.rev_map (module_ t types tdecls) mdl 
 
@@ -282,7 +284,7 @@ and make_variant t tag (_, tyl) (types, acc) =
     let types = IMap.add tag ty types in
     let acc = Llst.Dtype (tag, ty) :: acc in
     types, acc
-  else if ISet.mem tag t.is_unboxed
+  else if tag = Naming.some
   then (match tyl with 
     [x] -> 
       let types = IMap.add tag x types in
@@ -343,7 +345,7 @@ and ret bls t = function
   | Match ([ty, x], al) ->
       let v = type_expr ty, x in
       (match al with
-      | [] -> assert false
+      | [] -> assert false	  
       | ([_, Pvariant (x, [])], lbl1) :: rl when ISet.mem x t.is_null -> 
 	  let cond = Llst.Tprim Tbool, Ident.tmp() in
 	  let tail = [[cond], Llst.Eis_null v] in 
@@ -416,35 +418,58 @@ and equation t (idl, e) acc =
   | Evariant (x, vl) -> 
       if ISet.mem x t.is_tagged
       then 
-	let ty = Llst.Tid x in (* IMap.find x t.types in*)
+	let vl = ty_idl vl in
+	let xl = match IMap.find x t.types with 
+	| Llst.Tptr (Llst.Tstruct tyl) -> 
+	    List.map (fun ty -> ty, Ident.tmp()) (List.tl tyl)
+	| _ -> assert false in
+	let ty = Llst.Tid x in 
 	let tag = Llst.Tprim Tint32, Ident.tmp() in
 	let vid = Ident.tmp() in
-	let v = Llst.Etuple (None, tuple 0 (tag :: ty_idl vl)) in
+	let v = Llst.Etuple (None, tuple 0 (tag :: xl)) in
 	let acc = (idl, Llst.Ecast (fst (List.hd idl), vid)) :: acc in
 	let acc = ([ty, vid], v) :: acc in
 	let tag_value = Llst.Evalue (Llst.Eiint (IMap.find x t.values)) in
 	let acc = ([tag], tag_value) :: acc in
+	let acc = add_casts xl vl acc in
 	acc
-      else if ISet.mem x t.is_unboxed 
-      then (idl, Llst.Eid (snd (List.hd vl))) :: acc
+      else if x = Naming.some
+      then 
+	let v = ty_id (List.hd vl) in
+	(idl, Llst.Ecast (Llst.Tid Naming.toption, snd v)) :: acc
       else 
+	let vl = ty_idl vl in
+	let xl = match IMap.find x t.types with 
+	| Llst.Tptr (Llst.Tstruct tyl) -> 
+	    List.map (fun ty -> ty, Ident.tmp()) tyl 
+	| _ -> assert false in
 	let vid = Ident.tmp() in
-	let ty = Llst.Tid x in (* IMap.find x t.types in *)
+	let ty = Llst.Tid x in 
 	let tyv = ty, vid in
-	let v = Llst.Etuple (None, tuple 0 (ty_idl vl)) in
+	let fdl = tuple 0 xl in
+	let v = Llst.Etuple (None, fdl) in
 	let acc = (idl, Llst.Ecast (fst (List.hd idl), vid)) :: acc in
 	let acc = ([tyv], v) :: acc in
+	let acc = add_casts xl vl acc in
 	acc
-  | Eapply (x, vl) -> 
-      let vl = ty_idl vl in
-(* TODO add cast for parameters *)
-      (match get_rty t x with
-      | None -> (idl, Llst.Eapply (false, x, vl)) :: acc
-      | Some rty ->
-	  let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
-	  let acc = add_casts idl xl acc in
-	  let acc = (xl, Llst.Eapply (false, x, vl)) :: acc in
-	  acc) 
+  | Eapply ((ty, x), vl) -> 
+      let argl' = ty_idl vl in
+      let argl = match ty with
+      | Tfun (tyl, _) -> 
+	  let tyl = type_expr_list tyl in
+	  List.map (fun ty -> ty, Ident.tmp()) tyl 
+      | _ -> assert false in
+      let acc = 
+	match get_rty t x with
+	| None -> (idl, Llst.Eapply (false, x, argl)) :: acc
+	| Some rty ->
+	    let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
+	    let acc = add_casts idl xl acc in
+	    let acc = (xl, Llst.Eapply (false, x, argl)) :: acc in
+	    acc
+      in
+      let acc = add_casts argl argl' acc in
+      acc
   | Efield (v, y) -> 
       let v = ty_id v in
       let n = ref (IMap.find y t.values) in
@@ -454,7 +479,7 @@ and equation t (idl, e) acc =
 	incr n ;
 	res :: acc
      ) acc idl 
-  | e -> (idl, expr t e) :: acc
+  | e -> (idl, expr t idl e) :: acc
 
 and tuple n vl = 
   match vl with
@@ -471,16 +496,27 @@ and add_casts idl1 idl2 acc =
   match idl1, idl2 with
   | [], [] -> acc
   | [], _ | _, [] -> assert false
-  | (ty, _) as x1 :: rl1, (Llst.Tany, x2) :: rl2 -> 
+  | (Llst.Tany, _) as x1 :: rl1, (Llst.Tany, x2) :: rl2 -> 
       let acc = add_casts rl1 rl2 acc in
-      let acc = ([x1], Llst.Ecast (ty, x2)) :: acc in
+      ([x1], Llst.Eid x2) :: acc      
+  | (ty1, _) as x1 :: rl1, (ty2, x2) :: rl2 when ty1 <> ty2 ->
+      let acc = add_casts rl1 rl2 acc in
+      let acc = ([x1], Llst.Ecast (ty1, x2)) :: acc in
       acc
   | x1 :: rl1, x2 :: rl2 -> 
       let acc = add_casts rl1 rl2 acc in
       ([x1], Llst.Eid (snd x2)) :: acc
 
-and expr t = function
-  | Eid x -> Llst.Eid x
+and expr t idl = function
+  | Enull -> Llst.Enull 
+  | Eid (xty, x) -> 
+      (match idl with
+      | [ety, _] -> 
+	  let xty = type_expr xty in
+	  if xty <> ety
+	  then Llst.Ecast (ety, x)
+	  else Llst.Eid x
+      | _ -> assert false)
   | Evalue x -> Llst.Evalue (value x)
   | Euop (uop, x) -> Llst.Euop (uop, ty_id x) 
   | Ebinop (bop, x1, x2) -> Llst.Ebinop (bop, ty_id x1, ty_id x2)
@@ -488,11 +524,11 @@ and expr t = function
   | Ecall _ -> assert false
   | Eif _ -> assert false
   | Ematch _ -> assert false
-  | Erecord fdl -> 
-      Llst.Etuple (None, fields t fdl)
+  | Erecord fdl -> Llst.Etuple (None, fields t fdl)
   | Ewith ((ty, x), fdl) -> 
       let ty = type_expr ty in
       Llst.Etuple (Some (ty, x), fields t fdl)
+  | Eis_null x -> Llst.Eis_null (ty_id x)
   | Eseq _ -> assert false
   | Evariant _ -> assert false
   | Eapply _ -> assert false

@@ -93,6 +93,71 @@ module Normalize = struct
 
 end
 
+module RemoveOption = struct
+
+  let is_option al = 
+    let l = List.map fst al in
+    try List.iter (
+      function 
+	| [_, Pvariant (x, _)] when x = Naming.none || x = Naming.some ->
+	    raise Exit
+	| _ -> ()
+     ) l ; false
+    with Exit -> true
+
+  let rec make_none al = 
+    match al with
+    | [] -> assert false
+    | ([_, Pvariant (x, [])], lbl) :: _ when x = Naming.none ->
+	lbl
+    | _ :: rl -> make_none rl
+
+  let rec make_some v t al = 
+    match al with
+    | [] -> assert false
+    | ([_, Pany], lbl) :: _ ->
+	t, lbl
+    | ([_, Pvariant (x, [ty, Pid y])], lbl) :: _ when x = Naming.some ->
+	let casts = try IMap.find lbl t with Not_found -> [] in
+	IMap.add lbl (((ty, y), v) :: casts) t, lbl
+    | _ :: rl -> make_some v t rl
+
+  let add_cast t bl = 
+    if IMap.mem bl.bl_id t
+    then 
+      let casts = IMap.find bl.bl_id t in
+      let eqs = List.fold_right (
+	fun (x, y) acc -> ([x], Est.Eid y) :: acc
+       ) casts bl.bl_eqs in
+      { bl with bl_eqs = eqs }
+    else bl
+	
+  let rec def df = 
+    let t = IMap.empty in
+    let t, bll = List.fold_right block df.df_body (t, []) in
+    let bll = List.map (add_cast t) bll in 
+    let df = { df with df_body = bll } in
+    df
+
+  and block bl (t, acc) = 
+    let work, rt = ret t bl.bl_ret in
+    match work with
+    | None -> t, bl :: acc
+    | Some (t, eqs) ->
+	t, { bl with bl_eqs = bl.bl_eqs @ eqs ; bl_ret = rt } :: acc
+
+  and ret t = function
+    | Match ([v], al) when is_option al -> 
+	let cid = Tprim Tbool, Ident.tmp() in
+	let eqs = [[cid], Eis_null v] in
+	let lbl1 = make_none al in
+	let t, lbl2 = make_some v t al in 
+	Some (t, eqs), If (cid, lbl1, lbl2)
+    | x -> None, x
+
+  
+end
+
 module RemoveUnderscore = struct
 
   let rec type_expr t = function
@@ -137,7 +202,9 @@ and module_ t md =
 
 and def t df = 
   let body = List.map (block t) df.df_body in
-  { df with df_body = body }
+  let df = { df with df_body = body } in
+  let df = RemoveOption.def df in
+  df
 
 and block t bl = 
   let rt = ret t bl.bl_ret in

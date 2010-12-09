@@ -52,7 +52,8 @@ and phi = id * Ist.type_expr * (id * label) list
 and equation = ty_idl * expr
 
 and expr = 
-  | Eid of id
+  | Enull
+  | Eid of ty_id
   | Evalue of Ist.value
   | Evariant of id * ty_idl
   | Ebinop of Ast.bop * ty_id * ty_id
@@ -62,7 +63,8 @@ and expr =
   | Efield of ty_id * id 
   | Ematch of ty_idl * (pat * expr) list
   | Ecall of label
-  | Eapply of id * ty_idl
+  | Eapply of ty_id * ty_idl
   | Eseq of ty_id * ty_idl
   | Eif of ty_id * label * label
+  | Eis_null of ty_id
 

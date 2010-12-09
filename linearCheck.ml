@@ -221,8 +221,8 @@ and expr_ t = function
       (match get x t with
       | Used p' -> Error.already_used p p'
       | _ -> t)
-  | Eapply ((_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
-  | Eapply (_, e) -> tuple t e 
+  | Eapply (_, (_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
+  | Eapply (_, _, e) -> tuple t e 
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2
