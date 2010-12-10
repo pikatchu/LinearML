@@ -35,7 +35,6 @@ and type_prim =
   | Tchar
   | Tint32
   | Tfloat
-  | Tstring
 
 and def = id * pat list * expr
 

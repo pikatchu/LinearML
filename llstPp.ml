@@ -73,7 +73,6 @@ and type_prim = function
   | Tchar -> o "char"
   | Tint32 -> o "int32"
   | Tfloat -> o "float"
-  | Tstring -> o "string"
 
 and def df = 
   id df.df_id ; 

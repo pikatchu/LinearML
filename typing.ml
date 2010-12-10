@@ -112,7 +112,6 @@ module Print = struct
     | Tchar	-> o "char"
     | Tint32	-> o "int32"
     | Tfloat	-> o "float"
-    | Tstring   -> o "string"
 
   let debug tyl = 
     type_expr_list (output_string stdout) (Pos.none, tyl) ;
@@ -273,7 +272,6 @@ end
 module Env = struct
 
   let tfree = tfun [tany] [tprim Tunit]
-  let tprint = tfun [tprim Tstring] [tprim Tint32]
   let tprint_int = tfun [tprim Tint32] [tprim Tunit]
 
   let tsome = 
@@ -319,7 +317,6 @@ module Env = struct
   let rec make mdl = 
     let env = IMap.empty in
     let env = IMap.add Naming.free tfree env in
-    let env = IMap.add Naming.print tprint env in
     let env = IMap.add Naming.print_int tprint_int env in
     let env = IMap.add Naming.share share env in
     let env = IMap.add Naming.clone clone env in
@@ -565,6 +562,9 @@ and expr_ env (p, e) =
       let ty = IMap.find x env in
       let ty = p, (snd ty) in
       (ty, Tast.Eid id)
+  | Evalue ((Nast.Estring _) as v) -> 
+      let ty = p, Tid (p, Naming.string) in
+      (ty, Tast.Evalue v)
   | Evalue v -> 
       let ty = p, Tprim (value v) in
       (ty, Tast.Evalue v)
@@ -662,7 +662,7 @@ and value = function
   | Nast.Eint _ -> Tint32
   | Nast.Efloat _ -> Tfloat
   | Nast.Echar _ -> Tchar
-  | Nast.Estring _ -> Tstring
+  | Nast.Estring _ -> assert false
 
 and apply env p (fp, x) tyl = 
   match IMap.find x env with

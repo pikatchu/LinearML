@@ -32,7 +32,6 @@ and type_prim = Nast.type_prim =
   | Tchar
   | Tint32
   | Tfloat
-  | Tstring
 
 and ty_id = type_expr * id
 and ty_idl = ty_id list

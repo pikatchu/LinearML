@@ -38,7 +38,6 @@ end = struct
 
   let rec type_expr t = function
     | Tany -> true
-    | Tprim Tstring -> true 
     | Tprim _ -> false
     | Tvar _ -> true 
     | Tid x

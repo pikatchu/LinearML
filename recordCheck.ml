@@ -108,7 +108,6 @@ and check_field pos x (a, ty) =
 let rec type_expr_list (_, tyl) = List.map type_expr tyl
 and type_expr (_, ty) = type_expr_ ty
 and type_expr_ = function
-  | Tprim Tstring -> A
   | Tprim _ -> P
   | Tany 
   | Tvar _ | Tfun _ -> A

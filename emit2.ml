@@ -127,7 +127,6 @@ module Type = struct
     | Tchar -> i8_type ctx
     | Tint32 -> i32_type ctx
     | Tfloat -> float_type ctx
-    | Tstring -> pointer_type (i8_type ctx)
 
   and type_list mds t ctx l = 
     let tyl = List.map (type_ mds t ctx) l in

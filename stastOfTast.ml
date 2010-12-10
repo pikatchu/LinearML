@@ -12,7 +12,6 @@ let check_free t x (ty, _) =
   if x = Naming.free then
   match snd ty with
   | [] -> assert false
-  | [_, Neast.Tprim Nast.Tstring] -> ()
   | [_, Neast.Tapply ((_, x), _)]
   | [_, Neast.Tid (_, x)] when ISet.mem x t -> ()
   | tyl -> Error.cannot_free (fst ty) (Typing.Print.type_expr_list ty) 

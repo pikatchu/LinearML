@@ -384,7 +384,6 @@ and tid_ env p = function
   | "int32" -> Nast.Tprim Nast.Tint32
   | "float" -> Nast.Tprim Nast.Tfloat
   | "char" -> Nast.Tprim Nast.Tchar
-  | "string" -> Nast.Tprim Nast.Tstring
   | x -> Nast.Tid (Env.type_ env (p, x))
 
 and tvariant genv sig_ env (id, ty) = 
