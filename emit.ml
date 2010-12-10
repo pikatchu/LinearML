@@ -80,8 +80,16 @@ module Type = struct
     let args = List.map fst df.df_args in
     let args = Array.of_list args in
     let args = Array.map (type_ mds t ctx) args in
-    let rett = match df.df_ret with [ty] -> type_ mds t ctx ty 
-    | l -> struct_type ctx (Array.of_list (List.map (type_ mds t ctx) l)) in
+    let rett = 
+      match df.df_ret with [ty] -> type_ mds t ctx ty 
+      | l -> 
+	let l = List.map ( (* This is ridiculous *)
+	  function
+	    | Tprim _ as x -> x
+	    | _ -> Tany
+	 ) l in 
+	  struct_type ctx (Array.of_list (List.map (type_ mds t ctx) l)) 
+    in
     let ftype = function_type rett args in
     let fdec = declare_function (Ident.to_string df.df_id) ftype md in
     let cconv = Llvm.CallConv.fast in
@@ -103,15 +111,20 @@ module Type = struct
 (* TODO add primitive types in a cleaner way *)
     | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
     | Tfun (ty1, [ty2]) -> 
-	let ty1 = List.map (type_ mds t ctx) ty1 in
+	let ty1 = type_list mds t ctx ty1 in
 	let ty2 = type_ mds t ctx ty2 in
-	let ty = function_type ty2 (Array.of_list ty1) in
+	let ty = function_type ty2 ty1 in
 	pointer_type ty
     | Tfun (ty1, ty2) -> 
-	let ty1 = List.map (type_ mds t ctx) ty1 in
+	let ty1 = type_list mds t ctx ty1 in
+	let ty2 = List.map ( (* This is ridiculous *)
+	  function
+	    | Tprim _ as x -> x
+	    | _ -> Tany
+	 ) ty2 in 
 	let rty = type_list mds t ctx ty2 in
 	let rty = struct_type ctx rty in
-	let fty = function_type rty (Array.of_list ty1) in
+	let fty = function_type rty ty1 in
 	pointer_type fty
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
@@ -310,8 +323,6 @@ and block env acc bl =
   let bb = IMap.find bl.bl_id env.bls in
   position_at_end bb env.builder ;  
   let acc = List.fold_left (make_phi env) acc bl.bl_phi in
-(*  let acc = List.fold_left (instruction bb env) acc bl.bl_eqs in 
-  return env acc bl.bl_ret ; *)
   let acc = instructions bb env acc bl.bl_ret bl.bl_eqs in 
   acc
 
@@ -319,8 +330,14 @@ and return env acc = function
   | Return [] -> assert false
   | Return [_, x] -> 
        ignore (build_ret (IMap.find x acc) env.builder)
-  | Return l ->
-      let l = List.map (fun (_, x) -> IMap.find x acc) l in
+  | Return l -> 
+      let l = List.map (
+	fun (ty, x) -> (* ridiculous again *)
+	  let ty = match ty with Tprim _ as x -> x | _ -> Tany in
+	  let ty = Type.type_ env.mds env.types env.ctx ty in  
+	  let v = IMap.find x acc in
+	  build_bitcast v ty "" env.builder
+       ) l in
       let t = Array.of_list l in
       ignore (build_aggregate_ret t env.builder)
   | Jump lbl -> 
@@ -355,13 +372,27 @@ and instructions bb env acc ret l =
 	   ) true vl1 vl2 in
 	  if c 
 	  then begin (* tail call *)
-	    let f = IMap.find f acc in
-	    let l = List.map (fun (_, v) -> IMap.find v acc) l in
-	    let t = Array.of_list l in
-	    let v = build_call f t "" env.builder in
-	    set_instruction_call_conv Llvm.CallConv.fast v ;
-	    ignore (build_ret v env.builder) ;
-	    acc
+	    match vl2 with
+	    | [ty, _] ->
+		let ty = Type.type_ env.mds env.types env.ctx ty in      
+		let l = List.map (fun (_, v) -> IMap.find v acc) l in
+		let t = Array.of_list l in
+		let f = IMap.find f acc in
+		let v = build_call f t "" env.builder in
+		set_instruction_call_conv Llvm.CallConv.fast v ;
+		set_tail_call true v ;
+		let v = build_bitcast v ty "" env.builder in
+		ignore (build_ret v env.builder) ;
+		acc
+	    | _ -> (* This is ridiculous *)
+		let l = List.map (fun (_, v) -> IMap.find v acc) l in
+		let t = Array.of_list l in
+		let f = IMap.find f acc in
+		let v = build_call f t "" env.builder in
+		set_tail_call true v ;
+		set_instruction_call_conv Llvm.CallConv.fast v ;
+		ignore (build_ret v env.builder) ;
+		acc
 	  end
 	  else 
 	    let acc = instruction bb env acc instr in
@@ -400,8 +431,10 @@ and apply env acc xl f l =
 and extract_values env acc xl v =
   let n = ref 0 in
   List.fold_left (
-  fun acc (_, x) -> 
+  fun acc (ty, x) -> 
+    let ty = Type.type_ env.mds env.types env.ctx ty in      
     let nv = build_extractvalue v !n (Ident.to_string x) env.builder in
+    let nv = build_bitcast nv ty "" env.builder in
     incr n ;
     IMap.add x nv acc
  ) acc xl

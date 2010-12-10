@@ -331,7 +331,7 @@ and block t bl acc =
   { 
     Llst.bl_id = bl.bl_id ;
     Llst.bl_phi = List.map phi bl.bl_phi ;
-    Llst.bl_eqs = List.fold_right (equation t) bl.bl_eqs tail ;
+    Llst.bl_eqs = equations t rt bl.bl_eqs tail ;
     Llst.bl_ret = rt ;
   } :: bls @ acc
 
@@ -398,7 +398,16 @@ and new_switch t v bls vl def =
    } :: bls, lbl
 
 and phi (x, ty, l) = x, type_expr ty, l
-and equation t (idl, e) acc = 
+
+and equations t ret l acc = 
+  match l with
+  | [] -> acc
+  | [e] -> equation t true ret e acc
+  | e :: rl -> 
+      let acc = equations t ret rl acc in
+      equation t false ret e acc
+
+and equation t is_last ret (idl, e) acc = 
   let idl = ty_idl idl in
   match e with
   | Evariant (x, []) -> 
@@ -461,17 +470,17 @@ and equation t (idl, e) acc =
 	match get_rty t x with
 	| None -> (idl, Llst.Eapply (false, x, argl)) :: acc
 	| Some rty ->
-	    let same_type = List.fold_left2 (
-	      fun c (ty1, _) ty2 ->
-		c && ty1 = ty2
-	     ) true idl rty in 
 	    let acc, xl = 
-	      if same_type
-	      then acc, idl
-	      else
-		let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
-		let acc = add_casts idl xl acc in
-		acc, xl
+	      match ret with
+	      | Llst.Return l when is_last &&
+		  List.fold_left2 (
+		  fun c (_, x) (_, y) -> c && x = y
+		 ) true idl l -> (* tail call *)
+		   acc, idl
+	      | _ ->
+		  let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
+		  let acc = add_casts idl xl acc in
+		  acc, xl
 	    in
 	    let acc = (xl, Llst.Eapply (false, x, argl)) :: acc in
 	    acc
