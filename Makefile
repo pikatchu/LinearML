@@ -60,14 +60,13 @@ OBJECTS_ML = \
 	estOptim.ml\
 	estCompile.ml\
 	estNormalizePatterns.ml\
-	estOptimizePatterns.ml\
 	llst.ml\
 	llstPp.ml\
 	llstOfEst.ml\
 	llstFree.ml\
 	llstOptim.ml\
 	llstPullRet.ml\
-	emit2.ml\
+	emit.ml\
 	main.ml
 #	istAdhoc.ml
 
