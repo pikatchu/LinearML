@@ -105,19 +105,27 @@ and equation bls ret acc eq =
       let btarget = Ident.tmp() in
       let rl1 = match b1.bl_ret with Lreturn l -> l | _ -> assert false in
       let rl2 = match b2.bl_ret with Lreturn l -> l | _ -> assert false in
-      let phil = make_phi idl b1.bl_id rl1 b2.bl_id rl2 in
-      let b3 = {
-	bl_id = btarget ;
-	bl_phi = phil ;
-	bl_ret = ret ;
-	bl_eqs = rl ;
-      } in
-      let acc = b3 :: acc in
-      let b2 = { b2 with bl_ret = Jump btarget } in
-      let acc = block bls acc b2 in
-      let b1 = { b1 with bl_ret = Jump btarget } in
-      let acc = block bls acc b1 in
-      acc, If (c, l1, l2), []
+      (match ret, rl with
+      | Return _, [] -> (* this is a tail call *)
+	  let b2 = { b2 with bl_ret = Return rl2 } in
+	  let acc = block bls acc b2 in
+	  let b1 = { b1 with bl_ret = Return rl1 } in
+	  let acc = block bls acc b1 in
+	  acc, If (c, l1, l2), []
+      | _ ->
+	  let phil = make_phi idl b1.bl_id rl1 b2.bl_id rl2 in
+	  let b3 = {
+	    bl_id = btarget ;
+	    bl_phi = phil ;
+	    bl_ret = ret ;
+	    bl_eqs = rl ;
+	  } in
+	  let acc = b3 :: acc in
+	  let b2 = { b2 with bl_ret = Jump btarget } in
+	  let acc = block bls acc b2 in
+	  let b1 = { b1 with bl_ret = Jump btarget } in
+	  let acc = block bls acc b1 in
+	  acc, If (c, l1, l2), [])
   | (idl, Ecall lbl) :: rl -> 
       let acc, ret, eqs = equation bls ret acc rl in
       let b = IMap.find lbl bls in
@@ -149,6 +157,7 @@ and equation bls ret acc eq =
       let acc, ret, eqs = equation bls ret acc bl.bl_eqs in
       acc, ret, eqs @ eqs_rl *)
 
+
   | (idl, Ematch (cl, al)) :: rl -> 
       let acc, ret, rl = equation bls ret acc rl in
       let al = List.map (
@@ -156,25 +165,38 @@ and equation bls ret acc eq =
        ) al in
       let bl = List.map (fun (_, l) -> l) al in
       let bl = List.map (fun x -> IMap.find x bls) bl in
-      let btarget = Ident.tmp() in
-      let retll = List.map (fun b -> 
-	match b.bl_ret with 
-	| Lreturn l -> List.map (fun (_, x) -> x, b.bl_id) l
-	| _ -> assert false) bl in
-      let phil = make_phil idl retll in 
-      let b3 = {
-	bl_id = btarget ;
-	bl_phi = phil ;
-	bl_ret = ret ;
-	bl_eqs = rl ;
-      } in
-      let acc = b3 :: acc in
-      let acc = List.fold_left (
-	fun acc b ->
-	  let b = { b with bl_ret = Jump btarget } in
-	  block bls acc b
-       ) acc bl in
-      acc, Match (cl, al), []
+      (match ret, rl with
+      | Return _, [] -> (* tail call *)
+	  let acc = List.fold_left (
+	    fun acc b ->
+	      let ret = 
+		match b.bl_ret with 
+		| Lreturn idl -> Return idl 
+		| _ -> assert false in
+	      let b = { b with bl_ret = ret } in
+	      block bls acc b
+	   ) acc bl in
+	  acc, Match (cl, al), []	  
+      | _ ->
+	  let btarget = Ident.tmp() in
+	  let retll = List.map (fun b -> 
+	    match b.bl_ret with 
+	    | Lreturn l -> List.map (fun (_, x) -> x, b.bl_id) l
+	    | _ -> assert false) bl in      
+	  let phil = make_phil idl retll in 
+	  let b3 = {
+	    bl_id = btarget ;
+	    bl_phi = phil ;
+	    bl_ret = ret ;
+	    bl_eqs = rl ;
+	  } in
+	  let acc = b3 :: acc in
+	  let acc = List.fold_left (
+	    fun acc b ->
+	      let b = { b with bl_ret = Jump btarget } in
+	      block bls acc b
+	   ) acc bl in
+	  acc, Match (cl, al), [])
   | x :: rl ->
       let acc, ret, rl = equation bls ret acc rl in
       acc, ret, x :: rl

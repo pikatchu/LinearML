@@ -1,22 +1,37 @@
 
+module Map = struct
 
-module List = struct
-
-  type 'a t = 
+  type t = 
     | Empty
-    | Cons of 'a * 'a t
+    | Cons of int32 * t
+    | Lazy of t future
 
-  type ('a, 'b) rest = 
-    | Done
-    | Left of 'a
-    | Right of 'b
 
-  val rev_map_aux: ('acc * 'a -> 'acc * 'c) * 'acc * 'c t * 'a t -> 'acc * 'c t
-  let rec rev_map_aux f acc res l = 
-    match l with
-    | [] -> acc, res
-    | x :: rl -> 
-	let acc, x = f acc x in
-	rev_map_aux f acc (x :: res) rl
+  val f: int32 * int32 -> int32
+  let f acc n = 
+    if n = 0
+    then acc
+    else f (acc+n) (n-1)
+
+  val rev_append: t * t -> t
+  let rev_append l1 l2 = 
+    match l1 with
+    | Empty -> l2
+    | Cons x rl -> rev_append rl (Cons x l2)
+    | Lazy l -> rev_append (wait l) l2
+
+
+  val merge: t * t * t -> t
+  let merge acc l1 l2 = 
+    match l1, l2 with
+    | Lazy l1, l2 -> merge acc (wait l1) l2
+    | l1, Lazy l2 -> merge acc l1 (wait l2)
+    | Empty, l -> rev_append l acc
+    | l, Empty -> rev_append l acc
+    | (Cons x1 rl1 as l1), (Cons x2 rl2 as l2) ->
+	if x1 > x2
+	then merge (Cons x1 acc) rl1 l2
+	else merge (Cons x2 acc) l1 rl2
+
 
 end
