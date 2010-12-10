@@ -18,7 +18,6 @@ let _ =
     let new_module = parse Sys.argv.(i) in
     let nast = Naming.program new_module in
     NastCheck.program nast ;
-    let nast = NastExtractFuns.program nast in
     let neast = NastExpand.program nast in
     NeastCheck.program neast ;
     let tast = Typing.program neast in

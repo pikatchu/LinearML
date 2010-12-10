@@ -41,7 +41,6 @@ OBJECTS_ML = \
 	naming.ml\
 	nastCheck.ml\
 	neast.ml\
-	nastExtractFuns.ml\
 	nastExpand.ml\
 	neastCheck.ml\
 	tast.ml\
