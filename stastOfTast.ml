@@ -23,18 +23,15 @@ module ObsCheck = struct
   and type_expr_ p = function
   | Tany 
   | Tprim _
-  | Tvar _ -> ()
-  | Tid (_, x) when x = Naming.tobs -> Error.obs_not_value p
+  | Tvar _
   | Tid _ -> ()
   | Tapply ((_, x), _) when x = Naming.tobs -> 
       Error.obs_not_allowed p
-
   | Tapply (_, tyl) -> type_expr_list p tyl
   | Tfun (_, tyl) -> type_expr_list p tyl
 
   and type_expr_list p (_, tyl) = 
     List.iter (type_expr p) tyl
-
 
   let tuple ((p, _) as tyl,_) = type_expr_list p tyl
   let expr ((p, _) as ty, _) = type_expr p ty
