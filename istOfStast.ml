@@ -65,8 +65,6 @@ and expr (ty, e) = [type_expr ty], expr_ e
 and expr_ = function
   | Eid x -> Ist.Eid (id x)
   | Evalue x -> Ist.Evalue (value x)
-(*  | Evariant ((_, x), (_, [])) when x = Naming.none -> Ist.Enull
-  | Evariant ((_, x), (_, [_, y])) when x = Naming.some -> expr_ y *)
   | Evariant (x, e) -> Ist.Evariant (id x, tuple e)
   | Ebinop (x, e1, e2) -> Ist.Ebinop (x, expr e1, expr e2)
   | Euop (x, e) -> Ist.Euop (x, expr e)
@@ -79,6 +77,7 @@ and expr_ = function
   | Eapply (ty, x, e) -> Ist.Eapply (type_expr ty, id x, tuple e)
   | Eseq (e1, e2) -> Ist.Eseq (expr e1, tuple e2)
   | Eobs x -> Ist.Eid (id x)
+  | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)
 
 and field (x, e) = id x, tuple e
 and action (p, e) = pat p, tuple e

@@ -75,6 +75,7 @@ and expr =
   | Eptr_of_int of Ident.t
   | Eint_of_ptr of Ident.t
   | Eis_null of ty_id
+  | Efree of ty_id
 
 and value =
   | Eunit

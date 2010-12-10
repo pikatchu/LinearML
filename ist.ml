@@ -74,6 +74,7 @@ and expr_ =
   | Eif of expr * tuple * tuple
   | Eapply of type_expr * id * tuple
   | Eseq of expr * tuple
+  | Efree of type_expr * id
 
 and value =
   | Eunit

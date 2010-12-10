@@ -334,9 +334,19 @@ let obs_expects_id p =
   err "obs is only applicable to a variable" ;
   exit 2
 
+let free_expects_id p = 
+  pos p ;
+  err "free is only applicable to a variable" ;
+  exit 2
+
 let obs_not_value p = 
   pos p ;
   err "Bad usage of obs" ;
+  exit 2
+
+let free_not_value p = 
+  pos p ;
+  err "Bad usage of free" ;
   exit 2
 
 let obs_not_allowed p = 

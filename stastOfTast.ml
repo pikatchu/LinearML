@@ -8,14 +8,6 @@ let check_apply (p, ty) =
   | Stast.Tprim _ -> Error.poly_is_not_prim p
   | _ -> ()
 
-let check_free t x (ty, _) =
-  if x = Naming.free then
-  match snd ty with
-  | [] -> assert false
-  | [_, Neast.Tapply ((_, x), _)]
-  | [_, Neast.Tid (_, x)] when ISet.mem x t -> ()
-  | tyl -> Error.cannot_free (fst ty) (Typing.Print.type_expr_list ty) 
-
 module ObsCheck = struct
   open Stast
 
@@ -154,7 +146,6 @@ and expr_ t ty = function
       ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
   | Eapply (ty, x, e) -> 
-      check_free t (snd x) e ;
       let e = tuple t e in
       Stast.Eapply (type_expr t ty, x, e)
   | Eseq (e1, e2) -> 
@@ -162,6 +153,12 @@ and expr_ t ty = function
       ObsCheck.tuple e2 ;
       Stast.Eseq (expr t e1, e2)
   | Eobs x -> Stast.Eobs x
+  | Efree (ty, x) ->
+      (match snd ty with
+      | Neast.Tapply ((_, x), _)
+      | Neast.Tid (_, x) when ISet.mem x t -> ()
+      | _ -> Error.cannot_free (fst ty) (Typing.Print.type_expr ty)) ;
+      Stast.Efree (type_expr t ty, x)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

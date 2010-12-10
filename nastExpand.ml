@@ -418,6 +418,7 @@ and expr_ p = function
       let e2 = tuple e2 in
       Neast.Eseq (e1, e2)
   | Eobs x -> Neast.Eobs x
+  | Efree x -> Neast.Efree x
 
 and simpl_expr ((p, _) as e) = 
   match expr e [] with

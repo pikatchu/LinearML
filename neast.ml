@@ -75,6 +75,7 @@ and expr_ =
   | Eapply of id * tuple
   | Eseq of expr * tuple
   | Eobs of id
+  | Efree of id
 
 and tuple = Pos.t * expr list
 

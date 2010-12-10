@@ -74,6 +74,7 @@ and expr (ty, e) = ty, expr_ ty e
 and expr_ ty = function
   | Enull
   | Eid _
+  | Efree _
   | Evalue _ as e -> e
   | Evariant (x, e) -> 
       let e = tuple e in

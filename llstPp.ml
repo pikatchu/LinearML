@@ -136,6 +136,7 @@ and expr = function
   | Eproj (x, n) -> tid x ; o "[" ; o (soi n) ; o "]"
   | Eptr_of_int x -> o "(pointer) " ; id x
   | Eint_of_ptr x -> o "(int) " ; id x
+  | Efree x -> o "free " ; id (snd x)
 
 and field (x, l) = o (soi x) ; o " = " ; idl l
 and action (x, e) = 

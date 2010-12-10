@@ -135,6 +135,7 @@ and expr = function
       o "if " ; tid x ; o " then lcall " ; label l1 ; 
       o " else lcall " ; label l2 
   | Eis_null x -> o "is_null " ; id (snd x)
+  | Efree x -> o "free " ; id (snd x)
 
 and field (x, l) = id x ; o " = " ; idl l
 and action (p, e) = 

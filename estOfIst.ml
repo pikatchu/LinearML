@@ -444,6 +444,8 @@ and simpl_expr_ t ty = function
       let t, id = expr t e in
       let t, fdl = lfold field t fdl in
       t, Est.Ewith (id, fdl)
+  | Efree (ty, x) ->
+      t, Est.Efree (ty, x)
   | (Eseq (_, _)|Eapply (_, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)|
     Efield (_, _)|Eid _) -> assert false
 

@@ -375,6 +375,7 @@ and expr_ t pos = function
       expr t e1 ;
       tuple t e2
   | Eobs _ -> ()
+  | Efree _ -> ()
 
 and field t (_, e) = tuple t e
 and action t (_, e) = tuple t e

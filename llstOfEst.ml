@@ -53,8 +53,7 @@ module PredefTypes = struct
 
   let make() = 
     IMap.empty ++ 
-      (Naming.print_int, Tfun ([Tprim Tint32], [Tprim Tunit])) ++
-      (Naming.free, Tfun ([Tany], [Tprim Tunit]))
+      (Naming.print_int, Tfun ([Tprim Tint32], [Tprim Tunit]))
       (* TODO add the others *)
 
 end
@@ -195,7 +194,7 @@ module ExtractArgs = struct
 	  then [] 
 	  else 
 	    let dummy = Llst.Tprim Tunit, Ident.tmp() in
-	    [[dummy], Llst.Eapply (false, Naming.free, [v])] 
+	    [[dummy], Llst.Efree v]
 	in
 	let start = if ISet.mem x t.is_tagged then 1 else 0 in
 	let eqs = extract_args mkty tmp start l eqs in
@@ -462,8 +461,18 @@ and equation t (idl, e) acc =
 	match get_rty t x with
 	| None -> (idl, Llst.Eapply (false, x, argl)) :: acc
 	| Some rty ->
-	    let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
-	    let acc = add_casts idl xl acc in
+	    let same_type = List.fold_left2 (
+	      fun c (ty1, _) ty2 ->
+		c && ty1 = ty2
+	     ) true idl rty in 
+	    let acc, xl = 
+	      if same_type
+	      then acc, idl
+	      else
+		let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
+		let acc = add_casts idl xl acc in
+		acc, xl
+	    in
 	    let acc = (xl, Llst.Eapply (false, x, argl)) :: acc in
 	    acc
       in
@@ -511,6 +520,7 @@ and expr t idl = function
       let ty = type_expr ty in
       Llst.Etuple (Some (ty, x), fields t fdl)
   | Eis_null x -> Llst.Eis_null (ty_id x)
+  | Efree x -> Llst.Efree (ty_id x)
   | Eseq _ -> assert false
   | Evariant _ -> assert false
   | Eapply _ -> assert false

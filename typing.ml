@@ -316,7 +316,6 @@ module Env = struct
 
   let rec make mdl = 
     let env = IMap.empty in
-    let env = IMap.add Naming.free tfree env in
     let env = IMap.add Naming.print_int tprint_int env in
     let env = IMap.add Naming.share share env in
     let env = IMap.add Naming.clone clone env in
@@ -612,6 +611,10 @@ and expr_ env (p, e) =
       let ty = p, (snd ty) in
       let obs_ty = make_observed ty in
       (obs_ty, Tast.Eobs id)
+  | Efree ((p, x) as id) -> 
+      let ty = IMap.find x env in
+      let ty = p, (snd ty) in
+      ((p, Tprim Tunit), Tast.Efree (ty, id))
   | Eapply (_, _)
   | Eif (_, _, _)
   | Elet (_, _, _)

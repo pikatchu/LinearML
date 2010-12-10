@@ -153,6 +153,7 @@ module RecordCheck = struct
       expr t e
   | Eseq (e1, e2) -> expr t e1 ; tuple t e2 
   | Evariant (_, e) -> tuple t e
+  | Efree _ -> ()
   | Eobs _ -> ()
   | Evalue _ -> ()
   | Eid _ -> ()

@@ -1,94 +1,5 @@
 open Utils
 
-module Liveness = struct
-  open Llst
-
-  type t = {
-      mem: ISet.t IMap.t ref ;
-      bls: block IMap.t ;
-    }
-
-  let ty_id acc (_, x) = ISet.add x acc 
-  let ty_idl acc l = List.fold_left ty_id acc l
-
-  let rec def df = 
-    let bls = List.fold_left (
-      fun acc b -> IMap.add b.bl_id b acc
-     ) IMap.empty df.df_body in
-    let t = { 
-      mem = ref IMap.empty ; 
-      bls = bls ; 
-    } in
-    match df.df_body with
-    | x :: _ -> block t x.bl_id ; !(t.mem)
-    | _ -> assert false
-
-  and block t lbl = 
-    let bl = IMap.find lbl t.bls in
-    if IMap.mem bl.bl_id !(t.mem)
-    then ()
-    else
-      let acc = ISet.empty in
-      let acc = List.fold_left phi acc bl.bl_phi in
-      let acc = List.fold_left equation acc bl.bl_eqs in
-      let acc = ret t acc bl.bl_ret in
-      t.mem := IMap.add bl.bl_id acc !(t.mem)
-
-  and block_vars t lbl = 
-    block t lbl ;
-    IMap.find lbl !(t.mem)
-
-  and ret t acc = function
-    | Return l -> ty_idl acc l
-    | Jump lbl -> ISet.union acc (block_vars t lbl)
-    | If (x, lbl1, lbl2) -> 
-	let b1 = block_vars t lbl1 in
-	let b2 = block_vars t lbl2 in
-	let acc = ty_id acc x in
-	ISet.union acc (ISet.union b1 b2)
-    | Switch (x, al, lbl) -> 
-	let acc = ty_id acc x in
-	let acc = List.fold_left (
-	  fun acc (_, lbl) -> ISet.union acc (block_vars t lbl)
-	 ) acc al in
-	let acc = ISet.union acc (block_vars t lbl) in
-	acc
-
-  and phi acc (x, _, l) = 
-    let acc = ISet.add x acc in
-    List.fold_left (
-    fun acc (x, _) -> ISet.add x acc
-   ) acc l
-
-  and equation acc (l, e) = 
-    let acc = ty_idl acc l in
-    let acc = expr acc e in
-    acc
-
-  and expr acc = function
-    | Enull -> acc
-    | Egettag x 
-    | Egetargs x 
-    | Eproj (x, _) 
-    | Eid x
-    | Eis_null x -> ISet.add (snd x) acc
-    | Eptr_of_int x
-    | Eint_of_ptr x -> ISet.add x acc
-    | Evalue _ -> acc
-    | Ebinop (_, x1, x2) -> 
-	let acc = ty_id acc x1 in
-	let acc = ty_id acc x2 in
-	acc
-    | Euop (_, x) -> ty_id acc x 
-    | Efield (x, _) -> ty_id acc x 
-    | Eapply (_, _, l) -> ty_idl acc l
-    | Etuple (v, l) -> 
-	let acc = match v with None -> acc | Some v -> ty_id acc v in
-	let acc = List.fold_left (
-	  fun acc (_, x) -> ty_id acc x
-	 ) acc l in
-	acc
-end
 
 module Usage = struct
   open Llst
@@ -126,6 +37,7 @@ module Usage = struct
     | Egettag x 
     | Egetargs x 
     | Eproj (x, _) 
+    | Efree x
     | Eid x 
     | Eis_null x -> ISet.add (snd x) acc
     | Eptr_of_int x
@@ -243,7 +155,7 @@ and block_todo bls usage acc bl =
   List.fold_left (
   fun acc (_, e) -> 
     match e with
-    | Eapply (_, f, [x]) when f = Naming.free -> 
+    | Efree x ->
 	if is_branching bl || is_used_ret bls usage (snd x) bl 
 	then
 	  let acc = Remove_free (bl.bl_id, snd x) :: acc in
@@ -257,7 +169,7 @@ and block_remove rm_set bl =
   { bl with bl_eqs = List.filter (
     fun (_, e) -> 
       match e with
-      | Eapply (_, f, [_, x]) -> not (f = Naming.free && ISet.mem x rm_set)
+      | Efree (_, x) -> not (ISet.mem x rm_set)
       | _ -> true
    ) bl.bl_eqs }
 
@@ -266,7 +178,7 @@ and block_insert ins bl =
     let xl = IMap.find bl.bl_id ins in
     let eqs = IMap.fold (fun _ v acc -> 
       let dummy = Llst.Tprim Tunit, Ident.tmp() in
-      ([dummy], Llst.Eapply (false, Naming.free, [v])) :: acc) xl bl.bl_eqs in
+      ([dummy], Llst.Efree v) :: acc) xl bl.bl_eqs in
     { bl with bl_eqs = eqs }
   with Not_found -> bl
 

@@ -48,6 +48,7 @@ and expr t = function
   | Eseq (x, xl) -> Eseq (ty_id t x, ty_idl t xl)
   | Eif (x1, l1, l2) -> Eif (ty_id t x1, l1, l2)
   | Eis_null x -> Eis_null (ty_id t x)
+  | Efree x -> Efree (ty_id t x)
 
 and fields t l = List.map (field t) l
 and field t (fd, e) = fd, ty_idl t e

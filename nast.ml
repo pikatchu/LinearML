@@ -76,6 +76,7 @@ and expr_ =
   | Ewith of expr * (id * expr) list
   | Eseq of expr * expr
   | Eobs of id
+  | Efree of id
 
 and value = 
   | Eunit

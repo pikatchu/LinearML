@@ -221,6 +221,7 @@ and expr_ t = function
       (match get x t with
       | Used p' -> Error.already_used p p'
       | _ -> t)
+  | Efree (_, (p, x)) -> pvar t p x
   | Eapply (_, (_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
   | Eapply (_, _, e) -> tuple t e 
   | Eseq (e1, e2) -> 

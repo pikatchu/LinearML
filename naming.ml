@@ -32,7 +32,8 @@ let tshared     = prim_type "shared"
 let toption     = prim_type "option"
 let tfuture     = prim_type "future"
 
-let free        = prim_value "free"
+let malloc      = prim_value "malloc"
+let ifree       = prim_value "free"
 let spawn       = prim_value "spawn"
 let wait        = prim_value "wait"
 let print       = prim_value "print"
@@ -496,6 +497,7 @@ and expr_ genv sig_ env e =
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
   | Eid (p, "obs") -> Error.obs_not_value p
+  | Eid (p, "free") -> Error.free_not_value p
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -513,6 +515,11 @@ and expr_ genv sig_ env e =
       let env, pl = lfold (pat genv sig_) env pl in
       let e = expr genv sig_ env e in
       Nast.Efun (pl, e)
+  | Eapply ((_, Eid (_, "free")), e) ->
+      (match e with
+      | [_, Eid y] -> Nast.Efree (Env.value env y)
+      | (p, _) :: _ -> Error.free_expects_id p
+      | _ -> assert false)
   | Eapply ((_, Eid (_, "obs")), e) ->
       (match e with
       | [_, Eid y] -> Nast.Eobs (Env.value env y)

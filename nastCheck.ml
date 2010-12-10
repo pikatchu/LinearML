@@ -233,6 +233,7 @@ module CheckRestrict = struct
     | Ewith (e, fdl) -> expr e ; List.iter field fdl 
     | Eseq (e1, e2) -> expr e1 ; expr e2
     | Eobs _ 
+    | Efree _
     | Ecstr _ | Evalue _ | Eid _ -> ()
 
   and field (_, e) = expr e

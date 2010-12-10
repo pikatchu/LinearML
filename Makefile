@@ -2,13 +2,12 @@
 OCAMLBIN =
 OCAMLLIB ?= /home/pika/godi/lib
 
-OCAMLC   = ocamlc.opt -dtypes
+OCAMLC   = ocamlc.opt -dtypes -warn-error A
 OCAMLOPT = ocamlopt.opt
 OCAMLDEP = ocamldep
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
 CC = g++
-
 
 LLVM_LIBS = \
 	llvm.cma \

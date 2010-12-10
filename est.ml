@@ -67,4 +67,5 @@ and expr =
   | Eseq of ty_id * ty_idl
   | Eif of ty_id * label * label
   | Eis_null of ty_id
+  | Efree of ty_id
 

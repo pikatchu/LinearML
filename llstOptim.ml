@@ -150,7 +150,7 @@ module Inplace = struct
 
   and equation t (env, dels, eqs) ((idl, e) as eq) = 
     match e with
-    | Eapply (_, f, [ty, x]) when f = Naming.free -> 
+    | Efree (ty, x) ->
 	let ty = Type.type_expr t ty in
 	let env = push ty x env in
 	(env, dels, eq :: eqs)
@@ -172,7 +172,7 @@ module Inplace = struct
 
   and suppr_free dels (_, e) = 
     match e with
-    | Eapply (_, f, [_, x]) when f = Naming.free -> not (ISet.mem x dels)
+    | Efree (_, x) -> not (ISet.mem x dels)
     | _ -> true
 
 end 

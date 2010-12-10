@@ -244,9 +244,9 @@ and expr_ t pos ty = function
       let e1 = fst (fst e1), tuple t e1 in
       let e2 = fst (fst e2), tuple t e2 in
       snd (Unify.unify_types e1 e2)
-  | Eapply (_, (_, v), e) when v = Naming.free ->
-      let ty = tuple t e in
-      free t (fst (fst e)) ty ;
+  | Efree (ty, x) ->
+      (try free t (fst x) (IMap.find (snd x) t)
+      with Not_found -> ()) ;
       [P]
   | Eapply (_, _, e) -> 
       check_type pos (tuple t e) ;
