@@ -1,26 +1,22 @@
 
-module T = struct
 
-  type t = {
-      fd: int32 ;
-    }
+module List = struct
 
-  type 'a tree = 
+  type 'a t = 
     | Empty
-    | Node of 'a
-    | Bob of 'a
+    | Cons of 'a * 'a t
 
-  val free_opt: t option option -> unit
-  let free_opt t = 
-    match t with
-    | None -> print_int 0
-    | Some x -> 
-	match x with
-	| None -> print_int 1 (* Unreachable *)
-	| Some y -> free y ; print_int 2
+  type ('a, 'b) rest = 
+    | Done
+    | Left of 'a
+    | Right of 'b
 
-  val main: unit -> unit
-  let main () = free_opt (Some (Some { fd = 0 } ))
+  val rev_map_aux: ('acc * 'a -> 'acc * 'c) * 'acc * 'c t * 'a t -> 'acc * 'c t
+  let rec rev_map_aux f acc res l = 
+    match l with
+    | [] -> acc, res
+    | x :: rl -> 
+	let acc, x = f acc x in
+	rev_map_aux f acc (x :: res) rl
 
-    
 end

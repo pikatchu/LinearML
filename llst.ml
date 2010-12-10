@@ -63,7 +63,7 @@ and equation = ty_idl * expr
 
 and expr = 
   | Enull
-  | Eid of id
+  | Eid of ty_id
   | Evalue of value
   | Ebinop of Ast.bop * ty_id * ty_id
   | Euop of Ast.uop * ty_id
@@ -72,7 +72,6 @@ and expr =
   | Etuple of ty_id option * (int * ty_id) list
   | Egettag of ty_id
   | Egetargs of ty_id
-  | Ecast of ty_id
   | Eproj of ty_id * int
   | Eptr_of_int of Ident.t
   | Eint_of_ptr of Ident.t

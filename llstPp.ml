@@ -124,7 +124,7 @@ and equation (idl, e) =
 and expr = function
   | Enull -> o "null"
   | Eis_null x -> o "null? " ; ty_id x
-  | Eid x -> id x
+  | Eid x -> ty_id x
   | Evalue v -> value v
   | Ebinop (bop, id1, id2) -> binop bop ; o " " ; tid id1 ; o " " ; tid id2 
   | Euop (uop, x) -> unop uop ; o " " ; tid x
@@ -134,7 +134,6 @@ and expr = function
   | Eapply (b, x, l) -> if b then o "tail " else () ; o "call " ; id x ; o " " ; idl l
   | Egettag x -> o "gettag " ; tid x
   | Egetargs x -> o "getargs " ; tid x
-  | Ecast (ty, x) -> o "cast (" ; type_expr ty ; o ") " ; id x
   | Eproj (x, n) -> tid x ; o "[" ; o (soi n) ; o "]"
   | Eptr_of_int x -> o "(pointer) " ; id x
   | Eint_of_ptr x -> o "(int) " ; id x

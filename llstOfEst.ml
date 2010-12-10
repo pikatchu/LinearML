@@ -200,7 +200,7 @@ module ExtractArgs = struct
 	in
 	let start = if ISet.mem x t.is_tagged then 1 else 0 in
 	let eqs = extract_args mkty tmp start l eqs in
-	let eqs = ([variant_ty, snd tmp], Llst.Ecast (variant_ty, snd v)) :: eqs in
+	let eqs = ([variant_ty, snd tmp], Llst.Eid (variant_ty, snd v)) :: eqs in
 	IMap.add lbl eqs acc
     | _ -> acc
 
@@ -427,7 +427,7 @@ and equation t (idl, e) acc =
 	let tag = Llst.Tprim Tint32, Ident.tmp() in
 	let vid = Ident.tmp() in
 	let v = Llst.Etuple (None, tuple 0 (tag :: xl)) in
-	let acc = (idl, Llst.Ecast (fst (List.hd idl), vid)) :: acc in
+	let acc = (idl, Llst.Eid (fst (List.hd idl), vid)) :: acc in
 	let acc = ([ty, vid], v) :: acc in
 	let tag_value = Llst.Evalue (Llst.Eiint (IMap.find x t.values)) in
 	let acc = ([tag], tag_value) :: acc in
@@ -436,7 +436,7 @@ and equation t (idl, e) acc =
       else if x = Naming.some
       then 
 	let v = ty_id (List.hd vl) in
-	(idl, Llst.Ecast (Llst.Tid Naming.toption, snd v)) :: acc
+	(idl, Llst.Eid (Llst.Tid Naming.toption, snd v)) :: acc
       else 
 	let vl = ty_idl vl in
 	let xl = match IMap.find x t.types with 
@@ -448,7 +448,7 @@ and equation t (idl, e) acc =
 	let tyv = ty, vid in
 	let fdl = tuple 0 xl in
 	let v = Llst.Etuple (None, fdl) in
-	let acc = (idl, Llst.Ecast (fst (List.hd idl), vid)) :: acc in
+	let acc = (idl, Llst.Eid (fst (List.hd idl), vid)) :: acc in
 	let acc = ([tyv], v) :: acc in
 	let acc = add_casts xl vl acc in
 	acc
@@ -493,30 +493,13 @@ and get_rty t x =
   with Not_found -> None
 
 and add_casts idl1 idl2 acc = 
-  match idl1, idl2 with
-  | [], [] -> acc
-  | [], _ | _, [] -> assert false
-  | (Llst.Tany, _) as x1 :: rl1, (Llst.Tany, x2) :: rl2 -> 
-      let acc = add_casts rl1 rl2 acc in
-      ([x1], Llst.Eid x2) :: acc      
-  | (ty1, _) as x1 :: rl1, (ty2, x2) :: rl2 when ty1 <> ty2 ->
-      let acc = add_casts rl1 rl2 acc in
-      let acc = ([x1], Llst.Ecast (ty1, x2)) :: acc in
-      acc
-  | x1 :: rl1, x2 :: rl2 -> 
-      let acc = add_casts rl1 rl2 acc in
-      ([x1], Llst.Eid (snd x2)) :: acc
+  List.fold_right2 (
+  fun x y acc -> ([x], Llst.Eid y) :: acc
+ ) idl1 idl2 acc
 
 and expr t idl = function
   | Enull -> Llst.Enull 
-  | Eid (xty, x) -> 
-      (match idl with
-      | [ety, _] -> 
-	  let xty = type_expr xty in
-	  if xty <> ety
-	  then Llst.Ecast (ety, x)
-	  else Llst.Eid x
-      | _ -> assert false)
+  | Eid (xty, x) -> Llst.Eid (type_expr xty, x)
   | Evalue x -> Llst.Evalue (value x)
   | Euop (uop, x) -> Llst.Euop (uop, ty_id x) 
   | Ebinop (bop, x1, x2) -> Llst.Ebinop (bop, ty_id x1, ty_id x2)

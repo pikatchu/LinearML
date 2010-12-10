@@ -69,12 +69,11 @@ module Liveness = struct
     | Enull -> acc
     | Egettag x 
     | Egetargs x 
-    | Ecast x
     | Eproj (x, _) 
+    | Eid x
     | Eis_null x -> ISet.add (snd x) acc
     | Eptr_of_int x
-    | Eint_of_ptr x 
-    | Eid x -> ISet.add x acc
+    | Eint_of_ptr x -> ISet.add x acc
     | Evalue _ -> acc
     | Ebinop (_, x1, x2) -> 
 	let acc = ty_id acc x1 in
@@ -126,12 +125,11 @@ module Usage = struct
     | Enull -> acc
     | Egettag x 
     | Egetargs x 
-    | Ecast x
     | Eproj (x, _) 
+    | Eid x 
     | Eis_null x -> ISet.add (snd x) acc
     | Eptr_of_int x
-    | Eint_of_ptr x 
-    | Eid x -> ISet.add x acc
+    | Eint_of_ptr x -> ISet.add x acc
     | Evalue _ -> acc
     | Ebinop (_, x1, x2) -> 
 	let acc = ty_id acc x1 in

@@ -107,7 +107,12 @@ module Type = struct
 	let ty2 = type_ mds t ctx ty2 in
 	let ty = function_type ty2 (Array.of_list ty1) in
 	pointer_type ty
-    | Tfun _ -> failwith "TODO function type" (* of type_expr_list * type_expr_list *)
+    | Tfun (ty1, ty2) -> 
+	let ty1 = List.map (type_ mds t ctx) ty1 in
+	let rty = type_list mds t ctx ty2 in
+	let rty = struct_type ctx rty in
+	let fty = function_type rty (Array.of_list ty1) in
+	pointer_type fty
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
 	let st = struct_type ctx tyl in
@@ -349,7 +354,7 @@ and instruction proto bb env is_tailc acc (idl, e) =
 	let l = List.map (fun (_, v) -> IMap.find v acc) l in
 	let t = Array.of_list l in
 	let v = build_call f t "" env.builder in
-	set_instruction_call_conv (function_call_conv f) v ;
+	set_instruction_call_conv Llvm.CallConv.fast v ;
 	if tail 
 	then begin
 	  is_tailc := true ;
@@ -369,9 +374,11 @@ and instruction proto bb env is_tailc acc (idl, e) =
 and expr proto bb env acc (ty, x) e = 
   let xs = Ident.to_string x in
   match e with
-  | Eid y -> 
+  | Eid (_, y) -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty in      
       let y = IMap.find y acc in
-      IMap.add x y acc
+      let v = build_bitcast y ty xs env.builder in
+      IMap.add x v acc
   | Evalue v ->
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = const env ty v in
@@ -382,11 +389,6 @@ and expr proto bb env acc (ty, x) e =
       let ty = match ty with Tprim ty -> ty | _ -> assert false in
       let bop = binop ty bop in
       let v = bop x1 x2 xs env.builder in
-      IMap.add x v acc
-  | Ecast (ty, y) -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty in      
-      let y = IMap.find y acc in
-      let v = build_bitcast y ty xs env.builder in
       IMap.add x v acc
 
 (* TODO make a cleaner mechanism for primitives *)

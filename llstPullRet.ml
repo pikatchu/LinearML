@@ -43,7 +43,7 @@ module Graph = struct
 
   and equation g (l, e) = 
     match l, e with
-    | [_, x], Eid y -> add x y g
+    | [_, x], Eid (_, y) -> add x y g
     | _ -> g
 
   let rec closure g rets = 
@@ -83,7 +83,7 @@ module FilterOut = struct
 
   and equation t (_, e) = 
     match e with
-    | Eid x when ISet.mem x t -> false
+    | Eid (_, x) when ISet.mem x t -> false
     | _ -> true
 
   and phi (t, acc) (x, ty, l) = 

@@ -163,7 +163,7 @@ module Inplace = struct
 	    | Some vid -> 
 		let vid' = Ident.tmp() in
 		let v = Some (ty, vid') in
-		let eqs = ([ty, vid'], Ecast (ty, vid)) :: eqs in
+		let eqs = ([ty, vid'], Eid (ty, vid)) :: eqs in
 		let eqs = (idl, Etuple (v, vl)) :: eqs in
 		let dels = ISet.add vid dels in
 		(env, dels, eqs))
@@ -202,8 +202,7 @@ module LoadStore = struct
 
   and equation t env ((idl, e) as eq) = 
     match e with
-    | Ecast (_, x)
-    | Eid x -> 
+    | Eid (_, x) -> 
 	(try 
 	  IMap.add (eqid idl) (IMap.find x env) env, eq
 	with Not_found -> env, eq)
