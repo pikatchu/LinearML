@@ -270,6 +270,7 @@ module FreeVars = struct
   let rec type_expr acc (_, ty) = type_expr_ acc ty
   and type_expr_ acc = function
   | Tid _ 
+  | Tabstract
   | Tpath _ -> acc
   | Tvar ((_,v) as x) when not (SMap.mem v acc) -> 
       (* The mem is not necessary but makes the first occurence *)
@@ -377,6 +378,7 @@ and type_expr_ genv sig_ env x =
       let fdl = List.map (tfield genv sig_ env) l in
       Nast.Trecord (imap_of_list fdl)
   | Tabbrev ty -> Nast.Tabbrev (k ty)
+  | Tabstract -> Nast.Tabstract
   | Tabs (tvarl, ty) -> 
       let env, tvarl = lfold Env.new_tvar env tvarl in
       Nast.Tabs (tvarl, type_expr genv sig_ env ty)

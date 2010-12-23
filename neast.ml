@@ -14,6 +14,7 @@ and module_ = {
 and decl = 
   | Dalgebric of tdef
   | Drecord of tdef
+  | Dabstract of id * id list
   | Dval of id * type_expr * pstring option
 
 and tdef = {

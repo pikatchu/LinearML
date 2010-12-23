@@ -28,6 +28,7 @@ and type_expr_ =
   | Trecord of (id * type_expr) IMap.t
   | Tabbrev of type_expr
   | Tabs of id list * type_expr
+  | Tabstract
 
 and type_prim = 
   | Tunit

@@ -62,6 +62,7 @@ end = struct
     type_expr_ env path status ty
 
   and type_expr_ env path status = function
+    | Tabstract
     | Tprim _ | Tvar _ -> status
     | Tpath (x, y) -> env.fpath (tid env path) status x y
     | Tid x -> env.fid (tid env path) status x

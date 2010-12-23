@@ -190,6 +190,7 @@ external_opt:
 | EQ STRING { Some $2 }
 
 type_decl:
+| type_id { $1, (Pos.none, Tabstract) }
 | type_id EQ LCB field_type_seq RCB { $1, (fst (fst $1), Trecord $4) }
 | type_id EQ algebric { $1, (fst (fst $1), Talgebric $3) }
 | type_id EQ BAR algebric { $1, (fst (fst $1), Talgebric $4) }

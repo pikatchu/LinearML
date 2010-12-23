@@ -51,14 +51,16 @@ let rec program mdl =
 
 and module_ t md = {
   Stast.md_id = md.md_id ;
-  Stast.md_decls = List.map (decl t) md.md_decls ;
+  Stast.md_decls = List.fold_right (decl t) md.md_decls [] ;
   Stast.md_defs = List.map (def t) md.md_defs ;
 }
 
-and decl t = function
-  | Neast.Dalgebric td -> Stast.Dalgebric (tdef t td)
-  | Neast.Drecord td -> Stast.Drecord (tdef t td)
-  | Neast.Dval (x, ty, v) -> Stast.Dval (x, type_expr t ty, v) 
+and decl t d acc = 
+  match d with
+  | Neast.Dabstract _ -> acc
+  | Neast.Dalgebric td -> Stast.Dalgebric (tdef t td) :: acc
+  | Neast.Drecord td -> Stast.Drecord (tdef t td) :: acc
+  | Neast.Dval (x, ty, v) -> Stast.Dval (x, type_expr t ty, v) :: acc
 
 and tdef t td = {
   Stast.td_id = td.Neast.td_id ;

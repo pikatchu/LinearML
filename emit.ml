@@ -110,7 +110,8 @@ module Type = struct
 	let rty = type_list mds t ctx ty2 in
 	let rty = match rty with [|x|] -> x | _ -> struct_type ctx rty in
 	let fty = function_type rty ty1 in
-	pointer_type fty
+(*	pointer_type fty  TODO *)
+	fty
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
 	let st = struct_type ctx tyl in

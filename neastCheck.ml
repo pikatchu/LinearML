@@ -43,6 +43,11 @@ end = struct
     List.iter (check_decl env) md.md_decls 
 
   and decl env acc = function
+    | Dabstract (id, idl) -> 
+	let p, x = id in
+	let arity = List.length idl in
+	let acc = add x (p, arity) acc in
+	acc	
     | Drecord td
     | Dalgebric td -> 
 	let acc = tdecl env acc td in
@@ -56,6 +61,7 @@ end = struct
     acc
 
   and check_decl env = function
+    | Dabstract _ -> ()
     | Drecord td
     | Dalgebric td -> tdef env td
     | Dval (_, ty, _) -> type_expr env ty
@@ -101,6 +107,7 @@ module RecordCheck = struct
 
   and decl t = function
     | Drecord td -> tdef t td
+    | Dabstract _ -> t
     | Dalgebric _ -> t
     | Dval _ -> t
 

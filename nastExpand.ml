@@ -9,18 +9,19 @@ module Subst = struct
     | _ -> p, type_expr_ env ty
 
   and type_expr_ env = function
-  | Tprim _ | Tpath _
-  | Tid _ | Tvar _ as x -> x
-  | Tapply (ty, tyl) -> Tapply (type_expr env ty, List.map (type_expr env) tyl)
-  | Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
-  | Tfun (ty1, ty2) -> Tfun (type_expr env ty1, type_expr env ty2)
-  | Talgebric vl -> Talgebric (IMap.map (variant env) vl)
-  | Trecord fdl -> Trecord (IMap.map (field env) fdl)
-  | Tabbrev ty -> Tabbrev (type_expr env ty)
-  | Tabs (vl, ty) ->
-      let xl = List.map snd vl in
-      let env = List.fold_right IMap.remove xl env in
-      Tabs (vl, type_expr env ty)
+    | Tabstract
+    | Tprim _ | Tpath _
+    | Tid _ | Tvar _ as x -> x
+    | Tapply (ty, tyl) -> Tapply (type_expr env ty, List.map (type_expr env) tyl)
+    | Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
+    | Tfun (ty1, ty2) -> Tfun (type_expr env ty1, type_expr env ty2)
+    | Talgebric vl -> Talgebric (IMap.map (variant env) vl)
+    | Trecord fdl -> Trecord (IMap.map (field env) fdl)
+    | Tabbrev ty -> Tabbrev (type_expr env ty)
+    | Tabs (vl, ty) ->
+	let xl = List.map snd vl in
+	let env = List.fold_right IMap.remove xl env in
+	Tabs (vl, type_expr env ty)
 
   and variant env (id, ty_opt) = 
     id, match ty_opt with 
@@ -43,6 +44,7 @@ module Tuple = struct
     then Error.tuple_too_big pos 
     else match ty with
     | Tprim _
+    | Tabstract
     | Tvar _ | Tid _ 
     | Tpath _ as x -> n-1, (p, x) :: acc
     | Ttuple tyl -> List.fold_left type_expr (n, acc) tyl
@@ -113,6 +115,7 @@ end = struct
     mem, (p, ty)
 
   and type_expr_ abbr mem p = function
+    | Tabstract
     | Tprim _ | Tvar _ as x -> mem, x 
 
     | (Tpath (_, (_, x)) 
@@ -264,6 +267,8 @@ and decl acc = function
 
 and tdef acc (id, (p, ty)) = 
   match ty with
+  | Tabstract -> Neast.Dabstract (id, []) :: acc
+  | Tabs (idl, (_, Tabstract)) -> Neast.Dabstract (id, idl) :: acc
   | Talgebric vm -> algebric acc id [] vm
   | Tabs (idl, (_, Talgebric vm)) -> algebric acc id idl vm
   | Trecord fdm -> record acc id [] fdm
@@ -286,6 +291,7 @@ and new_tdef id idl tm = {
 
 and type_expr (p, ty) = p, type_expr_ ty
 and type_expr_ = function
+  | Tabstract -> assert false
   | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 

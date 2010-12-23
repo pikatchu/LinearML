@@ -334,6 +334,7 @@ module Env = struct
     List.fold_left decl env md.md_decls 
 
   and decl env = function
+    | Dabstract _ -> env
     | Dalgebric tdef
     | Drecord tdef -> algebric env tdef
     | Dval ((p, x), (_, ty), _) -> IMap.add x (p, ty) env
