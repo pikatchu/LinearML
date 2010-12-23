@@ -61,9 +61,16 @@ module MakePhi = struct
       let orig = IMap.find x t in
       if ISet.mem orig preds
       then (x, IMap.find x t) :: acc
-      else (Printf.printf "TODO Check this in estCompile\n" ; acc)
+      else acc
    ) vl []
 end
+
+let rec is_tail l1 l2 = 
+  match l1, l2 with
+  | [], [] -> true
+  | [], _ | _, [] -> false
+  | (_, x1) :: rl1, (_, x2) :: rl2 -> 
+      (Ident.compare x1 x2 = 0) && is_tail rl1 rl2
 
 let rec program mdl = 
   List.rev_map module_ mdl
@@ -106,10 +113,10 @@ and equation bls ret acc eq =
       let rl1 = match b1.bl_ret with Lreturn l -> l | _ -> assert false in
       let rl2 = match b2.bl_ret with Lreturn l -> l | _ -> assert false in
       (match ret, rl with
-      | Return _, [] -> (* this is a tail call *)
-	  let b2 = { b2 with bl_ret = Return rl2 } in
+      | Return (_, retl), [] when is_tail retl idl -> (* this is a tail call *)
+	  let b2 = { b2 with bl_ret = Return (true, rl2) } in
 	  let acc = block bls acc b2 in
-	  let b1 = { b1 with bl_ret = Return rl1 } in
+	  let b1 = { b1 with bl_ret = Return (true, rl1) } in
 	  let acc = block bls acc b1 in
 	  acc, If (c, l1, l2), []
       | _ ->
@@ -166,12 +173,12 @@ and equation bls ret acc eq =
       let bl = List.map (fun (_, l) -> l) al in
       let bl = List.map (fun x -> IMap.find x bls) bl in
       (match ret, rl with
-      | Return _, [] -> (* tail call *)
+      | Return (_, retl), [] when is_tail retl idl -> (* tail call *)
 	  let acc = List.fold_left (
 	    fun acc b ->
 	      let ret = 
 		match b.bl_ret with 
-		| Lreturn idl -> Return idl 
+		| Lreturn idl -> Return (true, idl) 
 		| _ -> assert false in
 	      let b = { b with bl_ret = ret } in
 	      block bls acc b

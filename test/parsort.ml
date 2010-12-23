@@ -1,4 +1,12 @@
 
+module Future = struct
+
+  type 'a future
+
+  val make: ('a, 'b) cfun * 'a -> 'b future = "future_make"
+  val get: ('a future, 'a option) cfun = "future_get"
+end
+
 module T = struct
 
   type t = 

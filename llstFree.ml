@@ -15,7 +15,7 @@ module Usage = struct
     acc
 
   and ret acc = function
-    | Return l -> ty_idl acc l
+    | Return (_, l) -> ty_idl acc l
     | Jump _ -> acc
     | Switch (x, _, _)
     | If (x, _, _) -> 

@@ -25,7 +25,7 @@ and phi t (x, ty, l) = id t x, ty, List.map (fun (x, y) -> id t x, y) l
 
 and ret t = function
   | Lreturn l -> Lreturn (ty_idl t l)
-  | Return l -> Return (ty_idl t l)
+  | Return (b, l) -> Return (b, ty_idl t l)
   | Jump x -> Jump x
   | If (c, l1, l2) -> If (ty_id t c, l1, l2)
   | Match (cl, al) -> Match (ty_idl t cl, al)

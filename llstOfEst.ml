@@ -337,7 +337,7 @@ and block t bl acc =
 
 and ret bls t = function
   | Lreturn _ -> assert false
-  | Return l -> [], bls, Llst.Return (ty_idl l)
+  | Return (b, l) -> [], bls, Llst.Return (b, ty_idl l)
   | Jump lbl -> [], bls, Llst.Jump lbl
   | If (x, lbl1, lbl2) -> [], bls, Llst.If (ty_id x, lbl1, lbl2)
   | Match ([ty, x], al) ->
@@ -472,11 +472,7 @@ and equation t is_last ret (idl, e) acc =
 	| Some rty ->
 	    let acc, xl = 
 	      match ret with
-	      | Llst.Return l when is_last &&
-		  List.fold_left2 (
-		  fun c (_, x) (_, y) -> c && x = y
-		 ) true idl l -> (* tail call *)
-		   acc, idl
+	      | Llst.Return (true, _) -> acc, idl
 	      | _ ->
 		  let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
 		  let acc = add_casts idl xl acc in

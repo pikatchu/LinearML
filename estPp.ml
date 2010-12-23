@@ -93,7 +93,10 @@ and block bl =
   List.iter equation bl.bl_eqs ;
   (match bl.bl_ret with
   | Lreturn l -> (o "lreturn " ; List.iter (fun (_, x) -> id x ; o " ") l)  ;
-  | Return l -> (o "return " ; List.iter (fun (_, x) -> id x ; o " ") l)  ;
+  | Return (tail, l) -> 
+      (o "return[" ; 
+       if tail then o "true] " else o "false] " ;
+       List.iter (fun (_, x) -> id x ; o " ") l)  ;
   | Jump x -> o "jump " ; id x
   | If (x, l1, l2) ->
       o "Iif " ; tid x ; o " then jump " ; label l1 ; 

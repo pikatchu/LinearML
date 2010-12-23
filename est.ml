@@ -42,7 +42,7 @@ and block = {
 
 and ret =   
   | Lreturn of ty_idl
-  | Return of ty_idl
+  | Return of bool * ty_idl
   | Jump of label
   | If of ty_id * label * label
   | Match of ty_idl * (pat * label) list

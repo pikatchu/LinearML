@@ -97,7 +97,10 @@ and block bl =
   if bl.bl_phi <> [] then (o "phi: " ; nl() ; List.iter phi bl.bl_phi ; nl()) ;
   List.iter equation bl.bl_eqs ;
   (match bl.bl_ret with
-  | Return l -> (o "return " ; List.iter (fun (_, x) -> id x ; o " ") l)  ;
+  | Return (tail, l) -> 
+      (o "return[" ; 
+       o (if tail then "true] " else "false] ") ;
+       List.iter (fun (_, x) -> id x ; o " ") l)  ;
   | Jump x -> o "jump " ; id x
   | If (x, l1, l2) ->
       o "Iif " ; tid x ; o " then jump " ; label l1 ; 

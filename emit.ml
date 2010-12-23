@@ -80,16 +80,10 @@ module Type = struct
     let args = List.map fst df.df_args in
     let args = Array.of_list args in
     let args = Array.map (type_ mds t ctx) args in
-    let rett = 
-      match df.df_ret with [ty] -> type_ mds t ctx ty 
-      | l -> 
-	let l = List.map ( (* This is ridiculous *)
-	  function
-	    | Tprim _ as x -> x
-	    | _ -> Tany
-	 ) l in 
-	  struct_type ctx (Array.of_list (List.map (type_ mds t ctx) l)) 
-    in
+    let retl = List.map (function Tprim _ as x -> x | _ -> Tany) df.df_ret in
+    let retl = List.map (type_ mds t ctx) retl in
+    let rett = Array.of_list retl in
+    let rett = match rett with [|x|] -> x | _ -> struct_type ctx rett in
     let ftype = function_type rett args in
     let fdec = declare_function (Ident.to_string df.df_id) ftype md in
     let cconv = Llvm.CallConv.fast in
@@ -110,20 +104,11 @@ module Type = struct
     | Tprim tp -> type_prim mds t ctx tp
 (* TODO add primitive types in a cleaner way *)
     | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
-    | Tfun (ty1, [ty2]) -> 
-	let ty1 = type_list mds t ctx ty1 in
-	let ty2 = type_ mds t ctx ty2 in
-	let ty = function_type ty2 ty1 in
-	pointer_type ty
     | Tfun (ty1, ty2) -> 
 	let ty1 = type_list mds t ctx ty1 in
-	let ty2 = List.map ( (* This is ridiculous *)
-	  function
-	    | Tprim _ as x -> x
-	    | _ -> Tany
-	 ) ty2 in 
+	let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
 	let rty = type_list mds t ctx ty2 in
-	let rty = struct_type ctx rty in
+	let rty = match rty with [|x|] -> x | _ -> struct_type ctx rty in
 	let fty = function_type rty ty1 in
 	pointer_type fty
     | Tstruct tyl -> 
@@ -295,10 +280,7 @@ and block env acc bl =
   acc
 
 and return env acc = function
-  | Return [] -> assert false
-  | Return [_, x] -> 
-       ignore (build_ret (IMap.find x acc) env.builder)
-  | Return l -> 
+  | Return (_, l) -> 
       let l = List.map (
 	fun (ty, x) -> (* ridiculous again *)
 	  let ty = match ty with Tprim _ as x -> x | _ -> Tany in
@@ -306,8 +288,9 @@ and return env acc = function
 	  let v = IMap.find x acc in
 	  build_bitcast v ty "" env.builder
        ) l in
-      let t = Array.of_list l in
-      ignore (build_aggregate_ret t env.builder)
+      (match Array.of_list l with
+      | [|x|] -> ignore (build_ret x env.builder)
+      | t -> ignore (build_aggregate_ret t env.builder))
   | Jump lbl -> 
       let target = IMap.find lbl env.bls in
       ignore (build_br target env.builder) 
@@ -333,39 +316,19 @@ and instructions bb env acc ret l =
   | [] -> return env acc ret ; acc
   | [vl1, Eapply (_, f, l) as instr] when not (IMap.mem f env.prims) ->
       (match ret with 
-      | Return vl2 -> 
-	  let c = List.fold_left2 (
-	    fun c (_, x) (_, y) ->
-	      c && x = y
-	   ) true vl1 vl2 in
-	  if c 
-	  then begin (* tail call *)
-	    match vl2 with
-	    | [ty, _] ->
-		let ty = Type.type_ env.mds env.types env.ctx ty in      
-		let l = List.map (fun (_, v) -> IMap.find v acc) l in
-		let t = Array.of_list l in
-		let f = IMap.find f acc in
-		let v = build_call f t "" env.builder in
-		set_instruction_call_conv Llvm.CallConv.fast v ;
-		set_tail_call true v ;
-		let v = build_bitcast v ty "" env.builder in
-		ignore (build_ret v env.builder) ;
-		acc
-	    | _ -> (* This is ridiculous *)
-		let l = List.map (fun (_, v) -> IMap.find v acc) l in
-		let t = Array.of_list l in
-		let f = IMap.find f acc in
-		let v = build_call f t "" env.builder in
-		set_tail_call true v ;
-		set_instruction_call_conv Llvm.CallConv.fast v ;
-		ignore (build_ret v env.builder) ;
-		acc
-	  end
-	  else 
-	    let acc = instruction bb env acc instr in
-	    return env acc ret ;
-	    acc
+      | Return (tail, vl2) when tail -> 
+	  let l = List.map (fun (_, v) -> IMap.find v acc) l in
+	  let t = Array.of_list l in
+	  let f = IMap.find f acc in
+	  let v = build_call f t "" env.builder in
+	  set_tail_call true v ;
+	  set_instruction_call_conv Llvm.CallConv.fast v ;
+	  ignore (build_ret v env.builder) ;
+	  acc
+      | Return (_, vl2) ->
+	  let acc = instruction bb env acc instr in
+	  return env acc ret ;
+	  acc
       | _ -> 
 	  let acc = instruction bb env acc instr in
 	  return env acc ret ;

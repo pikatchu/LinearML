@@ -51,7 +51,7 @@ and block = {
   }
 
 and ret =   
-  | Return of ty_idl
+  | Return of bool * ty_idl
   | Jump of label
   | If of ty_id * label * label
   | Switch of ty_id * (value * label) list * label
