@@ -59,15 +59,11 @@ void* try_get(future* t){
   return res ;
 }
 
-int is_ready(future* t){
-  return (t->v != NULL) ;
-}
-
-void print_int(int x){
+void c_print_int(int x){
   printf("%d\n", x) ;
 }
 
-void print_float(float x){
+void c_print_float(float x){
   printf("%f\n", x) ;
 }
 

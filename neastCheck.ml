@@ -27,13 +27,7 @@ end = struct
     let acc = List.fold_left add_predef acc predef in 
     acc
 
-  let get x t = 
-    try IMap.find x t 
-    with Not_found -> 
-      (* TODO add all primitive types in a cleaner way *)
-      if x = Naming.tfuture
-      then Pos.none, 1
-      else assert false
+  let get x t = IMap.find x t
 
   let rec check mdl = 
     let env = () in
@@ -84,16 +78,9 @@ end = struct
 	let arg_length = List.length l in
 	if arity <> arg_length 
 	then Error.type_arity p x arg_length arity pdef
-	else begin 
-	  List.iter check_apply l ;
-	  type_expr_list env tl 
-	end
+	else type_expr_list env tl 
     | Tfun (ty1, ty2) -> type_expr_list env ty1 ; type_expr_list env ty2
 
-  and check_apply (p, ty) = 
-    match ty with
-    | Tprim _ -> Error.poly_is_not_prim p
-    | _ -> ()
 end 
 
 (*****************************************************************************)

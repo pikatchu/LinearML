@@ -358,7 +358,10 @@ and type_expr_ genv sig_ env x =
   match x with
   | Tvar x -> Nast.Tvar (Env.tvar env x)
   | Tid x -> tid env x
-  | Tapply (ty, tyl) -> Nast.Tapply (k ty, List.map k tyl)
+  | Tapply (ty, tyl) -> 
+      let tyl = List.map k tyl in
+      List.iter check_apply tyl ;
+      Nast.Tapply (k ty, tyl)
   | Ttuple tyl -> Nast.Ttuple (List.map k tyl)
   | Tpath (id1, id2) -> 
       let (p1, _) as md_id = Genv.module_id genv id1 in
@@ -377,6 +380,11 @@ and type_expr_ genv sig_ env x =
   | Tabs (tvarl, ty) -> 
       let env, tvarl = lfold Env.new_tvar env tvarl in
       Nast.Tabs (tvarl, type_expr genv sig_ env ty)
+
+and check_apply (p, ty) = 
+  match ty with
+  | Nast.Tprim _ -> Error.poly_is_not_prim p
+  | _ -> ()
 
 and tid env (p, x) = tid_ env p x
 and tid_ env p = function

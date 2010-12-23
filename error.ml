@@ -53,9 +53,9 @@ let type_arity_mismatch p1 p2 (_, id) n1 n2 =
        " arguments") ;
   exit 6
 
-let application_to_primitive_type p id = 
+let bad_type_app p = 
   pos p ;
-  err ("Error: "^id^" is a primitive type without arguments") ;
+  err ("Error: this type doesn't expect arguments");
   exit 7
 
 let value_function p = 

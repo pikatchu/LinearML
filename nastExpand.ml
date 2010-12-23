@@ -300,6 +300,7 @@ and type_expr_ = function
       let tyl = List.map type_expr tyl in
       let tyl = p, tyl in
       Neast.Tapply (x, tyl)
+  | Tapply ((p, _), _) -> Error.bad_type_app p
   | Tpath (x, y) -> 
       Ident.expand_name (snd x) (snd y) ;
       Neast.Tid y
@@ -307,7 +308,6 @@ and type_expr_ = function
       let ty1 = type_expr_tuple ty1 in
       let ty2 = type_expr_tuple ty2 in
       Neast.Tfun (ty1, ty2)
-  | Tapply _ 
   | Ttuple _ 
   | Talgebric _ 
   | Trecord _ 

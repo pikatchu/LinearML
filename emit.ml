@@ -147,19 +147,6 @@ module Type = struct
 
 end
 
-(*module Globals = struct
-
-  let rec module_ ctx llvm_md strings = 
-    IMap.iter (declare_string llvm_md ctx) strings
-
-  and declare_string md ctx s v = 
-    let x = const_stringz ctx s in
-    let g = define_global v x md in
-(*    set_global_constant true g ; *)
-    set_linkage Linkage.Private g 
-end
-*)
-
 type env = {
     mds: (llmodule * lltype IMap.t) IMap.t ;
     cmd: llmodule ;
@@ -172,7 +159,6 @@ type env = {
     orig_types: Llst.type_expr IMap.t ;
   }
 
-
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
   Llvm.dump_module md ;
@@ -184,42 +170,26 @@ let dump_module md_file md pm =
   then () (* TODO dispose all modules *)
   else failwith ("Error: module generation failed"^md_file)
 
-
 let pervasives ctx md = 
   let string = pointer_type (i8_type ctx) in
-  let any = string in
   let unit = void_type ctx in
   let args = i64_type ctx in
   let fty = function_type string [|args|] in
-  let malloc = declare_function "malloc" fty md in
-
-  let tprint = function_type (i32_type ctx) [|string|] in
-  let print = declare_function "puts" tprint md in 
+  let malloc = declare_function "lml_malloc" fty md in
 
   let tprint_int = function_type unit [|i32_type ctx|] in
-  let print_int = declare_function "print_int" tprint_int md in 
+  let print_int = declare_function "lml_print_int" tprint_int md in 
 
-  let free = declare_function "free" 
+  let free = declare_function "lml_free" 
       (function_type unit [|pointer_type (i8_type ctx)|]) md in
-
-  let spawn = declare_function "spawn" 
-      (function_type any [|any; any|]) md in
-
-  let wait = declare_function "mwait" (function_type any [|any|]) md in  
 
   set_linkage Linkage.External malloc ; 
   set_linkage Linkage.External free ; 
-  set_linkage Linkage.External print ; 
   set_linkage Linkage.External print_int ; 
-  set_linkage Linkage.External spawn ; 
-  set_linkage Linkage.External wait ; 
   let prims = IMap.empty in 
   let prims = IMap.add Naming.malloc malloc prims in
   let prims = IMap.add Naming.ifree free prims in
-  let prims = IMap.add Naming.print print prims in
   let prims = IMap.add Naming.print_int print_int prims in
-  let prims = IMap.add Naming.spawn spawn prims in
-  let prims = IMap.add Naming.wait wait prims in
   prims
 
 
@@ -241,16 +211,14 @@ let optims pm =
   add_reassociation pm ;
   add_jump_threading pm ;
   add_cfg_simplification pm ;
-  add_tail_call_elimination pm ; 
   add_gvn pm ;
   add_memcpy_opt pm ;
   add_loop_deletion pm ;
+  add_tail_call_elimination pm ;
   add_lib_call_simplification pm ;
-
 
   add_ind_var_simplification pm ;
   add_instruction_combination pm  
-
 
 
 let rec program mdl = 

@@ -61,16 +61,10 @@ module T = struct
   let loop n acc = 
     if n <= 0
     then acc
-    else loop (n-1) (acc + sum 0 (sort (make Empty 1)))
+    else loop (n-1) (acc + sum 0 (sort (make Empty 200000)))
 
   val main: unit -> unit
   let main _ = 
-    let l = Cons 1 Empty in
-    print_int 22 ;
-    let l = sort l in
-    print_int 22 ;
-    let n = sum l in
-    print_int 22 ;
-    print_int n
+    print_int (loop 10 0)
 
 end
