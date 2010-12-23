@@ -117,7 +117,7 @@ rule token = parse
 
 and comment  = parse
   | eof                { error "unterminated comment" }
-  | '\n'               { comment lexbuf }
+  | '\n'               { Lexing.new_line lexbuf; comment lexbuf }
   | "*)"               { token lexbuf }
   | _                  { comment lexbuf }
 

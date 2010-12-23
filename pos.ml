@@ -33,7 +33,7 @@ let btw x1 x2 =
 let string t = 
   let line = t.pos_start.pos_lnum in
   let start = t.pos_start.pos_cnum - t.pos_start.pos_bol in
-  let end_ = t.pos_end.pos_cnum - t.pos_end.pos_bol in
+  let end_ = start + t.pos_end.pos_cnum - t.pos_start.pos_cnum in
   Printf.sprintf "File \"%s\", line %d, characters %d-%d:" 
     t.pos_file line start end_
   
