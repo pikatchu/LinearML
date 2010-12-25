@@ -23,7 +23,7 @@ and type_expr_ =
   | Tapply of type_expr * type_expr list
   | Ttuple of type_expr list
   | Tpath of id * id
-  | Tfun of type_expr * type_expr
+  | Tfun of Ast.fun_kind * type_expr * type_expr
   | Talgebric of (id * type_expr option) IMap.t
   | Trecord of (id * type_expr) IMap.t
   | Tabbrev of type_expr

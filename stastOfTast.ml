@@ -20,7 +20,7 @@ module ObsCheck = struct
   | Tapply ((_, x), _) when x = Naming.tobs -> 
       Error.obs_not_allowed p
   | Tapply (_, tyl) -> type_expr_list p tyl
-  | Tfun (_, tyl) -> type_expr_list p tyl
+  | Tfun (_, _, tyl) -> type_expr_list p tyl
 
   and type_expr_list p (_, tyl) = 
     List.iter (type_expr p) tyl
@@ -83,15 +83,15 @@ and type_expr_ t = function
 	let tyl = type_expr_list t tyl in
 	List.iter check_apply (snd tyl) ;
 	Stast.Tapply (x, tyl)
-    | Neast.Tfun (tyl1, tyl2) -> 
-	Stast.Tfun (type_expr_list t tyl1, type_expr_list t tyl2)
+    | Neast.Tfun (k, tyl1, tyl2) -> 
+	Stast.Tfun (k, type_expr_list t tyl1, type_expr_list t tyl2)
 
 and type_expr_list t (p, tyl) = p, List.map (type_expr t) tyl
 
-and def t (x, p, e) = 
+and def t (k, x, p, e) = 
   let e = tuple t e in
   ObsCheck.tuple e ;
-  x, pat t p, e
+  k, x, pat t p, e
 
 and pat t (tyl, ptl) = type_expr_list t tyl, List.map (pat_tuple t) ptl
 and pat_tuple t (tyl, pel) = type_expr_list t tyl, List.map (pat_el t) pel
@@ -147,9 +147,10 @@ and expr_ t ty = function
       ObsCheck.tuple e2 ;
       ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
-  | Eapply (ty, x, e) -> 
+  | Eapply (fk, fty, x, e) -> 
+      let fty = type_expr t fty in
       let e = tuple t e in
-      Stast.Eapply (type_expr t ty, x, e)
+      Stast.Eapply (fk, fty, x, e)
   | Eseq (e1, e2) -> 
       let e2 = tuple t e2 in
       ObsCheck.tuple e2 ;

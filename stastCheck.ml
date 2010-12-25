@@ -340,7 +340,7 @@ let rec program mdl =
 and module_ t md =
   List.iter (def t) md.md_defs
 
-and def t (x, p, e) = 
+and def t (_, x, p, e) = 
   pat t p ;
   tuple t e 
 
@@ -370,7 +370,7 @@ and expr_ t pos = function
       expr t e1 ;
       tuple t e2 ;
       tuple t e3
-  | Eapply (_, _, e) -> tuple t e
+  | Eapply (_, _, _, e) -> tuple t e
   | Eseq (e1, e2) -> 
       expr t e1 ;
       tuple t e2

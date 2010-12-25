@@ -5,6 +5,10 @@ open Llvm_scalar_opts
 open Ast
 open Llst
 
+let make_cconv = function
+  | Ast.Cfun -> Llvm.CallConv.c 
+  | Ast.Lfun -> Llvm.CallConv.fast
+
 module Type = struct
 
   let is_public md = 
@@ -64,8 +68,8 @@ module Type = struct
     IMap.add df.df_id (function_ link mds t md ctx df) acc
 
   and def_external mds t md ctx acc = function
-    | Dval (x, ty, Some v) ->
-	let ty = type_ mds t ctx ty in
+    | Dval (x, Tfun (_, ty1, ty2), Some v) ->
+	let ty = type_fun mds t ctx ty1 ty2 in
 	let fdec = declare_function v ty md in
 	IMap.add x fdec acc
     | _ -> acc
@@ -78,15 +82,9 @@ module Type = struct
 
   and function_ link mds t md ctx df = 
     let args = List.map fst df.df_args in
-    let args = Array.of_list args in
-    let args = Array.map (type_ mds t ctx) args in
-    let retl = List.map (function Tprim _ as x -> x | _ -> Tany) df.df_ret in
-    let retl = List.map (type_ mds t ctx) retl in
-    let rett = Array.of_list retl in
-    let rett = match rett with [|x|] -> x | _ -> struct_type ctx rett in
-    let ftype = function_type rett args in
+    let ftype = type_fun mds t ctx args df.df_ret in
     let fdec = declare_function (Ident.to_string df.df_id) ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = make_cconv df.df_kind in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
 (*    add_function_attr fdec Attribute.Nounwind ;
@@ -99,19 +97,21 @@ module Type = struct
     | None -> assert false
     | Some ty -> ty
 
+  and type_fun mds t ctx ty1 ty2 =
+    let ty1 = type_list mds t ctx ty1 in
+    let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
+    let rty = type_list mds t ctx ty2 in
+    let rty = match rty with [|x|] -> x | _ -> struct_type ctx rty in
+    let fty = function_type rty ty1 in
+    fty 
+
   and type_ mds t ctx = function
     | Tany -> pointer_type (i8_type ctx)
     | Tprim tp -> type_prim mds t ctx tp
-(* TODO add primitive types in a cleaner way *)
     | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
-    | Tfun (ty1, ty2) -> 
-	let ty1 = type_list mds t ctx ty1 in
-	let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
-	let rty = type_list mds t ctx ty2 in
-	let rty = match rty with [|x|] -> x | _ -> struct_type ctx rty in
-	let fty = function_type rty ty1 in
-(*	pointer_type fty  TODO *)
-	fty
+    | Tfun (_, ty1, ty2) -> 
+	let fty = type_fun mds t ctx ty1 ty2 in
+	pointer_type fty
     | Tstruct tyl -> 
 	let tyl = type_list mds t ctx tyl in
 	let st = struct_type ctx tyl in
@@ -131,6 +131,11 @@ module Type = struct
     let tyl = List.map (type_ mds t ctx) l in
     Array.of_list tyl
 
+  and fun_decl mds t ctx = function
+    | Tfun (_, ty1, ty2) -> 
+	let fty = type_fun mds t ctx ty1 ty2 in
+	pointer_type fty
+    | _ -> assert false
 end
 
 type env = {
@@ -158,13 +163,13 @@ let dump_module md_file md pm =
 
 let pervasives ctx md = 
   let string = pointer_type (i8_type ctx) in
-  let unit = void_type ctx in
+  let unit = i32_type ctx in
   let args = i64_type ctx in
   let fty = function_type string [|args|] in
-  let malloc = declare_function "lml_malloc" fty md in
+  let malloc = declare_function "malloc" fty md in
 
   let tprint_int = function_type unit [|i32_type ctx|] in
-  let print_int = declare_function "lml_print_int" tprint_int md in 
+  let print_int = declare_function "print_int" tprint_int md in 
 
   let free = declare_function "lml_free" 
       (function_type unit [|pointer_type (i8_type ctx)|]) md in
@@ -315,13 +320,14 @@ and return env acc = function
 and instructions bb env acc ret l = 
   match l with
   | [] -> return env acc ret ; acc
-  | [vl1, Eapply (_, f, l) as instr] when not (IMap.mem f env.prims) ->
+  | [vl1, Eapply (fk, _, f, l) as instr] when not (IMap.mem f env.prims) ->
       (match ret with 
       | Return (tail, vl2) when tail -> 
 	  let l = List.map (fun (_, v) -> IMap.find v acc) l in
 	  let t = Array.of_list l in
 	  let f = IMap.find f acc in
 	  let v = build_call f t "" env.builder in
+	  
 	  set_tail_call true v ;
 	  set_instruction_call_conv Llvm.CallConv.fast v ;
 	  ignore (build_ret v env.builder) ;
@@ -341,18 +347,18 @@ and instructions bb env acc ret l =
 
 and instruction bb env acc (idl, e) = 
   match idl, e with 
-  | (xl, Eapply (_, f, l)) -> 
-      apply env acc xl f l
+  | (xl, Eapply (fk, _, f, l)) -> 
+      apply env acc xl fk f l
   | [x], e -> expr bb env acc x e
   | _ -> assert false
 
-and apply env acc xl f l = 
+and apply env acc xl fk f l = 
   let is_prim = IMap.mem f env.prims in
   let f = if is_prim then IMap.find f env.prims else IMap.find f acc in
   let l = List.map (fun (_, v) -> IMap.find v acc) l in
   let t = Array.of_list l in
   let v = build_call f t "" env.builder in
-  let cconv = if is_prim then Llvm.CallConv.c else Llvm.CallConv.fast in
+  let cconv = make_cconv fk in
   set_instruction_call_conv cconv v ;
   match xl with
   | [Tprim Tunit, x] -> 

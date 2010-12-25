@@ -283,7 +283,7 @@ module FreeVars = struct
       List.fold_left type_expr acc tyl
 
   | Ttuple tyl -> List.fold_left type_expr acc tyl
-  | Tfun (ty1, ty2) -> type_expr (type_expr acc ty1) ty2
+  | Tfun (_, ty1, ty2) -> type_expr (type_expr acc ty1) ty2
   | Tabbrev ty -> type_expr acc ty
   | Talgebric _ 
   | Trecord _ 
@@ -326,7 +326,7 @@ and decl genv sig_ (env, acc) = function
 
 and dval genv sig_ env id ((p, ty_) as ty) def = 
   match ty_ with 
-  | Tfun (_, _) ->
+  | Tfun (_, _, _) ->
       let id = Env.value sig_ id in
       let tvarl = FreeVars.type_expr ty in
       let sub_env, tvarl = lfold Env.new_tvar env tvarl in
@@ -370,7 +370,7 @@ and type_expr_ genv sig_ env x =
       let (p2, v) = Env.type_ sig_ id2 in
       let id2 = Pos.btw p1 p2, v in
       Nast.Tpath (md_id, id2)
-  | Tfun (ty1, ty2) -> Nast.Tfun (k ty1, k ty2)
+  | Tfun (fkind, ty1, ty2) -> Nast.Tfun (fkind, k ty1, k ty2)
   | Talgebric l -> 
       let vl = List.map (tvariant genv sig_ env) l in
       Nast.Talgebric (imap_of_list vl)

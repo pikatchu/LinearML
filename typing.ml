@@ -10,7 +10,7 @@ module LocalUtils = struct
   let tvar x = Pos.none, Tvar (Pos.none, x)
   let tid x = Pos.none, Tid (Pos.none, x)
   let tapply x y = Pos.none, Tapply ((Pos.none, x), (Pos.none, y))
-  let tfun x y = Pos.none, Tfun ((Pos.none, x), (Pos.none, y))
+  let tfun x y = Pos.none, Tfun (Ast.Cfun, (Pos.none, x), (Pos.none, y))
   let list l = Pos.none, l
 
   let o s = 
@@ -58,7 +58,7 @@ module LocalUtils = struct
     | Tvar _ -> b
     | Tid _ -> b
     | Tapply (_, l) -> has_any_list b l 
-    | Tfun (l1, l2) -> has_any_list b l1 || has_any_list b l2
+    | Tfun (_, l1, l2) -> has_any_list b l1 || has_any_list b l2
 
   and has_any_list b (_, l) = 
     List.fold_left has_any b l
@@ -91,10 +91,11 @@ module Print = struct
 	type_expr_list o tyl ;
 	o " " ; 
 	id o x
-    | Tfun (tyl1, tyl2) -> 
+    | Tfun (k, tyl1, tyl2) -> 
 	o "(" ; 
 	type_expr_list o tyl1 ; 
-	o " -> " ; 
+	o (match k with Ast.Cfun -> " #" | _ -> " ") ;
+	o "-> " ; 
 	type_expr_list o tyl2 ; 
 	o ")"
 
@@ -157,10 +158,10 @@ module Unify = struct
     | (_, Tapply ((_, x) as id, tyl1)), (_, Tapply ((_, y), tyl2)) when x = y -> 
 	let tyl = unify_list env tyl1 tyl2 in 
 	Tapply (id, tyl)
-    | (_, Tfun (tyl1, tyl2)), (_, Tfun (tyl3, tyl4)) ->
+    | (_, Tfun (k1, tyl1, tyl2)), (_, Tfun (k2, tyl3, tyl4)) when k1 = k2 ->
 	let tyl1 = unify_list_ env tyl1 tyl3 in
 	let tyl2 = unify_list_ env tyl2 tyl4 in
-	Tfun (tyl1, tyl2)
+	Tfun (k1, tyl1, tyl2)
     | _ -> unify_el_prim env ty1 ty2
 
   and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
@@ -216,7 +217,7 @@ module Instantiate = struct
     | Tapply ((_, x), tyl1), Tapply ((_, y), tyl2) when x = y ->
 	inst_list env subst tyl1 tyl2
     | _, Tany -> subst
-    | Tfun (tyl1, tyl3), Tfun (tyl2, tyl4) ->
+    | Tfun (k1, tyl1, tyl3), Tfun (k2, tyl2, tyl4) when k1 = k2 ->
 	let subst = inst_list env subst tyl1 tyl2 in
 	let subst = inst_list env subst tyl3 tyl4 in
 	subst
@@ -245,10 +246,10 @@ module Instantiate = struct
 	let tyl = List.map (replace subst env) tyl in
 	let tyl = p, tyl in
 	(p, Tapply (x, tyl))
-    | Tfun (tyl1, tyl2) -> 
+    | Tfun (k, tyl1, tyl2) -> 
 	let tyl1 = replace_list subst env tyl1 in
 	let tyl2 = replace_list subst env tyl2 in
-	(p, Tfun (tyl1, tyl2))
+	(p, Tfun (k, tyl1, tyl2))
     | _ -> (p, ty)
 
   and replace_var subst env (p, x) =
@@ -353,7 +354,7 @@ module Env = struct
     match snd tyl with
     | [] -> IMap.add x rty env
     | _ -> 
-	let v_ty = p, Tfun (tyl, (p, [rty])) in
+	let v_ty = p, Tfun (Ast.Lfun, tyl, (p, [rty])) in
 	IMap.add x v_ty env
       
   and tvar fvs ((p, x) as id) =
@@ -383,12 +384,12 @@ and declare env = function
 
 and def env (fid, p, e) = 
   match IMap.find (snd fid) env with
-  | _, Tfun (tyl, rty) -> 
+  | _, Tfun (k, tyl, rty) -> 
       let env, p = pat env p tyl in
       let rty', e = tuple env e in
       let rty = Unify.unify_list env rty' rty in
       let e = rty, e in
-      (fid, p, e)
+      (k, fid, p, e)
   | _ -> assert false
 
 and pat env (p1, pl) (p2, tyl) = 
@@ -479,7 +480,7 @@ and pat_field is_obs pty env (p, pf) =
 and pat_variant is_obs env x args pty =
   let argty, rty = 
     match IMap.find (snd x) env with
-    | _, Tfun (tyl, rty) -> tyl, rty
+    | _, Tfun (_, tyl, rty) -> tyl, rty
     | _ -> Error.no_argument (fst pty) 
   in
   let pty = fst pty, [pty] in
@@ -512,7 +513,8 @@ and tuple_ env p = function
       let ((tyl, _) as el) = tuple env el in
       let rty = apply env p x tyl in
       let fty = IMap.find (snd x) env in
-      let res = rty, Tast.Eapply (fty, x, el) in
+      let fk = match fty with _, Tfun (k, _, _) -> k | _ -> assert false in
+      let res = rty, Tast.Eapply (fk, fty, x, el) in
       res 
   | Eif (e1, el1, el2) -> 
       let e1 = expr env e1 in
@@ -638,12 +640,12 @@ and variant env (x, el) =
 
 and proj env ty fty = 
   match unobserve ty, fty with
-  | (p1, Tid (_, x1)), (p2, Tfun ((_, ty), (_, [_, Tid (_, x2)]))) ->
+  | (p1, Tid (_, x1)), (p2, Tfun (_, (_, ty), (_, [_, Tid (_, x2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
       (p1, ty)
   | (p1, Tapply ((_, x1), argl1)), 
-    (p2, Tfun (ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
+    (p2, Tfun (_, ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
       if x1 <> x2
       then Error.unify_proj p1 p2 ;
       Instantiate.call env argl2 argl1 ty 
@@ -670,7 +672,7 @@ and value = function
 
 and apply env p (fp, x) tyl = 
   match IMap.find x env with
-  | (_, Tfun (tyl1, tyl2)) ->
+  | (_, Tfun (_, tyl1, tyl2)) ->
       Instantiate.call env tyl1 tyl tyl2
   | p2, ty -> 
       Print.debug [p2, ty] ;

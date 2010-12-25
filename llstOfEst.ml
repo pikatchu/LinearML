@@ -53,7 +53,7 @@ module PredefTypes = struct
 
   let make() = 
     IMap.empty ++ 
-      (Naming.print_int, Tfun ([Tprim Tint32], [Tprim Tunit]))
+      (Naming.print_int, Tfun (Ast.Cfun, [Tprim Tint32], [Tprim Tunit]))
       (* TODO add the others *)
 
 end
@@ -303,10 +303,10 @@ and type_expr = function
   | Tid x -> Llst.Tid x
   | Tapply (x, [ty]) when x = Naming.tobs -> type_expr ty
   | Tapply (x, _) -> Llst.Tid x
-  | Tfun (tyl1, tyl2) -> 
+  | Tfun (k, tyl1, tyl2) -> 
       let tyl1 = type_expr_list tyl1 in
       let tyl2 = type_expr_list tyl2 in
-      Llst.Tfun (tyl1, tyl2)
+      Llst.Tfun (k, tyl1, tyl2)
 
 and def t df = 
   let headers = ExtractArgs.def t type_expr df in
@@ -314,6 +314,7 @@ and def t df =
   let body = List.map (add_header headers) body in
   { 
     Llst.df_id = df.df_id ;
+    Llst.df_kind = df.df_kind ;
     Llst.df_args = ty_idl df.df_args ;
     Llst.df_body = body ;
     Llst.df_ret = type_expr_list (List.map fst df.df_return) ;
@@ -459,16 +460,16 @@ and equation t is_last ret (idl, e) acc =
 	let acc = ([tyv], v) :: acc in
 	let acc = add_casts xl vl acc in
 	acc
-  | Eapply ((ty, x), vl) -> 
+  | Eapply (fk, (ty, x), vl) -> 
       let argl' = ty_idl vl in
       let argl = match ty with
-      | Tfun (tyl, _) -> 
+      | Tfun (_, tyl, _) -> 
 	  let tyl = type_expr_list tyl in
 	  List.map (fun ty -> ty, Ident.tmp()) tyl 
       | _ -> assert false in
       let acc = 
 	match get_rty t x with
-	| None -> (idl, Llst.Eapply (false, x, argl)) :: acc
+	| None -> (idl, Llst.Eapply (fk, false, x, argl)) :: acc
 	| Some rty ->
 	    let acc, xl = 
 	      match ret with
@@ -478,7 +479,7 @@ and equation t is_last ret (idl, e) acc =
 		  let acc = add_casts idl xl acc in
 		  acc, xl
 	    in
-	    let acc = (xl, Llst.Eapply (false, x, argl)) :: acc in
+	    let acc = (xl, Llst.Eapply (fk, false, x, argl)) :: acc in
 	    acc
       in
       let acc = add_casts argl argl' acc in
@@ -501,7 +502,7 @@ and tuple n vl =
 
 and get_rty t x = 
   try match IMap.find x t.types with 
-  | Llst.Tfun (_, x) -> Some x 
+  | Llst.Tfun (_, _, x) -> Some x 
   | _ -> assert false
   with Not_found -> None
 

@@ -74,6 +74,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 
 %token <Pos.t> AND
 %token <Pos.t> ARROW 
+%token <Pos.t> SARROW 
 %token <Pos.t> AS
 %token <Pos.t> ASSIGN
 %token <Pos.t> BAR
@@ -140,7 +141,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %right COLEQ
 %nonassoc AS
 %left BAR
-%right ARROW
+%right ARROW SARROW
 %right SC
 %right COMMA
 %left EQ LT LTE GT GTE
@@ -233,7 +234,8 @@ type_expr:
 | TVAR simpl_type_expr_l { tapply (fst $1, Tvar $1) $2 }
 | LP type_expr_l RP simpl_type_expr_l { lapply $1 $2 $4 }
 | simpl_type_expr simpl_type_expr_l { tapply $1 $2 }
-| type_expr ARROW type_expr { btw $1 $3, Tfun ($1, $3) }
+| type_expr ARROW type_expr { btw $1 $3, Tfun (Lfun, $1, $3) }
+| type_expr SARROW type_expr { btw $1 $3, Tfun (Cfun, $1, $3) }
 | type_expr STAR type_expr { btw $1 $3, Ttuple [$1; $3] }
 
 field_type_seq:

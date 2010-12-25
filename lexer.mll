@@ -84,6 +84,7 @@ rule token = parse
   | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
 
   | "->"               { ARROW (Pos.make lexbuf) }
+  | "#->"              { SARROW (Pos.make lexbuf) }
   | "<-"               { ASSIGN (Pos.make lexbuf) }
   | ":="               { COLEQ (Pos.make lexbuf) }
   | ":"                { COLON (Pos.make lexbuf) }

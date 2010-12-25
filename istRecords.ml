@@ -17,11 +17,11 @@ and module_ md =
   let md = { md with md_defs = defs } in
   md
 
-and def (x, p, e) = 
+and def (k, x, p, e) = 
   let subst, p = pat IMap.empty p in
   let e = tuple e in
   let e = alias subst e in
-  (x, p, e)
+  (k, x, p, e)
 
 and pat acc ptl = 
   let acc, ptl = lfold pat_tuple acc ptl in
@@ -112,9 +112,9 @@ and expr_ ty = function
       let e1 = tuple e1 in
       let e2 = tuple e2 in
       Eif (c, e1, e2)
-  | Eapply (ty, x, e) -> 
+  | Eapply (fk, ty, x, e) -> 
       let e = tuple e in
-      Eapply (ty, x, e)
+      Eapply (fk, ty, x, e)
   | Eseq (e1, e2) -> 
       let e1 = expr e1 in
       let e2 = tuple e2 in

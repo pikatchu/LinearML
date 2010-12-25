@@ -141,7 +141,7 @@ let rec program mdl =
 and module_ t md = 
   List.iter (def t) md.md_defs
 
-and def t (_, p, e) = 
+and def t (_, _, p, e) = 
   let t = pat t p in
   let t = tuple t e in
   check_alive t
@@ -222,8 +222,8 @@ and expr_ t = function
       | Used p' -> Error.already_used p p'
       | _ -> t)
   | Efree (_, (p, x)) -> pvar t p x
-  | Eapply (_, (_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
-  | Eapply (_, _, e) -> tuple t e 
+  | Eapply (_, _, (_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
+  | Eapply (_, _, _, e) -> tuple t e 
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2

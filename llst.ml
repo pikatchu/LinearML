@@ -20,7 +20,7 @@ and type_expr =
   | Tany
   | Tprim of type_prim
   | Tid of id
-  | Tfun of type_expr_list * type_expr_list
+  | Tfun of Ast.fun_kind * type_expr_list * type_expr_list
   | Tstruct of type_expr list
   | Tptr of type_expr
 
@@ -38,6 +38,7 @@ and ty_idl = ty_id list
 
 and def = {
     df_id: id ;
+    df_kind: Ast.fun_kind ;
     df_args: ty_id list ;
     df_body: block list ;
     df_ret: type_expr list ;
@@ -67,7 +68,7 @@ and expr =
   | Ebinop of Ast.bop * ty_id * ty_id
   | Euop of Ast.uop * ty_id
   | Efield of ty_id * int
-  | Eapply of bool * id * ty_idl
+  | Eapply of Ast.fun_kind * bool * id * ty_idl
   | Etuple of ty_id option * (int * ty_id) list
   | Egettag of ty_id
   | Egetargs of ty_id

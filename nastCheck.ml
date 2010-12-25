@@ -73,7 +73,7 @@ end = struct
     | Ttuple tyl -> 
 	List.fold_left (type_expr env path) status tyl
 
-    | Tfun (ty1, ty2) -> 
+    | Tfun (_, ty1, ty2) -> 
 	let status = type_expr env path status ty1 in
 	type_expr env path status ty2
 

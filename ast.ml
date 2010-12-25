@@ -3,6 +3,8 @@ open Utils
 type id = Pos.t * string
 type pstring = Pos.t * string
 
+type fun_kind = Cfun | Lfun
+
 type program = module_ list
 
 and module_ = {
@@ -19,7 +21,7 @@ and type_expr_ =
   | Tapply of type_expr * type_expr list
   | Ttuple of type_expr list
   | Tpath of id * id
-  | Tfun of type_expr * type_expr
+  | Tfun of fun_kind * type_expr * type_expr
   | Talgebric of (id * type_expr option) list
   | Trecord of (id * type_expr) list
   | Tabbrev of type_expr

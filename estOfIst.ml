@@ -279,13 +279,14 @@ and module_ md = {
     Est.md_defs = List.map def md.md_defs ;
   }
 
-and def (x, p, e) = 
+and def (k, x, p, e) = 
   let t = empty in
   let idl1 = make_params p in
   let t, idl2 = tuple t e in
   let fblock = block t.eqs (Est.Return (false, idl2)) in 
   let def = {
     Est.df_id = x ;
+    Est.df_kind = k ;
     Est.df_args = idl1 ;
     Est.df_return = idl2 ;
     Est.df_body = fblock :: t.blocks ;
@@ -405,10 +406,10 @@ and expr_ t tyl = function
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
       t, ridl
-  | Eapply (ty, x, e) -> 
+  | Eapply (fk, ty, x, e) -> 
       let t, idl1 = tuple t e in
       let idl2 = make_idl tyl in
-      let t = equation t idl2 (Est.Eapply ((ty, x), idl1)) in
+      let t = equation t idl2 (Est.Eapply (fk, (ty, x), idl1)) in
       t, idl2
   | Eseq (e1, e2) -> 
       let t, _ = expr t e1 in
@@ -446,8 +447,8 @@ and simpl_expr_ t ty = function
       t, Est.Ewith (id, fdl)
   | Efree (ty, x) ->
       t, Est.Efree (ty, x)
-  | (Eseq (_, _)|Eapply (_, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)|
-    Efield (_, _)|Eid _) -> assert false
+  | (Eseq (_, _)|Eapply (_, _, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)
+  | Efield (_, _)|Eid _) -> assert false
 
 and field t (x, e) = 
   let t, idl = tuple t e in

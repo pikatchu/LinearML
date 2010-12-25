@@ -85,7 +85,7 @@ end = struct
 	if arity <> arg_length 
 	then Error.type_arity p x arg_length arity pdef
 	else type_expr_list env tl 
-    | Tfun (ty1, ty2) -> type_expr_list env ty1 ; type_expr_list env ty2
+    | Tfun (_, ty1, ty2) -> type_expr_list env ty1 ; type_expr_list env ty2
 
 end 
 

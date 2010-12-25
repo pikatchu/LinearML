@@ -55,10 +55,11 @@ and type_expr = function
   | Tprim tp -> type_prim tp
   | Tid x -> id x 
   | Tptr x -> type_expr x ; o "*"
-  | Tfun (tyl1, tyl2) -> 
+  | Tfun (k, tyl1, tyl2) -> 
       o "(" ;
       type_expr_list tyl1 ;
-      o " -> " ;
+      o (match k with Ast.Cfun -> " #" | Ast.Lfun -> " ") ;
+      o "-> " ;
       type_expr_list tyl2 ;
       o ")"
   | Tstruct tyl -> 
@@ -133,7 +134,11 @@ and expr = function
   | Etuple (x, l) -> o "{ " ; maybe ty_id x ; o " | " ; 
       print_list o (fun _ (n, x) -> o "[" ; o (soi n) ; o "]=" ; tid x) ", " l ; o " }"
   | Efield (x, y) -> tid x ; o "." ; o (soi y)
-  | Eapply (b, x, l) -> if b then o "tail " else () ; o "call " ; id x ; o " " ; idl l
+  | Eapply (fk, b, x, l) -> 
+      if b then o "tail " else () ; 
+      o "call[" ; 
+      (match fk with Ast.Cfun -> o "C] " | Ast.Lfun -> o "L] ") ;
+      id x ; o " " ; idl l
   | Egettag x -> o "gettag " ; tid x
   | Egetargs x -> o "getargs " ; tid x
   | Eproj (x, n) -> tid x ; o "[" ; o (soi n) ; o "]"

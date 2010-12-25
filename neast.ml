@@ -30,7 +30,7 @@ and type_expr_ =
   | Tvar of id 
   | Tid of id
   | Tapply of id * type_expr_list
-  | Tfun of type_expr_list * type_expr_list
+  | Tfun of Ast.fun_kind * type_expr_list * type_expr_list
 
 and type_expr_list = Pos.t * type_expr list
 
@@ -92,11 +92,9 @@ module FreeVars = struct
     | Tprim _ 
     | Tid _ -> t
     | Tvar (_, x) -> ISet.add x t
-
     | Tapply (_, (_, tyl)) -> 
 	List.fold_left type_expr t tyl
-
-    | Tfun ((_, tyl1), (_, tyl2)) -> 
+    | Tfun (_, (_, tyl1), (_, tyl2)) -> 
 	let t = List.fold_left type_expr t tyl1 in
 	List.fold_left type_expr t tyl2
 

@@ -12,9 +12,11 @@ module Subst = struct
     | Tabstract
     | Tprim _ | Tpath _
     | Tid _ | Tvar _ as x -> x
-    | Tapply (ty, tyl) -> Tapply (type_expr env ty, List.map (type_expr env) tyl)
+    | Tapply (ty, tyl) -> 
+	let tyl = List.map (type_expr env) tyl in
+	Tapply (type_expr env ty, tyl)
     | Ttuple tyl -> Ttuple (List.map (type_expr env) tyl)
-    | Tfun (ty1, ty2) -> Tfun (type_expr env ty1, type_expr env ty2)
+    | Tfun (fk, ty1, ty2) -> Tfun (fk, type_expr env ty1, type_expr env ty2)
     | Talgebric vl -> Talgebric (IMap.map (variant env) vl)
     | Trecord fdl -> Trecord (IMap.map (field env) fdl)
     | Tabbrev ty -> Tabbrev (type_expr env ty)
@@ -52,10 +54,10 @@ module Tuple = struct
 	let tyl = List.map type_expr_tuple tyl in
 	n-1, (p, Tapply (ty, tyl)) :: acc
 
-    | Tfun (ty1, ty2) -> 
+    | Tfun (fk, ty1, ty2) -> 
 	let ty1 = type_expr_tuple ty1 in
 	let ty2 = type_expr_tuple ty2 in
-	n-1, (p, Tfun (ty1, ty2)) :: acc
+	n-1, (p, Tfun (fk, ty1, ty2)) :: acc
 
     | Talgebric vl -> n-1, (p, Talgebric (IMap.map variant vl)) :: acc
     | Trecord fdl -> n-1, (p, Trecord (IMap.map field fdl)) :: acc
@@ -159,10 +161,10 @@ end = struct
 	let mem, tyl = lfold (type_expr abbr) mem tyl in
 	mem, Ttuple tyl
 
-    | Tfun (ty1, ty2) -> 
+    | Tfun (fk, ty1, ty2) -> 
 	let mem, ty1 = type_expr abbr mem ty1 in
 	let mem, ty2 = type_expr abbr mem ty2 in
-	mem, Tfun (ty1, ty2)
+	mem, Tfun (fk, ty1, ty2)
 
     | Talgebric vl -> 
 	let mem, vl = imlfold (variant abbr) mem vl in
@@ -310,10 +312,10 @@ and type_expr_ = function
   | Tpath (x, y) -> 
       Ident.expand_name (snd x) (snd y) ;
       Neast.Tid y
-  | Tfun (ty1, ty2) -> 
+  | Tfun (fk, ty1, ty2) -> 
       let ty1 = type_expr_tuple ty1 in
       let ty2 = type_expr_tuple ty2 in
-      Neast.Tfun (ty1, ty2)
+      Neast.Tfun (fk, ty1, ty2)
   | Ttuple _ 
   | Talgebric _ 
   | Trecord _ 

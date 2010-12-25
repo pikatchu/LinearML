@@ -14,6 +14,7 @@ and module_ = {
 
 and def = {
     df_id: id ;
+    df_kind: Ast.fun_kind ;
     df_args: ty_id list ;
     df_return: ty_id list ;
     df_body: block list ;
@@ -63,7 +64,7 @@ and expr =
   | Efield of ty_id * id 
   | Ematch of ty_idl * (pat * expr) list
   | Ecall of label
-  | Eapply of ty_id * ty_idl
+  | Eapply of Ast.fun_kind * ty_id * ty_idl
   | Eseq of ty_id * ty_idl
   | Eif of ty_id * label * label
   | Eis_null of ty_id

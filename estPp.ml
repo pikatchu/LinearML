@@ -48,9 +48,10 @@ and type_expr = function
   | Tprim tp -> type_prim tp
   | Tid x -> id x 
   | Tapply (x, tyl) -> o "(" ; type_expr_list tyl ; o ") " ; id x
-  | Tfun (tyl1, tyl2) -> 
+  | Tfun (k, tyl1, tyl2) -> 
       type_expr_list tyl1 ;
-      o " -> " ;
+      o (match k with Ast.Cfun -> " #" | Ast.Lfun -> " ") ;
+      o "-> " ;
       type_expr_list tyl2 
 
 and type_expr_list l = 
@@ -131,7 +132,10 @@ and expr = function
   | Efield (x, y) -> tid x ; o "." ; id y
   | Ematch (xl, al) -> 
       o "match " ; idl xl ; push() ; nl() ;List.iter action al ; pop()
-  | Eapply (x, l) -> o "call " ; tid x ; o " " ; idl l
+  | Eapply (fk, x, l) -> 
+      o "call[" ; 
+      o (match fk with Ast.Cfun -> "C] " | Ast.Lfun -> "L] ") ;
+      tid x ; o " " ; idl l
   | Eseq _ -> failwith "TODO seq"
   | Ecall x -> o "lcall " ; o (Ident.debug x)
   | Eif (x, l1, l2) -> 

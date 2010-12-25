@@ -6,6 +6,7 @@ let rec id t x = try id t (IMap.find x t) with Not_found -> x
 
 let rec def t df = 
   { Est.df_id = id t df.df_id ;
+    Est.df_kind = df.df_kind ;
     Est.df_args = ty_idl t df.df_args;
     Est.df_return = ty_idl t df.df_return ;
     Est.df_body = List.map (block t) df.df_body ;
@@ -44,7 +45,7 @@ and expr t = function
   | Efield (x, y) -> Efield (ty_id t x, y) 
   | Ematch (l, al) -> Ematch (ty_idl t l, actions t al) 
   | Ecall _ as e -> e
-  | Eapply (x, l) -> Eapply (ty_id t x, ty_idl t l)
+  | Eapply (fk, x, l) -> Eapply (fk, ty_id t x, ty_idl t l)
   | Eseq (x, xl) -> Eseq (ty_id t x, ty_idl t xl)
   | Eif (x1, l1, l2) -> Eif (ty_id t x1, l1, l2)
   | Eis_null x -> Eis_null (ty_id t x)

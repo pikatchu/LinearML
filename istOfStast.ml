@@ -35,11 +35,14 @@ and type_expr (_, ty) =
   (* Special case *)
 (*  | Tapply ((_, x), (_, [ty])) when x = Naming.toption -> type_expr ty *)
   | Tapply (x, tyl) -> Ist.Tapply (id x, type_expr_list tyl)
-  | Tfun (tyl1, tyl2) -> Ist.Tfun (type_expr_list tyl1, type_expr_list tyl2)
+  | Tfun (k, tyl1, tyl2) -> 
+      let tyl1 = type_expr_list tyl1 in
+      let tyl2 = type_expr_list tyl2 in
+      Ist.Tfun (k, tyl1, tyl2)
 
 and type_expr_list (_, tyl) = List.map type_expr tyl
 
-and def (x, p, e) = id x, pat p, tuple e
+and def (k, x, p, e) = k, id x, pat p, tuple e
 
 and pat (_, ptl) = List.map pat_tuple ptl 
 and pat_tuple (_, pel) = List.map pat_el pel 
@@ -74,7 +77,7 @@ and expr_ = function
   | Ematch (e, al) -> Ist.Ematch (tuple e, List.map action al)
   | Elet (p, e1, e2) -> Ist.Elet (pat p, tuple e1, tuple e2)
   | Eif (e1, e2, e3) -> Ist.Eif (expr e1, tuple e2, tuple e3)
-  | Eapply (ty, x, e) -> Ist.Eapply (type_expr ty, id x, tuple e)
+  | Eapply (fk, fty, x, e) -> Ist.Eapply (fk, type_expr fty, id x, tuple e)
   | Eseq (e1, e2) -> Ist.Eseq (expr e1, tuple e2)
   | Eobs x -> Ist.Eid (id x)
   | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)

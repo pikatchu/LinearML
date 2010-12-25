@@ -166,7 +166,7 @@ let rec program mdl =
 and module_ t md = 
   List.iter (def t) md.md_defs 
 
-and def t (x, ((tyl, _) as p), e) = 
+and def t (_, x, ((tyl, _) as p), e) = 
   let tyl = type_expr_list tyl in
   let t = pat t p tyl in
   check_type (fst (fst e)) (tuple t e)
@@ -248,7 +248,7 @@ and expr_ t pos ty = function
       (try free t (fst x) (IMap.find (snd x) t)
       with Not_found -> ()) ;
       [P]
-  | Eapply (_, _, e) -> 
+  | Eapply (_, _, _, e) -> 
       check_type pos (tuple t e) ;
       List.map type_expr ty 
   | Efield (e, (p, x)) -> 

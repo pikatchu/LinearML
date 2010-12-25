@@ -29,7 +29,7 @@ and type_expr_ =
   | Tvar of id 
   | Tid of id
   | Tapply of id * type_expr_list
-  | Tfun of type_expr_list * type_expr_list
+  | Tfun of Ast.fun_kind * type_expr_list * type_expr_list
 
 and type_expr_list = Pos.t * type_expr list
 
@@ -40,7 +40,7 @@ and type_prim = Nast.type_prim =
   | Tint32
   | Tfloat
 
-and def = id * pat * tuple
+and def = Ast.fun_kind * id * pat * tuple
 
 and pat = type_expr_list * pat_tuple list
 and pat_tuple = type_expr_list * pat_el list
@@ -74,7 +74,7 @@ and expr_ =
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
-  | Eapply of type_expr * id * tuple
+  | Eapply of Ast.fun_kind * type_expr * id * tuple
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of type_expr * id

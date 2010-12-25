@@ -1,18 +1,10 @@
 module T = struct
 
-  type 'a bob
+  type 'a t
 
-  val f: 'a -> 'a bob = "dd"
-  val f2: 'a bob -> 'a = "dd3"
+  val f: 'a #-> 'a bob = "dd"
 
-  type db = { v: int32 }
-
-  val main: unit -> unit
-  let main () = 
-    let b1 = f { v = 0 } in
-    let b2 = f { v = 1 } in
-    let x = f2 b1 in
-    let y = f2 b2 in
-    free x ; free y 
+  val plus1: int32 #-> int32
+  let plus1 f x = f x+1
 
 end

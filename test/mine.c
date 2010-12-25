@@ -59,7 +59,7 @@ void* try_get(future* t){
   return res ;
 }
 
-void c_print_int(int x){
+void print_int(int x){
   printf("%d\n", x) ;
 }
 
@@ -68,3 +68,7 @@ void c_print_float(float x){
 }
 
 
+int lml_free(void* x){ 
+  free(x) ; 
+  return 0 ; 
+}
