@@ -1,10 +1,12 @@
 module T = struct
 
-  type 'a t
+  val f: int32 -> unit
+  let f x = print_int x
+end
 
-  val f: 'a #-> 'a bob = "dd"
+module B = struct
 
-  val plus1: int32 #-> int32
-  let plus1 f x = f x+1
-
+  val main: unit -> unit
+  let main () = 
+    T.f 0
 end

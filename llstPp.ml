@@ -140,7 +140,7 @@ and expr = function
       if b then o "tail " else () ; 
       o "call[" ; 
       (match fk with Ast.Cfun -> o "C] " | Ast.Lfun -> o "L] ") ;
-      id x ; o " " ; idl l
+      ty_id x ; o " " ; idl l
   | Egettag x -> o "gettag " ; tid x
   | Egetargs x -> o "getargs " ; tid x
   | Eproj (x, n) -> tid x ; o "[" ; o (soi n) ; o "]"

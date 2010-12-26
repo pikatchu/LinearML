@@ -51,3 +51,6 @@ let to_ustring x =
   | "free" | "print" | "print_int" -> s
   | _ -> s ^ string_of_int x
   
+let full x = 
+  let md = try origin x with Not_found -> "" in
+  md^"_"^(to_string x)

@@ -11,15 +11,9 @@ let make_cconv = function
 
 module Type = struct
 
-  let is_public md = 
-    let acc = ISet.empty in
-    let acc = List.fold_left (
-      fun acc x ->
-	match x with
-	| Dval (x, _, _) -> ISet.add x acc
-	| _ -> acc
-     ) acc md.md_decls in
-    acc
+  let public_name md_id x = 
+    let md_id = String.lowercase md_id in
+    md_id ^ "_" ^ (Ident.to_string x)
 
   let rec program ctx mdl = 
     let mds = List.fold_left (module_decl ctx) IMap.empty mdl in
@@ -30,7 +24,7 @@ module Type = struct
   and module_decl ctx acc md = 
     let md_id = Ident.to_string md.md_id in
     let llvm_md = create_module ctx md_id in
-    let t = List.fold_left (opaques llvm_md ctx) IMap.empty md.md_decls in
+    let t = List.fold_left (opaques md_id llvm_md ctx) IMap.empty md.md_decls in
     IMap.add md.md_id (llvm_md, t) acc 
 
   and module_refine ctx mds acc md = 
@@ -41,17 +35,18 @@ module Type = struct
     IMap.add md.md_id (llmd, t') acc
 
   and module_funs ctx mds acc md = 
-    let pub = is_public md in
-    let md_name, dl, decl = md.md_id, md.md_defs, md.md_decls in
-    let (md, tys) = IMap.find md_name mds in
-    let fs = List.fold_left (def_fun pub mds tys md ctx) IMap.empty dl in
+    let md_id, dl, decl = md.md_id, md.md_defs, md.md_decls in
+    let md_name = Ident.to_string md_id in
+    let (md, tys) = IMap.find md_id mds in
+    let fs = List.fold_left (def_fun md_name mds tys md ctx) IMap.empty dl in
     let fs = List.fold_left (def_external mds tys md ctx) fs decl in
-    IMap.add md_name (md, tys, fs, dl) acc
+    IMap.add md_id (md, tys, fs, dl) acc
 
-  and opaques md ctx t = function
+  and opaques md_id md ctx t = function
     | Dtype (x, _) -> 
 	let ty = opaque_type ctx in
-	assert (define_type_name (Ident.to_string x) ty md) ;
+	let name = public_name md_id x in
+	assert (define_type_name name ty md) ;
 	IMap.add x ty t
     | _ -> t
 
@@ -59,13 +54,9 @@ module Type = struct
     | Dtype (x, ty) -> IMap.add x (type_ mds t ctx ty) t
     | _ -> t
 
-  and def_fun pub mds t md ctx acc df = 
-    let link = 
-      if ISet.mem df.df_id pub 
-      then Llvm.Linkage.External
-      else Llvm.Linkage.Private
-    in
-    IMap.add df.df_id (function_ link mds t md ctx df) acc
+  and def_fun md_name mds t md ctx acc df = 
+    let fun_ = function_ md_name mds t md ctx df in
+    IMap.add df.df_id fun_ acc
 
   and def_external mds t md ctx acc = function
     | Dval (x, Tfun (_, ty1, ty2), Some v) ->
@@ -80,10 +71,12 @@ module Type = struct
 	refine_type (IMap.find x t) ty
     | _ -> ()
 
-  and function_ link mds t md ctx df = 
+  and function_ md_name mds t md ctx df = 
+    let link = Llvm.Linkage.External in
     let args = List.map fst df.df_args in
     let ftype = type_fun mds t ctx args df.df_ret in
-    let fdec = declare_function (Ident.to_string df.df_id) ftype md in
+    let name = public_name md_name df.df_id in
+    let fdec = declare_function name ftype md in
     let cconv = make_cconv df.df_kind in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
@@ -166,7 +159,7 @@ let dump_module md_file md pm =
 
 let pervasives ctx md = 
   let string = pointer_type (i8_type ctx) in
-  let unit = i32_type ctx in
+  let unit = void_type ctx in
   let args = i64_type ctx in
   let fty = function_type string [|args|] in
   let malloc = declare_function "malloc" fty md in
@@ -174,7 +167,7 @@ let pervasives ctx md =
   let tprint_int = function_type unit [|i32_type ctx|] in
   let print_int = declare_function "print_int" tprint_int md in 
 
-  let free = declare_function "lml_free" 
+  let free = declare_function "free" 
       (function_type unit [|pointer_type (i8_type ctx)|]) md in
 
   set_linkage Linkage.External malloc ; 
@@ -185,8 +178,6 @@ let pervasives ctx md =
   let prims = IMap.add Naming.ifree free prims in
   let prims = IMap.add Naming.print_int print_int prims in
   prims
-
-
 
 let optims pm = 
   add_constant_propagation pm ;
@@ -213,7 +204,6 @@ let optims pm =
 
   add_ind_var_simplification pm ;
   add_instruction_combination pm  
-
 
 let rec program mdl = 
   let ctx = global_context() in
@@ -291,7 +281,7 @@ and block env acc bl =
 and return env acc = function
   | Return (_, l) -> 
       let l = List.map (
-	fun (ty, x) -> (* ridiculous again *)
+	fun (ty, x) ->
 	  let ty = match ty with Tprim _ as x -> x | _ -> Tany in
 	  let ty = Type.type_ env.mds env.types env.ctx ty in  
 	  let v = IMap.find x acc in
@@ -324,14 +314,13 @@ and return env acc = function
 and instructions bb env acc ret l = 
   match l with
   | [] -> return env acc ret ; acc
-  | [vl1, Eapply (fk, _, f, l) as instr] when not (IMap.mem f env.prims) ->
+  | [vl1, Eapply (fk, _, f, l) as instr] ->
       (match ret with 
-      | Return (tail, vl2) when tail -> 
+      | Return (tail, vl2) when tail && fk = Ast.Lfun -> 
 	  let l = List.map (fun (_, v) -> IMap.find v acc) l in
 	  let t = Array.of_list l in
-	  let f = IMap.find f acc in
+	  let f = IMap.find (snd f) acc in
 	  let v = build_call f t "" env.builder in
-	  
 	  set_tail_call true v ;
 	  set_instruction_call_conv Llvm.CallConv.fast v ;
 	  ignore (build_ret v env.builder) ;
@@ -356,17 +345,28 @@ and instruction bb env acc (idl, e) =
   | [x], e -> expr bb env acc x e
   | _ -> assert false
 
-and apply env acc xl fk f l = 
+and apply env acc xl fk (fty, f) l = 
   let is_prim = IMap.mem f env.prims in
-  let f = if is_prim then IMap.find f env.prims else IMap.find f acc in
+  let f = 
+    try if is_prim then IMap.find f env.prims else IMap.find f acc 
+    with Not_found ->
+      let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
+      let name = Ident.full f in
+      let fdec = declare_function name ftype env.cmd in
+      let cconv = match fty with
+      | Tfun (fk, _, _) -> make_cconv fk 
+      | _ -> assert false in
+      set_linkage Linkage.External fdec ; 
+      set_function_call_conv cconv fdec ;
+      fdec
+  in
   let l = List.map (fun (_, v) -> IMap.find v acc) l in
   let t = Array.of_list l in
   let v = build_call f t "" env.builder in
   let cconv = make_cconv fk in
   set_instruction_call_conv cconv v ;
   match xl with
-  | [Tprim Tunit, x] -> 
-      IMap.add x (const_int (i1_type env.ctx) 0) acc
+  | [] -> acc
   | [_, x] -> IMap.add x v acc
   | _ -> extract_values env acc xl v
 
@@ -515,7 +515,7 @@ and binop ty = function
   | Estar -> build_mul
 
 and const env ty = function
-  | Eunit -> const_int (i1_type env.ctx) 0
+  | Eunit -> assert false
   | Ebool true -> const_int (i1_type env.ctx) 1
   | Ebool false -> const_int (i1_type env.ctx) 0
   | Eint s -> 

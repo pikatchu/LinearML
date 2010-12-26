@@ -469,7 +469,9 @@ and equation t is_last ret (idl, e) acc =
       | _ -> assert false in
       let acc = 
 	match get_rty t x with
-	| None -> (idl, Llst.Eapply (fk, false, x, argl)) :: acc
+	| None -> 
+	    let fid = type_expr ty, x in
+	    (idl, Llst.Eapply (fk, false, fid, argl)) :: acc
 	| Some rty ->
 	    let acc, xl = 
 	      match ret with
@@ -479,7 +481,8 @@ and equation t is_last ret (idl, e) acc =
 		  let acc = add_casts idl xl acc in
 		  acc, xl
 	    in
-	    let acc = (xl, Llst.Eapply (fk, false, x, argl)) :: acc in
+	    let fid = type_expr ty, x in
+	    let acc = (xl, Llst.Eapply (fk, false, fid, argl)) :: acc in
 	    acc
       in
       let acc = add_casts argl argl' acc in
