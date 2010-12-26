@@ -427,3 +427,8 @@ let cannot_free p fty =
   fty oerr ;
   err "You can only free records or strings" ;
   exit 2
+
+let field_cannot_be_unit p = 
+  pos p ;
+  err "Illegal usage of type unit" ;
+  exit 2

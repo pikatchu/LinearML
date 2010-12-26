@@ -66,7 +66,9 @@ and type_expr = function
       o "{ " ; print_list o (fun _ x -> type_expr x) ", " tyl ; o " }"
 
 and type_expr_list l = 
-  print_list o (fun _ x -> type_expr x) ", " l
+  if l = []
+  then o "void"
+  else print_list o (fun _ x -> type_expr x) ", " l
 
 and type_prim = function
   | Tunit -> o "unit"

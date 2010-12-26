@@ -157,8 +157,39 @@ module RecordCheck = struct
 
 end
 
+(*****************************************************************************)
+(*     Check that no field is of type unit                                   *)
+(*****************************************************************************)
+module CheckUnit = struct
+
+  let rec program mdl = 
+    List.iter module_ mdl 
+
+  and module_ md = 
+    List.iter decl md.md_decls
+
+  and decl = function
+    | Dalgebric td
+    | Drecord td -> tdef td
+    | Dabstract _
+    | Dval _ -> ()
+
+  and tdef td = 
+    IMap.iter (
+    fun _ (_, tyl) -> 
+      List.iter type_expr (snd tyl)
+   ) td.td_map 
+
+  and type_expr (p, ty) = type_expr_ p ty
+  and type_expr_ p = function 
+    | Tprim Tunit -> Error.field_cannot_be_unit p
+    | _ -> ()
+
+end
+
 (* Entry point *)
 let program p = 
   RecordCheck.program p ;
-  TypeApplication.check p 
+  TypeApplication.check p ;
+  CheckUnit.program p
 

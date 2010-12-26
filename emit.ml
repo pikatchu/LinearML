@@ -98,10 +98,10 @@ module Type = struct
     | Some ty -> ty
 
   and type_fun mds t ctx ty1 ty2 =
-    let ty1 = type_list mds t ctx ty1 in
+    let ty1 = List.map (type_ mds t ctx) ty1 in
+    let ty1 = Array.of_list ty1 in 
     let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
     let rty = type_list mds t ctx ty2 in
-    let rty = match rty with [|x|] -> x | _ -> struct_type ctx rty in
     let fty = function_type rty ty1 in
     fty 
 
@@ -113,15 +113,15 @@ module Type = struct
 	let fty = type_fun mds t ctx ty1 ty2 in
 	pointer_type fty
     | Tstruct tyl -> 
-	let tyl = type_list mds t ctx tyl in
-	let st = struct_type ctx tyl in
+	let tyl = List.map (type_ mds t ctx) tyl in
+	let st = struct_type ctx (Array.of_list tyl) in
 	st
     | Tptr ty -> 
 	let ty = type_ mds t ctx ty in
 	pointer_type ty
 
   and type_prim mds t ctx = function 
-    | Tunit -> i1_type ctx
+    | Tunit -> void_type ctx
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
     | Tint32 -> i32_type ctx
@@ -129,7 +129,10 @@ module Type = struct
 
   and type_list mds t ctx l = 
     let tyl = List.map (type_ mds t ctx) l in
-    Array.of_list tyl
+    match tyl with
+    | [] -> void_type ctx
+    | [x] -> x 
+    | _ -> struct_type ctx (Array.of_list tyl)
 
   and fun_decl mds t ctx = function
     | Tfun (_, ty1, ty2) -> 
@@ -295,6 +298,7 @@ and return env acc = function
 	  build_bitcast v ty "" env.builder
        ) l in
       (match Array.of_list l with
+      | [||] -> ignore (build_ret_void env.builder)
       | [|x|] -> ignore (build_ret x env.builder)
       | t -> ignore (build_aggregate_ret t env.builder))
   | Jump lbl -> 
