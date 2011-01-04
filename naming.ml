@@ -288,7 +288,8 @@ let rec program mdl =
 and module_ genv md = 
   let md_id = Genv.module_id genv md.md_id in
   let sig_ = Genv.sig_ genv md_id in
-  let env, decls = List.fold_left (decl genv sig_) (Env.empty, []) md.md_defs in
+  let acc = (genv, Env.empty, []) in
+  let _, env, decls = List.fold_left (decl sig_) acc md.md_defs in
   let decls = List.rev decls in
   let env = List.fold_left (external_ sig_) Env.empty md.md_defs in
   let env = List.fold_left (def_name sig_) env md.md_defs in
@@ -300,16 +301,17 @@ and module_ genv md =
     Nast.md_defs = defs ;
   }
 
-and decl genv sig_ (env, acc) = function
+and decl sig_ (genv, env, acc) = function
+  | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
   | Dtype tdl -> 
       let env, ty = dtype genv sig_ env tdl in
       let ty = Nast.Dtype ty in
-      env, ty :: acc
+      genv, env, ty :: acc
   | Dval (x, y, z) -> 
       let env, (x, y, z) = dval genv sig_ env x y z in
       let dval = Nast.Dval (x, y, z) in
-      env, dval :: acc
-  | _ -> env, acc
+      genv, env, dval :: acc
+  | _ -> genv, env, acc
 
 and dval genv sig_ env id ((p, ty_) as ty) def = 
   match ty_ with 

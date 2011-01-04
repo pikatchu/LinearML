@@ -1,6 +1,10 @@
-module Test = struct
+
+module ArrayTest = struct
+
+  module IB = Int32Box
 
   type ibox = { v: int32 }
+
 
   val init: int32 * ibox Array.t -> ibox Array.t
   let init n t = 
@@ -22,4 +26,5 @@ module Test = struct
       | Some { b ; ~v } ->
 	  free b ;
 	  sum (acc+v) (n-1) t
+
 end

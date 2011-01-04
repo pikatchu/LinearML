@@ -14,5 +14,7 @@ module Array = struct
     t, v 
 
   val delete: 'a t * ('a #-> unit) #-> unit = "array_free"
+
+  val fold_left: ('a * 'b option #-> 'a) * 'a * 'b t #-> 'a = "array_fold_left"
 end
 

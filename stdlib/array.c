@@ -44,3 +44,12 @@ void array_free(array_t* t, void (*free_v)(void*)){
   free(h) ;
   free(t) ;
 }
+
+void* array_fold_left(void* (*f)(void*, array_t*), void* acc, array_t* t){
+  int i ;
+  for (i = 0 ; i < t->size ; i++){
+    acc = f(acc, t->t[i]) ;
+  }
+  free(t) ;
+  return acc ;
+}
