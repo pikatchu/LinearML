@@ -186,10 +186,45 @@ module CheckUnit = struct
     | _ -> ()
 
 end
+    
+(*****************************************************************************)
+(*     Check external signatures                                             *)
+(*****************************************************************************)
+module CheckExternal = struct
+  exception Error of Pos.t
+
+  let rec program mdl = 
+    List.iter module_ mdl
+
+  and module_ md = 
+    List.iter decl md.md_decls
+
+  and decl = function
+    | Dval (_, ty, Some _) -> 
+	(try type_expr ty 
+	with Error p ->
+	  Error.invalid_extern_type (fst ty) p)
+    | _ -> ()
+
+  and type_expr (p, ty) = type_expr_ p ty
+  and type_expr_ p = function
+    | Tany
+    | Tprim _ -> () (* TODO no bool ? *)
+    | Tvar _
+    | Tid _ -> ()
+    | Tapply (_, tyl) -> type_expr_list tyl
+    | Tfun (Ast.Lfun, _, _) -> raise (Error p) 
+    | Tfun (_, tyl1, tyl2) -> type_expr_list tyl1 ; type_expr_list tyl2 
+
+  and type_expr_list (_, l) = List.iter type_expr l
+
+end
+
 
 (* Entry point *)
 let program p = 
   RecordCheck.program p ;
   TypeApplication.check p ;
-  CheckUnit.program p
+  CheckUnit.program p ;
+  CheckExternal.program p
 

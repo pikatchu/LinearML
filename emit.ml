@@ -9,6 +9,22 @@ let make_cconv = function
   | Ast.Cfun -> Llvm.CallConv.c 
   | Ast.Lfun -> Llvm.CallConv.fast
 
+module MakeNames = struct
+
+  let rec program mdl = 
+    List.iter module_ mdl
+
+  and module_ md = 
+    List.iter (decl md.md_id) md.md_decls 
+
+  and decl md = function
+    | Dval (x, _, Some y) -> 
+	Ident.set_name x y
+    | Dtype (x, _)
+    | Dval (x, _, _) ->
+	Ident.expand_name md x
+end
+
 module Type = struct
 
   let public_name md_id x = 
@@ -16,6 +32,7 @@ module Type = struct
     md_id ^ "_" ^ (Ident.to_string x)
 
   let rec program ctx mdl = 
+    MakeNames.program mdl ;
     let mds = List.fold_left (module_decl ctx) IMap.empty mdl in
     let mds = List.fold_left (module_refine ctx mds) IMap.empty mdl in
     let t = List.fold_left (module_funs ctx mds) IMap.empty mdl in
@@ -130,7 +147,7 @@ module Type = struct
   and fun_decl mds t ctx = function
     | Tfun (_, ty1, ty2) -> 
 	let fty = type_fun mds t ctx ty1 ty2 in
-	pointer_type fty
+	fty
     | _ -> assert false
 end
 
@@ -351,8 +368,9 @@ and apply env acc xl fk (fty, f) l =
     try if is_prim then IMap.find f env.prims else IMap.find f acc 
     with Not_found ->
       let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
-      let name = Ident.full f in
+      let name = Ident.full f in 
       let fdec = declare_function name ftype env.cmd in
+      dump_value fdec ;
       let cconv = match fty with
       | Tfun (fk, _, _) -> make_cconv fk 
       | _ -> assert false in

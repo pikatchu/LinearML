@@ -12,3 +12,4 @@ val expand_name: t -> t -> unit
 val origin: t -> string
 val to_ustring: t -> string
 val full: t -> string
+val set_name: t -> string -> unit

@@ -432,3 +432,10 @@ let field_cannot_be_unit p =
   pos p ;
   err "Illegal usage of type unit" ;
   exit 2
+
+let invalid_extern_type p1 p2 = 
+  pos p1 ;
+  err "Illegal type in external function" ;
+  if p2 <> p1
+  then (pos p2 ; err "Cannot use this type") ;
+  exit 2
