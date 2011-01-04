@@ -324,14 +324,20 @@ and return env acc = function
 	ignore (add_case sw v lbl)
      ) cases
 
+and build_args acc l = 
+  match l with
+  | [Tprim Tunit, _] -> [||]
+  | _ ->
+      let l = List.map (fun (_, v) -> IMap.find v acc) l in
+      Array.of_list l
+
 and instructions bb env acc ret l = 
   match l with
   | [] -> return env acc ret ; acc
   | [vl1, Eapply (fk, _, f, l) as instr] ->
       (match ret with 
       | Return (tail, vl2) when tail && fk = Ast.Lfun -> 
-	  let l = List.map (fun (_, v) -> IMap.find v acc) l in
-	  let t = Array.of_list l in
+	  let t = build_args acc l in
 	  let f = find_function env acc (fst f) (snd f) in
 	  let v = build_call f t "" env.builder in
 	  set_tail_call true v ;
@@ -376,8 +382,7 @@ and find_function env acc fty f =
 
 and apply env acc xl fk (fty, f) l = 
   let f = find_function env acc fty f in
-  let l = List.map (fun (_, v) -> IMap.find v acc) l in
-  let t = Array.of_list l in
+  let t = build_args acc l in
   let v = build_call f t "" env.builder in
   let cconv = make_cconv fk in
   set_instruction_call_conv cconv v ;
