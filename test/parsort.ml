@@ -1,23 +1,19 @@
 
-module T = struct
+module TestParsort = struct
 
   type t = 
     | Empty
     | Cons of int32 * t
-    | Lazy of t future
 
   val rev_append: t * t -> t
   let rev_append l1 l2 = 
     match l1 with
     | Empty -> l2
     | Cons x rl -> rev_append rl (Cons x l2)
-    | Lazy l -> rev_append (wait l) l2
 
   val merge: t * t * t -> t
   let merge acc l1 l2 = 
     match l1, l2 with
-    | Lazy l1, l2 -> merge acc (wait l1) l2
-    | l1, Lazy l2 -> merge acc l1 (wait l2)
     | Empty, l -> rev_append l acc
     | l, Empty -> rev_append l acc
     | (Cons x1 rl1 as l1), (Cons x2 rl2 as l2) ->
@@ -29,20 +25,25 @@ module T = struct
   let split n l1 l2 l = 
     match l with
     | Empty -> n, l1, l2
-    | Lazy x -> split n l1 l2 (wait x)
     | Cons x Empty -> n, l1, l2
     | Cons x (Cons y rl) -> split (n+1) (Cons x l1) (Cons y l2) rl
-    | Cons x (Lazy rl) -> split n l1 l2 (Cons x (wait rl))
 
   val sort: t -> t
   let sort l = 
     match l with
     | Empty -> Empty
-    | Lazy l -> sort (wait l)
     | Cons _ Empty as l -> l
     | Cons x rl as l -> 
 	let length1, l1, l2 = split 0 Empty Empty l in
-	merge Empty (sort l1) (sort l2)
+	if length1 > 10000
+	then 
+	  let l1 = Future.make c_sort l1 in
+	  let l2 = Future.make c_sort l2 in
+	  merge Empty (Future.wait l1) (Future.wait l2)
+	else merge Empty (sort l1) (sort l2)
+
+  val c_sort: t #-> t
+  let c_sort l = sort l
 
   val make: t * int32 -> t
   let make acc n = 
@@ -55,7 +56,6 @@ module T = struct
     match l with
     | Empty -> acc
     | Cons n rl -> sum (n + acc) rl
-    | Lazy x -> sum acc (wait x)
 
   val loop: int32 * int32 -> int32
   let loop n acc = 
@@ -65,6 +65,6 @@ module T = struct
 
   val main: unit -> unit
   let main _ = 
-    print_int (loop 1 0)
+    Print.int32 (loop 1 0)
 
 end
