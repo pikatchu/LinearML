@@ -106,12 +106,16 @@ module Type = struct
     | Some ty -> ty
 
   and type_fun mds t ctx ty1 ty2 =
-    let ty1 = List.map (type_ mds t ctx) ty1 in
-    let ty1 = Array.of_list ty1 in 
+    let ty1 = type_args mds t ctx ty1 in
     let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
     let rty = type_list mds t ctx ty2 in
     let fty = function_type rty ty1 in
     fty 
+
+  and type_args mds t ctx l = 
+    match l with
+    | [Tprim Tunit] -> [||]
+    | l -> Array.of_list (List.map (type_ mds t ctx) l)
 
   and type_ mds t ctx = function
     | Tany -> pointer_type (i8_type ctx)
