@@ -28,8 +28,8 @@ end
 module Type = struct
 
   let public_name md_id x = 
-    let md_id = String.lowercase md_id in
-    md_id ^ "_" ^ (Ident.to_string x)
+    Ident.expand_name md_id x ;
+    Ident.full x
 
   let rec program ctx mdl = 
     MakeNames.program mdl ;
@@ -39,23 +39,21 @@ module Type = struct
     mds, t
 
   and module_decl ctx acc md = 
-    let md_id = Ident.to_string md.md_id in
-    let llvm_md = create_module ctx md_id in
-    let t = List.fold_left (opaques md_id llvm_md ctx) IMap.empty md.md_decls in
+    let md_name = Ident.to_string md.md_id in
+    let llvm_md = create_module ctx md_name in
+    let t = List.fold_left (opaques md.md_id llvm_md ctx) IMap.empty md.md_decls in
     IMap.add md.md_id (llvm_md, t) acc 
 
   and module_refine ctx mds acc md = 
-    let md_name, dl = Ident.to_string md.md_id, md.md_decls in
     let (llmd, t) = IMap.find md.md_id mds in
-    let t' = List.fold_left (def_type mds llmd ctx) t dl in
-    List.iter (refine t t') dl ;
+    let t' = List.fold_left (def_type mds llmd ctx) t md.md_decls in
+    List.iter (refine t t') md.md_decls ;
     IMap.add md.md_id (llmd, t') acc
 
   and module_funs ctx mds acc md = 
     let md_id, dl, decl = md.md_id, md.md_defs, md.md_decls in
-    let md_name = Ident.to_string md_id in
     let (md, tys) = IMap.find md_id mds in
-    let fs = List.fold_left (def_fun md_name mds tys md ctx) IMap.empty dl in
+    let fs = List.fold_left (def_fun md_id mds tys md ctx) IMap.empty dl in
     let fs = List.fold_left (def_external mds tys md ctx) fs decl in
     IMap.add md_id (md, tys, fs, dl) acc
 
@@ -165,7 +163,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-  Llvm.dump_module md ;
+(*  Llvm.dump_module md ; *)
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
