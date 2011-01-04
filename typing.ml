@@ -211,6 +211,8 @@ module Instantiate = struct
     | (Tany | Tvar _), Tprim _ -> Error.poly_is_not_prim pl2
     | Tany, _  -> subst
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> subst
+    | Tvar x, Tapply (y, _)
+    | Tapply (y, _), Tvar x when snd y = Naming.tobs -> error pl1 ty1 pl2 ty2
     | Tvar (_, x), Tvar (_, y) when x = y -> subst
     | Tvar v, _ -> inst_var env subst v (pl2, ty2)
     | Tid (_, x), Tid (_, y) when x = y -> subst
@@ -221,14 +223,17 @@ module Instantiate = struct
 	let subst = inst_list env subst tyl1 tyl2 in
 	let subst = inst_list env subst tyl3 tyl4 in
 	subst
-    | ty1, ty2 ->
-	let err = Error.Unify {
-	  Error.pos1 = pl1 ;
-	  Error.pos2 = pl2 ;
-	  Error.print1 = Print.type_expr_ ty1 ;
-	  Error.print2 = Print.type_expr_ ty2 ; 
-	} in
-	raise (Error.Type [err])
+    | ty1, ty2 -> error pl1 ty1 pl2 ty2
+
+  and error pl1 ty1 pl2 ty2 = 
+    let err = Error.Unify {
+      Error.pos1 = pl1 ;
+      Error.pos2 = pl2 ;
+      Error.print1 = Print.type_expr_ ty1 ;
+      Error.print2 = Print.type_expr_ ty2 ; 
+    } in
+    raise (Error.Type [err])
+
 
   and inst_var env subst (_, x) (p, ty2) =
     try 
@@ -273,7 +278,6 @@ end
 module Env = struct
 
   let tfree = tfun [tany] [tprim Tunit]
-  let tprint_int = tfun [tprim Tint32] [tprim Tunit]
 
   let tsome = 
     let tmp = Ident.tmp() in
@@ -281,53 +285,10 @@ module Env = struct
 
   let tnone = tapply Naming.toption [tany]
 
-  let share = 
-    let tmp = Ident.tmp() in
-    tfun [tvar tmp] [tapply Naming.tshared [tvar tmp]]
-
-  let clone = 
-    let tmp = Ident.tmp() in
-    let x = tapply Naming.tshared [tvar tmp] in
-    tfun [tapply Naming.tobs [x]] [x]
-
-  let visit = 
-    let tmp = Ident.tmp() in
-    let x = tapply Naming.tshared [tvar tmp] in
-    tfun [x] [tapply Naming.tobs [tvar tmp]]
-
-  let visit_obs = 
-    let tmp = Ident.tmp() in
-    let x = tapply Naming.tshared [tvar tmp] in
-    tfun [tapply Naming.tobs [x]] [tapply Naming.tobs [tvar tmp]]
-
-  let tfree_shared = 
-    let tmp = Ident.tmp() in
-    let x = tapply Naming.tshared [tvar tmp] in
-    tfun [x] [tapply Naming.toption [tvar tmp]]
-
-  let tspawn = 
-    let tmp1 = Ident.tmp() in
-    let tmp2 = Ident.tmp() in
-    let f = tfun [tvar tmp1] [tvar tmp2] in
-    tfun [f ; tvar tmp1] [tapply Naming.tfuture [tvar tmp2]] 
-
-  let twait = 
-    let tmp = Ident.tmp() in
-    tfun [tapply Naming.tfuture [tvar tmp]] [tvar tmp] 
-
   let rec make mdl = 
     let env = IMap.empty in
-    let env = IMap.add Naming.print_int tprint_int env in
-    let env = IMap.add Naming.share share env in
-    let env = IMap.add Naming.clone clone env in
-    let env = IMap.add Naming.visit visit env in
-    let env = IMap.add Naming.visit_obs visit_obs env in
-    let env = IMap.add Naming.free_shared tfree_shared env in
     let env = IMap.add Naming.some tsome env in
     let env = IMap.add Naming.none tnone env in
-    let env = IMap.add Naming.spawn tspawn env in
-    let env = IMap.add Naming.wait twait env in
-(*    let env = IMap.add Naming.unshare unshare env in *)
     let env = List.fold_left module_ env mdl in
     env
 

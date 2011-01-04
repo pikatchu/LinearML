@@ -55,7 +55,7 @@ let full x =
   let md = try origin x with Not_found -> "" in
   if md = ""
   then to_string x
-  else md_name ^ "_" ^ to_string x
+  else md ^ "_" ^ to_string x
 
 let set_name x y = 
   trace := IMap.add x y !trace

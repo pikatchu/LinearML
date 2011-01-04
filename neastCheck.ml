@@ -15,7 +15,6 @@ end = struct
 
   let predef = [
     Naming.tobs, 1;
-    Naming.tshared, 1;
     Naming.toption, 1
   ]
 

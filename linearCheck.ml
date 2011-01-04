@@ -222,8 +222,7 @@ and expr_ t = function
       | Used p' -> Error.already_used p p'
       | _ -> t)
   | Efree (_, (p, x)) -> pvar t p x
-  | Eapply (_, _, (_, fid), _) when fid = Naming.visit || fid = Naming.clone -> t
-  | Eapply (_, _, _, e) -> tuple t e 
+  | Eapply (_, _, f, e) -> tuple t e 
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2

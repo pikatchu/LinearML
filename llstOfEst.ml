@@ -51,10 +51,7 @@ module PredefTypes = struct
 
   let (++) acc (x, y) = IMap.add x y acc 
 
-  let make() = 
-    IMap.empty ++ 
-      (Naming.print_int, Tfun (Ast.Cfun, [Tprim Tint32], [Tprim Tunit]))
-      (* TODO add the others *)
+  let make() = IMap.empty
 
 end
 

@@ -163,7 +163,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-(*  Llvm.dump_module md ; *)
+(*   Llvm.dump_module md ; *)
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -178,20 +178,14 @@ let pervasives ctx md =
   let args = i64_type ctx in
   let fty = function_type string [|args|] in
   let malloc = declare_function "malloc" fty md in
-
-  let tprint_int = function_type unit [|i32_type ctx|] in
-  let print_int = declare_function "print_int" tprint_int md in 
-
   let free = declare_function "free" 
       (function_type unit [|pointer_type (i8_type ctx)|]) md in
 
   set_linkage Linkage.External malloc ; 
   set_linkage Linkage.External free ; 
-  set_linkage Linkage.External print_int ; 
   let prims = IMap.empty in 
   let prims = IMap.add Naming.malloc malloc prims in
   let prims = IMap.add Naming.ifree free prims in
-  let prims = IMap.add Naming.print_int print_int prims in
   prims
 
 let optims pm = 
@@ -334,11 +328,13 @@ and instructions bb env acc ret l =
       | Return (tail, vl2) when tail && fk = Ast.Lfun -> 
 	  let l = List.map (fun (_, v) -> IMap.find v acc) l in
 	  let t = Array.of_list l in
-	  let f = IMap.find (snd f) acc in
+	  let f = find_function env acc (fst f) (snd f) in
 	  let v = build_call f t "" env.builder in
 	  set_tail_call true v ;
 	  set_instruction_call_conv Llvm.CallConv.fast v ;
-	  ignore (build_ret v env.builder) ;
+	  if vl2 = []
+	  then ignore (build_ret_void env.builder)
+	  else ignore (build_ret v env.builder) ;
 	  acc
       | Return (_, vl2) ->
 	  let acc = instruction bb env acc instr in
@@ -360,22 +356,22 @@ and instruction bb env acc (idl, e) =
   | [x], e -> expr bb env acc x e
   | _ -> assert false
 
-and apply env acc xl fk (fty, f) l = 
+and find_function env acc fty f =
   let is_prim = IMap.mem f env.prims in
-  let f = 
-    try if is_prim then IMap.find f env.prims else IMap.find f acc 
-    with Not_found ->
-      let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
-      let name = Ident.full f in 
-      let fdec = declare_function name ftype env.cmd in
-      dump_value fdec ;
-      let cconv = match fty with
-      | Tfun (fk, _, _) -> make_cconv fk 
-      | _ -> assert false in
-      set_linkage Linkage.External fdec ; 
-      set_function_call_conv cconv fdec ;
-      fdec
-  in
+  try if is_prim then IMap.find f env.prims else IMap.find f acc 
+  with Not_found ->
+    let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
+    let name = Ident.full f in 
+    let fdec = declare_function name ftype env.cmd in
+    let cconv = match fty with
+    | Tfun (fk, _, _) -> make_cconv fk 
+    | _ -> assert false in
+    set_linkage Linkage.External fdec ; 
+    set_function_call_conv cconv fdec ;
+    fdec
+
+and apply env acc xl fk (fty, f) l = 
+  let f = find_function env acc fty f in
   let l = List.map (fun (_, v) -> IMap.find v acc) l in
   let t = Array.of_list l in
   let v = build_call f t "" env.builder in
