@@ -63,7 +63,7 @@ module TestParsort = struct
     then acc
     else loop (n-1) (acc + sum 0 (sort (make Empty 2000000)))
 
-  val main: unit -> unit
+  val main: unit #-> unit
   let main _ = 
     Print.int32 (loop 1 0)
 

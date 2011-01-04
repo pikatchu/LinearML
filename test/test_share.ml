@@ -13,7 +13,7 @@ module TestShare = struct
     | None -> ()
     | Some v -> Int32Box.release v
 
-  val main: unit -> unit
+  val main: unit #-> unit
   let main () = 
     let b = Int32Box.make 22 in
     let b1 = Share.make b in

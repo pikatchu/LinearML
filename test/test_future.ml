@@ -11,7 +11,7 @@ module TestFuture = struct
     Int32Box.release x ;
     Print.newline()
 
-  val main: unit -> unit
+  val main: unit #-> unit
   let main () = 
     let b = Int32Box.make 23 in
     let b = Future.make run b in
