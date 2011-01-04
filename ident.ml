@@ -55,7 +55,11 @@ let full x =
   let md = try origin x with Not_found -> "" in
   if md = ""
   then to_string x
-  else String.lowercase md ^ "_" ^ to_string x
+  else begin
+    let md_name = String.copy md in
+    md_name.[0] <- Char.lowercase md_name.[0] ;
+    md_name ^ "_" ^ to_string x
+  end
 
 let set_name x y = 
   trace := IMap.add x y !trace
