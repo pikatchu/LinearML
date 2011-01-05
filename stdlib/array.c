@@ -10,7 +10,7 @@ typedef struct{
   void* v ;
 } get_return_t ;
 
-array_t* array_make(int size){
+array_t* array_make(void* dummy, int size){
   void** t = malloc(sizeof(void*) * size) ;
   array_t *res = malloc (sizeof(array_t)) ;
   res->size = size ;

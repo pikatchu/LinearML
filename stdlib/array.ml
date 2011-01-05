@@ -3,7 +3,7 @@ module Array = struct
 
   type 'a t
 
-  val make: int32 #-> 'a t = "array_make"
+  val make: 'a option * int32 #-> 'a t = "array_make"
   val set: 'a t * int32 * 'a #-> 'a t = "array_set"
   val get__internal: 'a t obs * int32 #-> 'a option = "array_get"
 

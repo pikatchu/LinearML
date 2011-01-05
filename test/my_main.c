@@ -1,6 +1,6 @@
 
 
 int main(){
-  TestParsort_main() ;
+  TestArray_test_fold() ;
   return 0 ;
 }

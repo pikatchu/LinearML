@@ -13,4 +13,12 @@ module Int32Box = struct
 
   val release: t -> unit
   let release t = free t
+
+  val add: t * t -> t
+  let add x y = 
+    let n1 = get (obs x) in
+    let n2 = get (obs y) in
+    free x ;
+    free y ;
+    make (n1 + n2)
 end
