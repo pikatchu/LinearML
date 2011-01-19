@@ -5,7 +5,7 @@ module Future = struct
 
   val c_make: ('a #-> 'b) * 'a #-> 'a t = "future_make"
   val c_wait: 'a t #-> 'a = "future_wait"
-  val c_ready: 'a t obs #-> int32 = "future_ready"
+  val c_ready: 'a t obs #-> int = "future_ready"
 
   val make: ('a #-> 'b) * 'a -> 'a t
   let make f x = c_make f x

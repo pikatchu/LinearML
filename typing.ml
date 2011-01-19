@@ -40,7 +40,7 @@ module LocalUtils = struct
 (* TODO move this to stastOfTast *)
   let check_numeric p ty = 
     match ty with
-    | _, Tprim (Tint32 _ | Tfloat _) -> ()
+    | _, Tprim (Tint _ | Tfloat _) -> ()
     | _, _ -> Error.expected_numeric p
 
   let check_bool ((p, ty), _) = 
@@ -111,7 +111,7 @@ module Print = struct
     | Tunit	-> o "unit"
     | Tbool	-> o "bool"
     | Tchar	-> o "char"
-    | Tint32	-> o "int32"
+    | Tint	-> o "int"
     | Tfloat	-> o "float"
 
   let debug tyl = 
@@ -626,7 +626,7 @@ and binop env bop p ty1 ty2 =
 and value = function
   | Nast.Eunit -> Tunit
   | Nast.Ebool _ -> Tbool
-  | Nast.Eint _ -> Tint32
+  | Nast.Eint _ -> Tint
   | Nast.Efloat _ -> Tfloat
   | Nast.Echar _ -> Tchar
   | Nast.Estring _ -> assert false

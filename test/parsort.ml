@@ -3,7 +3,7 @@ module TestParsort = struct
 
   type t = 
     | Empty
-    | Cons of int32 * t
+    | Cons of int * t
 
   val rev_append: t * t -> t
   let rev_append l1 l2 = 
@@ -21,7 +21,7 @@ module TestParsort = struct
 	then merge (Cons x1 acc) rl1 l2
 	else merge (Cons x2 acc) l1 rl2
 
-  val split: int32 * t * t * t -> int32 * t * t
+  val split: int * t * t * t -> int * t * t
   let split n l1 l2 l = 
     match l with
     | Empty -> n, l1, l2
@@ -45,19 +45,19 @@ module TestParsort = struct
   val c_sort: t #-> t
   let c_sort l = sort l
 
-  val make: t * int32 -> t
+  val make: t * int -> t
   let make acc n = 
     if n = 0
     then acc 
     else make (Cons n acc) (n-1)
 
-  val sum: int32 * t -> int32
+  val sum: int * t -> int
   let sum acc l = 
     match l with
     | Empty -> acc
     | Cons n rl -> sum (n + acc) rl
 
-  val loop: int32 * int32 -> int32
+  val loop: int * int -> int
   let loop n acc = 
     if n <= 0
     then acc
@@ -65,6 +65,6 @@ module TestParsort = struct
 
   val main: unit #-> unit
   let main _ = 
-    Print.int32 (loop 1 0)
+    Print.int (loop 1 0)
 
 end

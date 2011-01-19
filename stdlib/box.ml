@@ -1,12 +1,12 @@
 
-module Int32Box = struct
+module IntBox = struct
 
-  type t = { value: int32 }
+  type t = { value: int }
 
-  val make: int32 -> t
+  val make: int -> t
   let make n = { value = n }
 
-  val get: t obs -> int32
+  val get: t obs -> int
   let get t = 
     match t with 
     | { _ ; value = n } -> n

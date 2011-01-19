@@ -19,13 +19,9 @@ let prim_cstr s =
   prim_cstrs := SMap.add s id !prim_cstrs ;
   id
 
-let int8	= prim_type "int8"
-let int16	= prim_type "int16"
-let int32	= prim_type "int32"
-let int64	= prim_type "int64"
+let int 	= prim_type "int"
 let bool	= prim_type "bool"
 let float	= prim_type "float"
-let double	= prim_type "double"
 let string      = prim_type "string"
 let tobs        = prim_type "obs"
 let toption     = prim_type "option"
@@ -381,7 +377,7 @@ and tid env (p, x) = tid_ env p x
 and tid_ env p = function
   | "unit" -> Nast.Tprim Nast.Tunit
   | "bool" -> Nast.Tprim Nast.Tbool
-  | "int32" -> Nast.Tprim Nast.Tint32
+  | "int" -> Nast.Tprim Nast.Tint
   | "float" -> Nast.Tprim Nast.Tfloat
   | "char" -> Nast.Tprim Nast.Tchar
   | x -> Nast.Tid (Env.type_ env (p, x))

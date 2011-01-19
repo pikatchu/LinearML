@@ -61,7 +61,7 @@ and type_prim = function
   | Tunit -> o "unit"
   | Tbool -> o "bool"
   | Tchar -> o "char"
-  | Tint32 -> o "int32"
+  | Tint  -> o "int"
   | Tfloat -> o "float"
   
 and pat pl = print_list o pat_el ", " pl

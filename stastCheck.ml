@@ -300,7 +300,7 @@ module Pat = struct
   and value = function
     | Eunit -> Tunit
     | Ebool _ -> Tbool
-    | Eint _ -> Tint32 
+    | Eint _ -> Tint
     | Efloat _ -> Tfloat
     | Echar _ -> Tchar 
     | Estring _ -> failwith "TODO Estring"

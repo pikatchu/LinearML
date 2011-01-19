@@ -30,7 +30,7 @@ and type_prim = Nast.type_prim =
   | Tunit
   | Tbool
   | Tchar
-  | Tint32
+  | Tint
   | Tfloat
 
 and ty_id = type_expr * id

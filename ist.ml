@@ -36,7 +36,7 @@ and type_prim = Nast.type_prim =
   | Tunit
   | Tbool
   | Tchar
-  | Tint32
+  | Tint
   | Tfloat
 
 and def = Ast.fun_kind * id * pat * tuple

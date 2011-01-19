@@ -136,7 +136,7 @@ module Type = struct
     | Tunit -> void_type ctx
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
-    | Tint32 -> i32_type ctx
+    | Tint  -> i32_type ctx (* TODO *)
     | Tfloat -> float_type ctx
 
   and type_list mds t ctx l = 
@@ -504,11 +504,11 @@ and binop ty = function
   | Eeq -> 
       (match ty with
       | Tfloat -> build_fcmp Llvm.Fcmp.Oeq
-      | Tint32 -> build_icmp Llvm.Icmp.Eq
+      | Tint -> build_icmp Llvm.Icmp.Eq
       | _ -> failwith "TODO rest of comparisons emit2.ml")
   | Elt -> 
       (match ty with
-      | Tint32 -> 
+      | Tint -> 
 	  build_icmp Llvm.Icmp.Slt 
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Olt 
@@ -516,7 +516,7 @@ and binop ty = function
       )
   | Elte -> 
       (match ty with
-      | Tint32 -> 
+      | Tint -> 
 	  build_icmp Llvm.Icmp.Sle
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Ole
@@ -524,7 +524,7 @@ and binop ty = function
       )
   | Egt -> 
       (match ty with
-      | Tint32 -> 
+      | Tint -> 
 	  build_icmp Llvm.Icmp.Sgt 
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Ogt 
@@ -532,7 +532,7 @@ and binop ty = function
       )
   | Egte -> 
       (match ty with
-      | Tint32 -> 
+      | Tint -> 
 	  build_icmp Llvm.Icmp.Sge
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Oge

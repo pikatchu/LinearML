@@ -223,7 +223,7 @@ and decl_alias t acc = function
   | Dalgebric td -> 
       if ISet.mem td.td_id t.is_rec
       then acc
-      else Llst.Dtype (td.td_id, Llst.Tptr (Llst.Tprim Tint32)) :: acc
+      else Llst.Dtype (td.td_id, Llst.Tptr (Llst.Tprim Tint)) :: acc
   | _ -> acc
 
 and decl t (types, acc) = function
@@ -251,13 +251,13 @@ and make_variant t tag (_, tyl) (types, acc) =
   let tyl = type_expr_list tyl in
   if tyl = []
   then 
-    let ty = Llst.Tptr (Llst.Tprim Llst.Tint32) in
+    let ty = Llst.Tptr (Llst.Tprim Llst.Tint) in
     let types = IMap.add tag ty types in
     let acc = Llst.Dtype (tag, ty) :: acc in
     types, acc
   else if ISet.mem tag t.is_tagged 
   then 
-    let ty = Llst.Tptr (Llst.Tstruct (Llst.Tprim Llst.Tint32 :: tyl)) in
+    let ty = Llst.Tptr (Llst.Tstruct (Llst.Tprim Llst.Tint :: tyl)) in
     let types = IMap.add tag ty types in
     let acc = Llst.Dtype (tag, ty) :: acc in
     types, acc
@@ -334,7 +334,7 @@ and ret bls t = function
 
 and action1 t v bls acc = function
   | [[_, Pvariant (x, [])], lbl] -> 
-      let tag = Llst.Tprim Tint32, Ident.tmp() in
+      let tag = Llst.Tprim Tint, Ident.tmp() in
       let tail = [[tag], Llst.Eint_of_ptr (snd v)] in
       tail, bls, Llst.Switch (tag, List.rev acc, lbl)
   | ([_, Pvariant (x, [])], lbl) :: rl -> 
@@ -345,7 +345,7 @@ and action1 t v bls acc = function
       [], bls, Llst.Jump lbl
   | l -> 
       let bls, lbl = action2 t v bls [] l in
-      let tag = Llst.Tprim Tint32, Ident.tmp() in
+      let tag = Llst.Tprim Tint, Ident.tmp() in
       let tail = [[tag], Llst.Eint_of_ptr (snd v)] in
       tail, bls, Llst.Switch (tag, List.rev acc, lbl)
 
@@ -365,7 +365,7 @@ and new_switch t v bls vl def =
   if vl = []
   then bls, def
   else 
-  let tag = Llst.Tprim Tint32, Ident.tmp() in
+  let tag = Llst.Tprim Tint, Ident.tmp() in
   let lbl = Ident.tmp() in
   let rt = Llst.Switch (tag, List.rev vl, def) in 
   let eqs = [[tag], Llst.Egettag v] in
@@ -395,7 +395,7 @@ and equation t is_last ret (idl, e) acc =
 	let v = Llst.Evalue (Llst.Eiint (IMap.find x t.values)) in
 	let id = Ident.tmp() in
 	let acc = (idl, Llst.Eptr_of_int id) :: acc in 
-	let acc = ([Llst.Tprim Tint32, id] , v) :: acc in 
+	let acc = ([Llst.Tprim Tint, id] , v) :: acc in 
 	acc
   | Evariant (x, vl) -> 
       if ISet.mem x t.is_tagged
@@ -406,7 +406,7 @@ and equation t is_last ret (idl, e) acc =
 	    List.map (fun ty -> ty, Ident.tmp()) (List.tl tyl)
 	| _ -> assert false in
 	let ty = Llst.Tid x in 
-	let tag = Llst.Tprim Tint32, Ident.tmp() in
+	let tag = Llst.Tprim Tint, Ident.tmp() in
 	let vid = Ident.tmp() in
 	let v = Llst.Etuple (None, tuple 0 (tag :: xl)) in
 	let acc = (idl, Llst.Eid (fst (List.hd idl), vid)) :: acc in

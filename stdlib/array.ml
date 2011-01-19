@@ -3,11 +3,11 @@ module Array = struct
 
   type 'a t
 
-  val make: 'a option * int32 #-> 'a t = "array_make"
-  val set: 'a t * int32 * 'a #-> 'a t = "array_set"
-  val get__internal: 'a t obs * int32 #-> 'a option = "array_get"
+  val make: 'a option * int #-> 'a t = "array_make"
+  val set: 'a t * int * 'a #-> 'a t = "array_set"
+  val get__internal: 'a t obs * int #-> 'a option = "array_get"
 
-  val get: 'a t * int32 -> 'a t * 'a option 
+  val get: 'a t * int -> 'a t * 'a option 
   let get t n = 
     (* get__internal is dangerous *)
     let v = get__internal (obs t) n in 

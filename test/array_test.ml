@@ -1,11 +1,11 @@
 
 module TestArray = struct
 
-  module IB = Int32Box
+  module IB = IntBox
 
   type ibox = IB.t
 
-  val init: int32 * ibox Array.t -> ibox Array.t
+  val init: int * ibox Array.t -> ibox Array.t
   let init n t = 
     if n < 0
     then t 
@@ -14,7 +14,7 @@ module TestArray = struct
   val free_ibox: ibox #-> unit
   let free_ibox x = free x
 
-  val sum: int32 * int32 * ibox Array.t -> int32
+  val sum: int * int * ibox Array.t -> int
   let sum acc n t = 
     if n < 0
     then (Array.delete t free_ibox; acc)
@@ -39,7 +39,7 @@ module TestArray = struct
     let t = Array.make None size in
     t := init (size - 1) t ;
     let total = Array.fold_left add_opt (IB.make 0) t in
-    Print.int32 (IB.get (obs total)) ;
+    Print.int (IB.get (obs total)) ;
     Print.newline() ;
     IB.release total
 

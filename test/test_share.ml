@@ -2,20 +2,20 @@
 
 module TestShare = struct
 
-  val show: Int32Box.t obs -> unit
+  val show: IntBox.t obs -> unit
   let show x = 
-    Print.int32 (Int32Box.get x) ;
+    Print.int (IntBox.get x) ;
     Print.newline()
 
-  val release: Int32Box.t option -> unit
+  val release: IntBox.t option -> unit
   let release x = 
     match x with
     | None -> ()
-    | Some v -> Int32Box.release v
+    | Some v -> IntBox.release v
 
   val main: unit #-> unit
   let main () = 
-    let b = Int32Box.make 22 in
+    let b = IntBox.make 22 in
     let b1 = Share.make b in
     let b2 = Share.clone (obs b1) in
     show (Share.visit (obs b1)) ;
