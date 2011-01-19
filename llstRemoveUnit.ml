@@ -142,7 +142,7 @@ and equation t (xl, e) acc =
   let e = expr t e in
   if xl = []
   then match e with
-  | Eapply _ -> (xl, e) :: acc
+  | Eapply _ | Efree _ -> (xl, e) :: acc
   | _ -> acc
   else (xl, e) :: acc
 
@@ -158,7 +158,6 @@ and expr t = function
       let fdl = List.fold_right (field t) fdl [] in
       Etuple (opt (ty_id t) xopt, fdl)
   | Egettag x -> Egettag (ty_id t x)
-  | Egetargs x -> Egetargs (ty_id t x)
   | Eproj (x, n) -> Eproj (ty_id t x, n)
   | Eptr_of_int _
   | Eint_of_ptr _ as x -> x

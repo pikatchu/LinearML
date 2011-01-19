@@ -35,7 +35,6 @@ module Usage = struct
   and expr acc = function
     | Enull -> acc
     | Egettag x 
-    | Egetargs x 
     | Eproj (x, _) 
     | Efree x
     | Eid x 

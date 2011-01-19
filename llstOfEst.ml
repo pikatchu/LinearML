@@ -59,7 +59,6 @@ module VEnv = struct
 
   type t = {
       pointers: Pointer.t ;
-      is_enum: ISet.t ;
       is_tagged: ISet.t ;
       is_null: ISet.t ;
       values: int IMap.t ;
@@ -69,7 +68,6 @@ module VEnv = struct
 
   let empty = {
     pointers = Pointer.empty;
-    is_enum = ISet.empty;
     is_tagged = ISet.empty;
     is_null = ISet.singleton Naming.none;
     values = IMap.empty;
@@ -82,10 +80,8 @@ module VEnv = struct
     then ISet.add x acc 
     else acc
 
-  let update t en tag nu vals ir = { t with
-    is_enum = en ;
+  let update t tag vals ir = { t with
     is_tagged = tag ;
-    is_null = nu ;
     values = vals ;
     is_rec = ir ;			      
   }
@@ -115,26 +111,19 @@ module VEnv = struct
   and tdef t td = 
     let zargs = IMap.fold has_no_args td.td_map 0 in
     let nzargs = IMap.fold has_args td.td_map 0 in
-    let is_enum = 
-      if nzargs = 0 
-      then ISet.add td.td_id t.is_enum 
-      else t.is_enum 
-    in
-    let is_enum = IMap.fold (add (nzargs = 0)) td.td_map is_enum in
     let is_tagged = 
       if nzargs = 1
       then ISet.add td.td_id t.is_tagged
       else t.is_tagged 
     in
     let is_tagged = IMap.fold (add (nzargs > 1)) td.td_map is_tagged in
-    let is_null = IMap.fold (add (zargs = 1)) td.td_map t.is_null in
-    let values = IMap.fold (add_simpl_value (ref (-1))) td.td_map t.values in
+    let values = IMap.fold (add_simpl_value (ref 0)) td.td_map t.values in
     let values = IMap.fold (add_cplx_value (ref (-1))) td.td_map values in
     let is_rec = 
       if zargs = 1 && nzargs = 1 && false (* TODO check if this is usefull *)
       then ISet.add td.td_id t.is_rec 
       else t.is_rec in
-    let t = update t is_enum is_tagged is_null values is_rec in
+    let t = update t is_tagged values is_rec in
     t
 
   and add_simpl_value counter x (_, l) acc = 
@@ -232,19 +221,12 @@ and module_ t types ty_decls md =
 
 and decl_alias t acc = function
   | Dalgebric td -> 
-      if ISet.mem td.td_id t.is_enum 
-      then acc
-      else if ISet.mem td.td_id t.is_rec
+      if ISet.mem td.td_id t.is_rec
       then acc
       else Llst.Dtype (td.td_id, Llst.Tptr (Llst.Tprim Tint32)) :: acc
   | _ -> acc
 
 and decl t (types, acc) = function
-  | Dalgebric td when ISet.mem td.td_id t.is_enum -> 
-      let types = IMap.fold (
-	fun x _ acc -> IMap.add x (Llst.Tprim Tint32) acc
-       ) td.td_map types in
-      types, Llst.Dtype (td.td_id, Llst.Tprim Tint32) :: acc 
   | Dalgebric td -> make_variants t (types, acc) td
   | Drecord td -> 
       let tyl = IMap.fold (fun _ (_, ty) acc -> ty :: acc) td.td_map [] in
@@ -346,13 +328,15 @@ and ret bls t = function
 	  let cond = Llst.Tprim Tbool, Ident.tmp() in
 	  let tail = [[cond], Llst.Eis_null v] in 
 	  let bls, lbl = action2 t v bls [] rl in
-	  tail, bls, Llst.If (cond, lbl1, lbl)
+	  tail, bls, Llst.If (cond, lbl1, lbl) 
       | l -> action1 t v bls [] l)
   | Match _ -> assert false
 
 and action1 t v bls acc = function
   | [[_, Pvariant (x, [])], lbl] -> 
-      [], bls, Llst.Switch (v, List.rev acc, lbl)
+      let tag = Llst.Tprim Tint32, Ident.tmp() in
+      let tail = [[tag], Llst.Eint_of_ptr (snd v)] in
+      tail, bls, Llst.Switch (tag, List.rev acc, lbl)
   | ([_, Pvariant (x, [])], lbl) :: rl -> 
       let acc = (Llst.Eiint (IMap.find x t.values), lbl) :: acc in
       action1 t v bls acc rl
@@ -362,11 +346,7 @@ and action1 t v bls acc = function
   | l -> 
       let bls, lbl = action2 t v bls [] l in
       let tag = Llst.Tprim Tint32, Ident.tmp() in
-      let tail = 
-	if ISet.mem (snd v) t.is_enum 
-	then [] 
-	else [[tag], Llst.Eint_of_ptr (snd v)] 
-      in
+      let tail = [[tag], Llst.Eint_of_ptr (snd v)] in
       tail, bls, Llst.Switch (tag, List.rev acc, lbl)
 
 and action2 t v bls acc = function
@@ -413,13 +393,10 @@ and equation t is_last ret (idl, e) acc =
       then (idl, Llst.Enull) :: acc
       else 
 	let v = Llst.Evalue (Llst.Eiint (IMap.find x t.values)) in
-	if ISet.mem x t.is_enum
-	then (idl, v) :: acc
-	else
-	  let id = Ident.tmp() in
-	  let acc = (idl, Llst.Eptr_of_int id) :: acc in
-	  let acc = ([Llst.Tprim Tint32, id] , v) :: acc in
-	  acc
+	let id = Ident.tmp() in
+	let acc = (idl, Llst.Eptr_of_int id) :: acc in 
+	let acc = ([Llst.Tprim Tint32, id] , v) :: acc in 
+	acc
   | Evariant (x, vl) -> 
       if ISet.mem x t.is_tagged
       then 

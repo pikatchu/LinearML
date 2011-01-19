@@ -361,6 +361,14 @@ and instructions bb env acc ret l =
 
 and instruction bb env acc (idl, e) = 
   match idl, e with 
+  | _, Efree (_, v) ->
+      let f = IMap.find Naming.ifree env.prims in
+      let v = IMap.find v acc in
+      let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in
+      let v = build_call f [|v|] "" env.builder in
+      let cconv = Llvm.CallConv.c in
+      set_instruction_call_conv cconv v ;
+      acc
   | (xl, Eapply (fk, _, f, l)) -> 
       apply env acc xl fk f l
   | [x], e -> expr bb env acc x e
@@ -405,6 +413,7 @@ and extract_values env acc xl v =
 and expr bb env acc (ty, x) e = 
   let xs = Ident.to_string x in
   match e with
+  | Efree _ -> assert false
   | Eid (_, y) -> 
       let ty = Type.type_ env.mds env.types env.ctx ty in      
       let y = IMap.find y acc in
@@ -459,18 +468,16 @@ and expr bb env acc (ty, x) e =
   | Enull -> 
       let v = const_null (Type.type_ env.mds env.types env.ctx ty) in
       IMap.add x v acc
-  | Efree (_, v) ->
-      let f = IMap.find Naming.ifree env.prims in
+  | Eint_of_ptr v -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = IMap.find v acc in
-      let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in
-      let v = build_call f [|v|] "" env.builder in
-      let cconv = Llvm.CallConv.c in
-      set_instruction_call_conv cconv v ;
-      let res = const_int (i1_type env.ctx) 0 in
-      IMap.add x res acc
-  | Eint_of_ptr _ -> failwith "TODO Eint_of_ptr"
-  | Eptr_of_int _ -> failwith "TODO Eptr_of_int"
-  | Egetargs _ -> failwith "TODO Egetargs"
+      let v = build_ptrtoint v ty "" env.builder in
+      IMap.add x v acc
+  | Eptr_of_int v ->
+      let ty = Type.type_ env.mds env.types env.ctx ty in
+      let v = IMap.find v acc in
+      let v = build_inttoptr v ty "" env.builder in
+      IMap.add x v acc
   | Egettag (_, v) -> 
       let bl = IMap.find v acc in
       let z = const_int (i32_type env.ctx) 0 in

@@ -634,7 +634,8 @@ and value = function
 and apply env p (fp, x) tyl = 
   match IMap.find x env with
   | (_, Tfun (_, tyl1, tyl2)) ->
-      Instantiate.call env tyl1 tyl tyl2
+      let ty = Instantiate.call env tyl1 tyl tyl2 in
+      ty
   | p2, ty -> 
       Print.debug [p2, ty] ;
       Error.expected_function fp (* TODO *)

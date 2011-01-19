@@ -71,7 +71,6 @@ and expr =
   | Eapply of Ast.fun_kind * bool * ty_id * ty_idl
   | Etuple of ty_id option * (int * ty_id) list
   | Egettag of ty_id
-  | Egetargs of ty_id
   | Eproj of ty_id * int
   | Eptr_of_int of Ident.t
   | Eint_of_ptr of Ident.t

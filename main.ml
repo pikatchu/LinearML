@@ -31,13 +31,13 @@ let _ =
   let ist = IstOfStast.program stast in
   let est = EstOfIst.program ist in
   let est = EstCompile.program est in
-  let est = EstNormalizePatterns.program est in
+  let est = EstNormalizePatterns.program est in 
   let llst = LlstOfEst.program est in
-  let llst = LlstOptim.inline llst in
-  let llst = LlstFree.program llst in
-  let llst = LlstOptim.program llst in
-  let llst = LlstRemoveUnit.program llst in
+  let llst = LlstOptim.inline llst in 
+  let llst = LlstFree.program llst in  
+  let llst = LlstOptim.program llst in 
+  let llst = LlstRemoveUnit.program llst in 
+(*    LlstPp.program llst ;    *)
 (*    let llst = LlstPullRet.program llst in     *)
-(*    LlstPp.program llst ;  *)
   ignore (Emit.program llst)
 
