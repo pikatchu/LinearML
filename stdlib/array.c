@@ -10,7 +10,7 @@ typedef struct{
   void* v ;
 } get_return_t ;
 
-array_t* array_make(void* dummy, int size){
+array_t* array_make(int size){
   void** t = malloc(sizeof(void*) * size) ;
   array_t *res = malloc (sizeof(array_t)) ;
   res->size = size ;
@@ -34,6 +34,17 @@ void* array_get(array_t *t, int n){
   t->t[n] = NULL ;
   return res ;
 }
+
+void* array_swap(array_t *t, int n, void* v){
+  if( n < 0 || n >= t->size)
+    return NULL ;
+
+  void* res ;
+  res = t->t[n] ;
+  t->t[n] = v ;
+  return res ;
+}
+
 
 void array_free(array_t* t, void (*free_v)(void*)){
   void** h = t->t ;

@@ -110,6 +110,8 @@ limlc.bc: $(OBJECTS_CMO)
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
 	rm -f limlc limlc.bc *.annot .depend
+	rm -f stdlib/*.o stdlib/*.s stdlib/*.bc stdlib/*~ test/*.o test/*.s 
+	rm -f test/*.bc test/*~
 
 -include .depend
 -include Makefile.config

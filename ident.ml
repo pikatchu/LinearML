@@ -9,6 +9,7 @@ end)
 let counter = ref 0
 let trace = ref IMap.empty  
 let origin = ref IMap.empty
+let origin_id = ref IMap.empty
 
 let make x = 
   incr counter ;
@@ -33,6 +34,7 @@ let to_string x =
 
 let expand_name md x = 
   let md_name = IMap.find md !trace in
+  origin_id := IMap.add x md !origin_id ;
   origin := IMap.add x md_name !origin
  
 let debug x =
@@ -44,6 +46,9 @@ let print x =
 
 let origin x = 
   IMap.find x !origin
+
+let origin_id x = 
+  IMap.find x !origin_id
 
 let to_ustring x = 
   let s = to_string x in

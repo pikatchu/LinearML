@@ -10,6 +10,7 @@ val debug: t -> string
 val print: t -> unit
 val expand_name: t -> t -> unit
 val origin: t -> string
+val origin_id: t -> t
 val to_ustring: t -> string
 val full: t -> string
 val set_name: t -> string -> unit

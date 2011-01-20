@@ -88,7 +88,6 @@ rule token = parse
   | "<-"               { ASSIGN (Pos.make lexbuf) }
   | ":="               { COLEQ (Pos.make lexbuf) }
   | ":"                { COLON (Pos.make lexbuf) }
-  | "::"               { COLONCOLON (Pos.make lexbuf) }
   | '('                { LP (Pos.make lexbuf) }
   | ')'                { RP (Pos.make lexbuf) }      
   | ';'                { SC (Pos.make lexbuf) }

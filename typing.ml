@@ -234,15 +234,11 @@ module Instantiate = struct
     } in
     raise (Error.Type [err])
 
-
-  and inst_var env subst (_, x) (p, ty2) =
+  and inst_var env subst (p, x) ty2 =
     try 
       let ty1 = IMap.find x subst in
-      let fv = FreeVars.type_expr ISet.empty ty1 in
-      if ISet.mem x fv
-      then Error.recursive_type p
-      else inst env subst ty1 (p, ty2)
-    with Not_found -> IMap.add x (p, ty2) subst
+      IMap.add x (Unify.unify_el env ty1 ty2) subst
+    with Not_found -> IMap.add x ty2 subst
 
   and replace subst env (p, ty) = 
     match ty with
@@ -260,7 +256,7 @@ module Instantiate = struct
   and replace_var subst env (p, x) =
     try 
       replace subst env (IMap.find x subst)
-    with Not_found -> (p, Tvar (p, x))
+    with Not_found -> (p, Tany)
 
   and replace_list subst env (p, tyl) = 
     let tyl = List.map (replace subst env) tyl in
@@ -635,6 +631,7 @@ and apply env p (fp, x) tyl =
   match IMap.find x env with
   | (_, Tfun (_, tyl1, tyl2)) ->
       let ty = Instantiate.call env tyl1 tyl tyl2 in
+      let ty = p, List.map (fun (_, x) -> p, x) (snd ty) in
       ty
   | p2, ty -> 
       Print.debug [p2, ty] ;

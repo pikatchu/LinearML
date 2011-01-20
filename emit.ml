@@ -120,7 +120,15 @@ module Type = struct
   and type_ mds t ctx = function
     | Tany -> pointer_type (i8_type ctx)
     | Tprim tp -> type_prim mds t ctx tp
-    | Tid x -> (try IMap.find x t with Not_found -> pointer_type (i8_type ctx)) 
+    | Tid x -> (
+	try IMap.find x t 
+	with Not_found -> 
+	  try 
+	    let md_id = Ident.origin_id x in
+	    let _, tys = IMap.find md_id mds in
+	    IMap.find x tys
+	  with Not_found ->
+	    pointer_type (i8_type ctx)) 
     | Tfun (_, ty1, ty2) -> 
 	let fty = type_fun mds t ctx ty1 ty2 in
 	pointer_type fty
@@ -221,15 +229,17 @@ let optims pm =
 let rec program mdl = 
   let ctx = global_context() in
   let mds, t = Type.program ctx mdl in
-  List.rev_map (module_ mds ctx t) mdl 
+  let origs = List.fold_left (
+    fun acc md ->
+      List.fold_left (
+      fun acc dt -> 
+	match dt with
+	| Dtype (x, Tptr y) -> IMap.add x y acc
+	| _ -> acc
+     ) acc md.md_decls) IMap.empty mdl in
+  List.rev_map (module_ mds ctx t origs) mdl 
 
-and module_ mds ctx t md = 
-  let orig_types = List.fold_left (
-    fun acc dt -> 
-      match dt with
-      | Dtype (x, Tptr y) -> IMap.add x y acc
-      | _ -> acc
-   ) IMap.empty md.md_decls in
+and module_ mds ctx t orig_types md = 
   let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
   let (md, tys, fs, dl) = IMap.find md_id t in
 (*   Globals.module_ ctx md strings ;*)
@@ -237,17 +247,17 @@ and module_ mds ctx t md =
   optims pm ;   
   let builder = builder ctx in
   let prims = pervasives ctx md in
-  let env = 
-    { mds = mds ;
-      cmd = md ;
-      ctx = ctx ; 
-      fmap = fs ; 
-      builder = builder ; 
-      types = tys ;
-      prims = prims ;
-      bls = IMap.empty ;
-      orig_types = orig_types ;
-    } in
+  let env = { 
+    mds = mds ;
+    cmd = md ;
+    ctx = ctx ; 
+    fmap = fs ; 
+    builder = builder ; 
+    types = tys ;
+    prims = prims ;
+    bls = IMap.empty ;
+    orig_types = orig_types ;
+  } in
   List.iter (def env) dl ;
   dump_module (Ident.to_string md_id^".bc") md pm
 
@@ -415,8 +425,8 @@ and expr bb env acc (ty, x) e =
   match e with
   | Efree _ -> assert false
   | Eid (_, y) -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty in      
-      let y = IMap.find y acc in
+      let y = try IMap.find y acc with Not_found -> find_function env acc ty y in
+      let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = build_bitcast y ty xs env.builder in
       IMap.add x v acc
   | Evalue v ->
@@ -445,9 +455,11 @@ and expr bb env acc (ty, x) e =
   | Etuple (v, fdl) -> 
       let bl = match v with
       | None ->
-	  let orig_ty = match ty with Tid x -> 
-	    IMap.find x env.orig_types 
-	  | _ -> assert false in
+	  let orig_ty = 
+	    match ty with Tid x -> 
+	      IMap.find x env.orig_types 
+	    | _ -> assert false 
+	  in
 	  let ty = Type.type_ env.mds env.types env.ctx ty in  
 	  let oty = Type.type_ env.mds env.types env.ctx orig_ty in  
 	  let v = size_of oty in
