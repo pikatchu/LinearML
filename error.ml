@@ -439,3 +439,22 @@ let invalid_extern_type p1 p2 =
   if p2 <> p1
   then (pos p2 ; err "Cannot use this type") ;
   exit 2
+
+let fun_external_and_local p1 p2 p3 = 
+  pos p1 ;
+  err "External function with a definition" ;
+  pos p2 ;
+  err "Was declared external here" ;
+  pos p3 ;
+  err "Definition is here" ;
+  exit 2 
+
+let fun_no_def p = 
+  pos p ;
+  err "This function has no definition" ;
+  exit 2
+
+let fun_no_decl p = 
+  pos p ;
+  err "You must define a signature for this function" ;
+  exit 2

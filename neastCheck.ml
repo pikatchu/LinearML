@@ -207,8 +207,9 @@ module CheckExternal = struct
 
   and type_expr (p, ty) = type_expr_ p ty
   and type_expr_ p = function
-    | Tany
-    | Tprim _ -> () (* TODO no bool ? *)
+    | Tany -> ()
+    | Tprim Tbool -> Error.invalid_extern_type p p
+    | Tprim _ -> ()
     | Tvar _
     | Tid _ -> ()
     | Tapply (_, tyl) -> type_expr_list tyl
@@ -219,11 +220,79 @@ module CheckExternal = struct
 
 end
 
+(*****************************************************************************)
+(*     Check signatures                                                      *)
+(*****************************************************************************)
+module CheckSig = struct
+
+  type acc = {
+      exts: Pos.t IMap.t ;
+      vals: Pos.t IMap.t ;
+      lets: Pos.t IMap.t ;
+    }
+
+  let empty = {
+    vals = IMap.empty ;
+    exts = IMap.empty ;
+    lets = IMap.empty ;
+  }
+  
+  let rec program mdl = 
+    List.iter module_ mdl
+
+  and module_ md = 
+    let acc = List.fold_left decl empty md.md_decls in
+    let acc = List.fold_left def acc md.md_defs in
+    IMap.iter (check_val acc) acc.vals ;
+    IMap.iter (check_let acc) acc.lets
+
+  and decl acc = function
+    | Dval (x, _, ext) -> 
+	let vals = IMap.add (snd x) (fst x) acc.vals in
+	let exts = extern acc.exts x ext in
+	{ acc with vals = vals ; exts = exts }
+    | _ -> acc
+
+  and extern exts x = function
+    | None -> exts 
+    | Some v -> IMap.add (snd x) (fst v) exts
+
+  and def acc (x, _, _) = 
+    let lets = IMap.add (snd x) (fst x) acc.lets in
+    { acc with lets = lets }
+
+  and check_val acc x p  = 
+    if IMap.mem x acc.exts 
+    then check_no_let acc x p 
+    else check_has_let acc x p 
+
+  and check_no_let acc x p = 
+    if IMap.mem x acc.lets
+    then 
+      let p2 = IMap.find x acc.exts in
+      let p3 = IMap.find x acc.lets in
+      Error.fun_external_and_local p p2 p3
+    else ()
+
+  and check_has_let acc x p =
+    if IMap.mem x acc.lets 
+    then ()
+    else Error.fun_no_def p
+
+  and check_let acc x p =
+    if IMap.mem x acc.vals
+    then ()
+    else Error.fun_no_decl p
+
+end
+
+
 
 (* Entry point *)
 let program p = 
   RecordCheck.program p ;
   TypeApplication.check p ;
   CheckUnit.program p ;
-  CheckExternal.program p
+  CheckExternal.program p ;
+  CheckSig.program p
 
