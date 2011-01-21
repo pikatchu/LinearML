@@ -198,6 +198,15 @@ end
 
 module Instantiate = struct
 
+  let error pl1 ty1 pl2 ty2 = 
+    let err = Error.Unify {
+      Error.pos1 = pl1 ;
+      Error.pos2 = pl2 ;
+      Error.print1 = Print.type_expr_ ty1 ;
+      Error.print2 = Print.type_expr_ ty2 ; 
+    } in
+    raise (Error.Type [err])
+
   let rec inst_list env subst (p1, tyl1) (p2, tyl2) = 
     let size1 = List.length tyl1 in
     let size2 = List.length tyl2 in
@@ -225,47 +234,51 @@ module Instantiate = struct
 	subst
     | ty1, ty2 -> error pl1 ty1 pl2 ty2
 
-  and error pl1 ty1 pl2 ty2 = 
-    let err = Error.Unify {
-      Error.pos1 = pl1 ;
-      Error.pos2 = pl2 ;
-      Error.print1 = Print.type_expr_ ty1 ;
-      Error.print2 = Print.type_expr_ ty2 ; 
-    } in
-    raise (Error.Type [err])
-
-  and inst_var env subst (p, x) ty2 =
-    try 
+  and inst_var env subst (_, x) (p, ty2) =
+    try
       let ty1 = IMap.find x subst in
-      IMap.add x (Unify.unify_el env ty1 ty2) subst
-    with Not_found -> IMap.add x ty2 subst
+      let fv = FreeVars.type_expr ISet.empty ty1 in
+      if ISet.mem x fv
+      then Error.recursive_type p
+      else inst env subst ty1 (p, ty2)
+    with Not_found -> IMap.add x (p, ty2) subst
 
-  and replace subst env (p, ty) = 
+  and replace path subst env (p, ty) = 
     match ty with
-    | Tvar v -> replace_var subst env v
+    | Tvar v -> replace_var path subst env v
     | Tapply (x, (p, tyl)) -> 
-	let tyl = List.map (replace subst env) tyl in
+	let tyl = List.map (replace path subst env) tyl in
 	let tyl = p, tyl in
 	(p, Tapply (x, tyl))
     | Tfun (k, tyl1, tyl2) -> 
-	let tyl1 = replace_list subst env tyl1 in
-	let tyl2 = replace_list subst env tyl2 in
+	let tyl1 = replace_list path subst env tyl1 in
+	let tyl2 = replace_list path subst env tyl2 in
 	(p, Tfun (k, tyl1, tyl2))
     | _ -> (p, ty)
 
-  and replace_var subst env (p, x) =
-    try 
-      replace subst env (IMap.find x subst)
-    with Not_found -> (p, Tany)
+  and replace_var (path, set) subst env (p, x) =
+    if ISet.mem x set
+    then begin
+      match path with
+      | (p1, ty1) :: (p2, ty2) :: _ ->
+	  error p1 ty1 p2 ty2
+      | _ -> assert false
+    end
+    else try 
+      let ty = IMap.find x subst in
+      let set = ISet.add x set in
+      let path = ty :: path in
+      replace (path, set) subst env ty
+    with Not_found -> (p, Tvar (p, x))
 
-  and replace_list subst env (p, tyl) = 
-    let tyl = List.map (replace subst env) tyl in
+  and replace_list path subst env (p, tyl) = 
+    let tyl = List.map (replace path subst env) tyl in
     let tyl = p, tyl in
     tyl
 
   let call env rty pty pty2 = 
     let subst = inst_list env IMap.empty rty pty in
-    let tyl = replace_list subst env pty2 in 
+    let tyl = replace_list ([], ISet.empty) subst env pty2 in 
     tyl
 
 end

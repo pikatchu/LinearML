@@ -3,7 +3,7 @@ module Array = struct
 
   type 'a t
 
-  val make: int #-> 'a t = "array_make"
+  val make: int #-> _ t = "array_make"
   val swap__: 'a t obs * int * 'a option #-> 'a option = "array_swap"
   val release: 'a t * ('a #-> unit) #-> unit = "array_free"
 

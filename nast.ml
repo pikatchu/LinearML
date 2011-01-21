@@ -17,6 +17,7 @@ and decl =
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
+  | Tany
   | Tprim of type_prim
   | Tvar of id 
   | Tid of id

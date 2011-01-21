@@ -9,6 +9,7 @@ module Subst = struct
     | _ -> p, type_expr_ env ty
 
   and type_expr_ env = function
+    | Tany
     | Tabstract
     | Tprim _ | Tpath _
     | Tid _ | Tvar _ as x -> x
@@ -45,6 +46,7 @@ module Tuple = struct
     if n <= 0
     then Error.tuple_too_big pos 
     else match ty with
+    | Tany
     | Tprim _
     | Tabstract
     | Tvar _ | Tid _ 
@@ -117,6 +119,7 @@ end = struct
     mem, (p, ty)
 
   and type_expr_ abbr mem p = function
+    | Tany
     | Tabstract
     | Tprim _ | Tvar _ as x -> mem, x 
 
@@ -293,6 +296,7 @@ and new_tdef id idl tm = {
 
 and type_expr (p, ty) = p, type_expr_ ty
 and type_expr_ = function
+  | Tany -> Neast.Tany
   | Tabstract -> assert false
   | Tprim t -> Neast.Tprim t
   | Tvar x -> Neast.Tvar x

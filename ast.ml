@@ -16,6 +16,7 @@ and type_def = (id * id list) * type_expr
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 
+  | Tany
   | Tvar of id 
   | Tid of id
   | Tapply of type_expr * type_expr list

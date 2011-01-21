@@ -82,8 +82,12 @@ module Type = struct
 
   and refine t t' = function
     | Dtype (x, _) -> 
+(*
 	let ty = IMap.find x t' in
-	refine_type (IMap.find x t) ty
+ 	refine_type (IMap.find x t) ty ; 
+*)
+	(* Normally no need to refine anymore *)
+	()
     | _ -> ()
 
   and function_ md_name mds t md ctx df = 
@@ -175,7 +179,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-(*   Llvm.dump_module md ; *)
+(*   Llvm.dump_module md ;  *)
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;

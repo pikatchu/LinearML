@@ -193,6 +193,7 @@ type_expr_l:
 | type_expr COMMA type_expr_l { $1 :: $3 }
 
 simpl_type_expr:
+| UNDERSCORE { $1, Tany }
 | ID { fst $1, Tid $1 }
 | CSTR DOT ID { btw $1 $3, Tpath ($1, $3) }
 

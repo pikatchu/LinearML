@@ -252,25 +252,26 @@ module FreeVars = struct
 
   let rec type_expr acc (_, ty) = type_expr_ acc ty
   and type_expr_ acc = function
-  | Tid _ 
-  | Tabstract
-  | Tpath _ -> acc
-  | Tvar ((_,v) as x) when not (SMap.mem v acc) -> 
-      (* The mem is not necessary but makes the first occurence *)
-      (* of the variable as the reference which is nicer        *)
-      SMap.add v x acc
+    | Tany
+    | Tid _ 
+    | Tabstract
+    | Tpath _ -> acc
+    | Tvar ((_,v) as x) when not (SMap.mem v acc) -> 
+	(* The mem is not necessary but makes the first occurence *)
+	(* of the variable as the reference which is nicer        *)
+	SMap.add v x acc
 
-  | Tvar _ -> acc
-  | Tapply (ty, tyl) -> 
-      let acc = type_expr acc ty in
-      List.fold_left type_expr acc tyl
+    | Tvar _ -> acc
+    | Tapply (ty, tyl) -> 
+	let acc = type_expr acc ty in
+	List.fold_left type_expr acc tyl
 
-  | Ttuple tyl -> List.fold_left type_expr acc tyl
-  | Tfun (_, ty1, ty2) -> type_expr (type_expr acc ty1) ty2
-  | Tabbrev ty -> type_expr acc ty
-  | Talgebric _ 
-  | Trecord _ 
-  | Tabs _ -> assert false
+    | Ttuple tyl -> List.fold_left type_expr acc tyl
+    | Tfun (_, ty1, ty2) -> type_expr (type_expr acc ty1) ty2
+    | Tabbrev ty -> type_expr acc ty
+    | Talgebric _ 
+    | Trecord _ 
+    | Tabs _ -> assert false
 
   let type_expr ty = 
     let vm = type_expr SMap.empty ty in
@@ -342,6 +343,7 @@ and type_expr genv sig_ env (p, ty) = p, type_expr_ genv sig_ env ty
 and type_expr_ genv sig_ env x = 
   let k = type_expr genv sig_ env in
   match x with
+  | Tany -> Nast.Tany
   | Tvar x -> Nast.Tvar (Env.tvar env x)
   | Tid x -> tid env x
   | Tapply (ty, tyl) -> 
