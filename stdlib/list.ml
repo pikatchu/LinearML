@@ -53,6 +53,12 @@ module List = struct
     match l with
     | Empty -> acc
     | Cons x rl -> fold_right f rl (f x acc)
+
+  val of_intlist: IntList.t -> IntBox.t t
+  let of_intlist l = 
+    match l with
+    | IntList.Empty -> Empty
+    | IntList.Cons x rl -> Cons (IntBox.make x) (of_intlist rl)
 end
 
 module IntList = struct
@@ -87,4 +93,10 @@ module IntList = struct
     match l with
     | Empty -> ()
     | Cons _ rl -> release rl
+
+  val to_list: t -> IntBox.t List.t
+  let to_list l = 
+    match l with
+    | Empty -> List.Empty
+    | Cons x rl -> List.Cons (IntBox.make x) (to_list rl)
 end
