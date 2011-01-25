@@ -107,12 +107,12 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 
 %nonassoc match_
 %nonassoc let_
-%nonassoc if_
 %right COLEQ
 %nonassoc AS
 %left BAR
 %right ARROW SARROW
 %right SC
+%nonassoc if_
 %right COMMA
 %left EQ LT LTE GT GTE
 %right COLONCOLON

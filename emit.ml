@@ -186,7 +186,7 @@ let dump_module md_file md pm =
   | Some r -> failwith r) ;
   Llvm_analysis.assert_valid_module md ;
   if Llvm_bitwriter.write_bitcode_file md md_file
-  then () (* TODO dispose all modules *)
+  then () 
   else failwith ("Error: module generation failed"^md_file)
 
 let pervasives ctx md = 

@@ -17,4 +17,5 @@ module Print = struct
 
   val string: string -> unit
   let string x = c_string x
+
 end
