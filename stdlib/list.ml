@@ -59,6 +59,12 @@ module List = struct
     match l with
     | IntList.Empty -> Empty
     | IntList.Cons x rl -> Cons (IntBox.make x) (of_intlist rl)
+
+  val release: ('a -> unit) * 'a t -> unit
+  let release f l = 
+    match l with
+    | Empty -> ()
+    | Cons x rl -> f x ; release f rl
 end
 
 module IntList = struct

@@ -425,7 +425,7 @@ let cannot_free p fty =
   pos p ;
   err "This expression has type: " ;
   fty oerr ;
-  err "You can only free records or strings" ;
+  err "You can only free records" ;
   exit 2
 
 let field_cannot_be_unit p = 
