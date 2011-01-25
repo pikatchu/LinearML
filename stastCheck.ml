@@ -303,7 +303,7 @@ module Pat = struct
     | Eint _ -> Tint
     | Efloat _ -> Tfloat
     | Echar _ -> Tchar 
-    | Estring _ -> failwith "TODO Estring"
+    | Estring _ -> Tstring
 
 end
 

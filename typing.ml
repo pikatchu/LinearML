@@ -535,9 +535,6 @@ and expr_ env (p, e) =
       let ty = IMap.find x env in
       let ty = p, (snd ty) in
       (ty, Tast.Eid id)
-  | Evalue ((Nast.Estring _) as v) -> 
-      let ty = p, Tprim Tstring in
-      (ty, Tast.Evalue v)
   | Evalue v -> 
       let ty = p, Tprim (value v) in
       (ty, Tast.Evalue v)
@@ -642,7 +639,7 @@ and value = function
   | Nast.Eint _ -> Tint
   | Nast.Efloat _ -> Tfloat
   | Nast.Echar _ -> Tchar
-  | Nast.Estring _ -> assert false
+  | Nast.Estring _ -> Tstring
 
 and apply env p (fp, x) tyl = 
   match IMap.find x env with

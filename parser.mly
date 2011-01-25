@@ -234,12 +234,13 @@ simpl_pat:
 | LP RP { Pos.btw $1 $2, Punit }
 | LP pat RP { $2 }
 | UNDERSCORE { $1, Pany }
-| TRUE { $1, Pbool true }
+/* | TRUE { $1, Pbool true }
 | FALSE { $1, Pbool false }
 | CHAR { fst $1, Pchar $1 }
 | FLOAT { fst $1, Pfloat $1 }
 | STRING { fst $1, Pstring $1 }
 | INT { fst $1, Pint $1 }
+*/
 | LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
 
 simpl_pat_l:
