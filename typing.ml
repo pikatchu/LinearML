@@ -610,17 +610,20 @@ and variant env (x, el) =
   | _ -> assert false
 
 and proj env ty fty = 
-  match unobserve ty, fty with
-  | (p1, Tid (_, x1)), (p2, Tfun (_, (_, ty), (_, [_, Tid (_, x2)]))) ->
-      if x1 <> x2
-      then Error.unify_proj p1 p2 ;
-      (p1, ty)
-  | (p1, Tapply ((_, x1), argl1)), 
-    (p2, Tfun (_, ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
-      if x1 <> x2
-      then Error.unify_proj p1 p2 ;
-      Instantiate.call env argl2 argl1 ty 
-  | (p1, _), (p2, _) -> Error.unify_proj p1 p2
+  let rty = 
+    match unobserve ty, fty with
+    | (p1, Tid (_, x1)), (p2, Tfun (_, (_, ty), (_, [_, Tid (_, x2)]))) ->
+	if x1 <> x2
+	then Error.unify_proj p1 p2 ;
+	(p1, ty)
+    | (p1, Tapply ((_, x1), argl1)), 
+	(p2, Tfun (_, ty, (_, [_, Tapply ((_, x2), argl2)]))) ->
+	  if x1 <> x2
+	  then Error.unify_proj p1 p2 ;
+	  Instantiate.call env argl2 argl1 ty 
+    | (p1, _), (p2, _) -> Error.unify_proj p1 p2
+  in
+  fst rty, List.map make_observed (snd rty)
 
 and binop env bop p ty1 ty2 = 
   match bop with

@@ -224,7 +224,7 @@ module CheckRestrict = struct
     | Euop (_, e) -> expr e 
     | Etuple el -> List.iter expr el 
     | Erecord fdl -> List.iter field fdl 
-    | Efield _ -> error p
+    | Efield _ -> () (* error p  *)
     | Ematch (e, pel) -> 
 	expr e ;
 	List.iter action pel
