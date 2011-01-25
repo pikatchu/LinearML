@@ -149,7 +149,8 @@ module Type = struct
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
     | Tint  -> i32_type ctx (* TODO *)
-    | Tfloat -> float_type ctx
+    | Tfloat -> double_type ctx
+    | Tstring -> pointer_type (i8_type ctx)
 
   and type_list mds t ctx l = 
     let tyl = List.map (type_ mds t ctx) l in
@@ -568,5 +569,10 @@ and const env ty = function
       const_int (i32_type env.ctx) x 
   | Efloat s -> 
       const_float_of_string ty s
-  | Estring s -> failwith "TODO constant string"
+  | Estring s -> 
+    let x = const_stringz env.ctx s in 
+    let g = define_global "" x env.cmd in  
+(*    set_global_constant true g ; *)
+    set_linkage Linkage.Private g ;
+    g
   | Echar c -> failwith "TODO constant char"

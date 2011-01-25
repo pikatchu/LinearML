@@ -63,6 +63,7 @@ and type_prim = function
   | Tchar -> o "char"
   | Tint  -> o "int"
   | Tfloat -> o "float"
+  | Tstring -> o "string"
   
 and pat pl = print_list o pat_el ", " pl
 and pat_el _ p = pat_ (snd p)

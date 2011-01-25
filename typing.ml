@@ -113,6 +113,7 @@ module Print = struct
     | Tchar	-> o "char"
     | Tint	-> o "int"
     | Tfloat	-> o "float"
+    | Tstring   -> o "string"
 
   let debug tyl = 
     type_expr_list (output_string stdout) (Pos.none, tyl) ;
@@ -535,7 +536,7 @@ and expr_ env (p, e) =
       let ty = p, (snd ty) in
       (ty, Tast.Eid id)
   | Evalue ((Nast.Estring _) as v) -> 
-      let ty = p, Tid (p, Naming.string) in
+      let ty = p, Tprim Tstring in
       (ty, Tast.Evalue v)
   | Evalue v -> 
       let ty = p, Tprim (value v) in
