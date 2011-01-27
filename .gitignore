@@ -12,3 +12,8 @@ lexer.ml
 .depend
 Makefile.config
 /limlc
+/limlc.bc
+*~
+\#*
+parser.output
+TODO
