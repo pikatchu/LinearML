@@ -558,6 +558,7 @@ and binop ty = function
   | Eplus -> build_add
   | Eminus -> build_sub
   | Estar -> build_mul
+  | Ediv -> build_sdiv
 
 and const env ty = function
   | Eunit -> assert false

@@ -631,7 +631,8 @@ and binop env bop p ty1 ty2 =
   | Ast.Egte -> (p, Tprim Tbool)
   | Ast.Eplus
   | Ast.Eminus
-  | Ast.Estar -> Unify.unify_el env ty1 ty2
+  | Ast.Estar 
+  | Ast.Ediv -> Unify.unify_el env ty1 ty2
 
 and value = function
   | Nast.Eunit -> Tunit

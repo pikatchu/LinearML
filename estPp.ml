@@ -171,6 +171,7 @@ and binop = function
   | Ast.Eplus -> o "plus"
   | Ast.Eminus -> o "minus"
   | Ast.Estar -> o "star"
+  | Ast.Ediv -> o "div"
 
 and unop = function
   | Ast.Euminus -> o "uminus"

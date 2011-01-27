@@ -88,7 +88,8 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> REC
 %token <Pos.t> RP
 %token <Pos.t> PLUS
-%token <Pos.t> SC   
+%token <Pos.t> SC
+%token <Pos.t> SLASH
 %token <Pos.t> STAR 
 %token <Pos.t * string> STRING
 %token <Pos.t> SIG
@@ -347,6 +348,7 @@ expr:
 | expr PLUS expr { btw $1 $3, Ebinop (Eplus, $1, $3) }
 | expr MINUS expr { btw $1 $3, Ebinop (Eminus, $1, $3) }
 | expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
+| expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
 | ID COLEQ expr SC expr { btw $1 $5, Elet ((fst $1, Pid $1), $3, $5) }

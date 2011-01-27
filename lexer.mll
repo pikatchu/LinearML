@@ -80,7 +80,7 @@ rule token = parse
   | qword              { TVAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | cword              { CSTR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | string             { STRING (Pos.make lexbuf, let s = Lexing.lexeme lexbuf in 
-			         String.sub s 1 (String.length s - 2)) }
+			         String.escaped (String.sub s 1 (String.length s - 2))) }
   | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
 
   | "->"               { ARROW (Pos.make lexbuf) }
@@ -98,6 +98,7 @@ rule token = parse
   | '+'                { PLUS (Pos.make lexbuf) }
   | '-'                { MINUS (Pos.make lexbuf)}
   | '*'                { STAR (Pos.make lexbuf) }
+  | '/'                { SLASH (Pos.make lexbuf) }
   | '{'                { LCB (Pos.make lexbuf) }
   | '}'                { RCB (Pos.make lexbuf) }
   | '['                { LB (Pos.make lexbuf) }

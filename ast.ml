@@ -99,6 +99,7 @@ and bop =
   | Eplus
   | Eminus
   | Estar
+  | Ediv
 
 and uop =
   | Euminus
