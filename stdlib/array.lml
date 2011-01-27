@@ -15,3 +15,11 @@ module Array = struct
     t, res
 end
 
+module FloatArray = struct
+  type t 
+  val make: int * float #-> t = "farray_make"
+  val set: t * int * float #-> t = "farray_set"
+  val get: t obs * int #-> float = "farray_get"
+  val length: t obs #-> int = "farray_length"
+  val release: t #-> unit = "farray_release"
+end

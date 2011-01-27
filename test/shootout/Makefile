@@ -8,7 +8,7 @@ CC = gcc -O3
 LIML_LIBS = ../../stdlib/*.lml
 CC_LIBS = -lpthread -lm
 
-default: bintree
+default: bintree spectral 
 
 
 FILES_LIML = \
@@ -19,7 +19,8 @@ MODULES_LIML = \
 	List.bc \
 	IntBox.bc \
 	Future.bc \
-	BinaryTree.bc
+	BinaryTree.bc \
+	SpectralNorm.bc 
 
 STDLIB_OBJS = ../../stdlib/*.o
 FILES_ASM = $(MODULES_LIML:.bc=.s)
@@ -32,6 +33,10 @@ objects: $(FILES_LIML)
 bintree: objects $(FILES_ASM) custom_lib.o bintree_main.o
 	$(CC) $(FILES_ASM) $(STDLIB_OBJS) custom_lib.o bintree_main.o $(CC_LIBS) -o $@ 
 
+spectral: objects $(FILES_ASM) custom_lib.o spectral_main.o
+	$(CC) $(FILES_ASM) $(STDLIB_OBJS) custom_lib.o spectral_main.o $(CC_LIBS) -o $@ 
+
+
 %.s : %.bc
 	$(LLC) $<
 
@@ -39,6 +44,6 @@ bintree: objects $(FILES_ASM) custom_lib.o bintree_main.o
 	$(CC) -c $<
 
 clean: 
-	rm -f ./bintree
+	rm -f ./bintree ./spectral
 	rm -f *.o *.s *.bc *~ test/*.o test/*.s 
 

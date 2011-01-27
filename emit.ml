@@ -555,10 +555,26 @@ and binop ty = function
 	  build_fcmp Llvm.Fcmp.Oge
       | _ -> failwith "TODO rest of comparisons emit2.ml"
       )
-  | Eplus -> build_add
-  | Eminus -> build_sub
-  | Estar -> build_mul
-  | Ediv -> build_sdiv
+  | Eplus -> 
+      (match ty with
+      | Tint -> build_add
+      | Tfloat -> build_fadd
+      | _ -> assert false)
+  | Eminus -> 
+      (match ty with
+      | Tint -> build_sub
+      | Tfloat -> build_fsub
+      | _ -> assert false)
+  | Estar -> 
+      (match ty with
+      | Tint -> build_mul
+      | Tfloat -> build_fmul
+      | _ -> assert false)
+  | Ediv -> 
+      (match ty with
+      | Tint -> build_sdiv
+      | Tfloat -> build_fdiv
+      | _ -> assert false)
 
 and const env ty = function
   | Eunit -> assert false

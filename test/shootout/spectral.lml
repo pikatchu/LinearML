@@ -1,0 +1,97 @@
+
+module SpectralNorm = struct
+
+  module FA = FloatArray
+
+  val float_of_int: int #-> float = "float_of_int"
+
+  val eval_A: int * int -> float
+  let eval_A i j = 1.0 / float_of_int ((i+j)*(i+j+1)/2+i+1)
+
+  val eval_A_times_u: FA.t obs * FA.t -> FA.t
+  let eval_A_times_u u v =
+    let n = FA.length (obs v) - 1 in
+    eval_A_times_u_loop u v 0 n
+
+  val eval_A_times_u_loop: FA.t obs * FA.t * int * int -> FA.t
+  let eval_A_times_u_loop u v i n = 
+    if i > n
+    then v
+    else 
+      let vi = eval_A_times_u_loop2 u (obs v) i 0 n 0.0 in
+      let v = FA.set v i vi in
+      eval_A_times_u_loop u v (i+1) n
+
+  val eval_A_times_u_loop2: FA.t obs * FA.t obs * int * int * int * float -> float
+  let eval_A_times_u_loop2 u v i j n vi =
+    if j > n
+    then vi
+    else
+      let uj = FA.get u j in
+      let vi = vi + eval_A i j * uj in
+      eval_A_times_u_loop2 u v i (j+1) n vi
+
+  val eval_At_times_u: FA.t obs * FA.t -> FA.t
+  let eval_At_times_u u v =
+    let n = FA.length (obs v) - 1 in
+    eval_At_times_u_loop u v 0 n
+
+  val eval_At_times_u_loop: FA.t obs * FA.t * int * int -> FA.t
+  let eval_At_times_u_loop u v i n = 
+    if i > n
+    then v
+    else 
+      let vi = eval_At_times_u_loop2 u (obs v) i 0 n 0.0 in
+      let v = FA.set v i vi in
+      eval_At_times_u_loop u v (i+1) n
+
+  val eval_At_times_u_loop2: FA.t obs * FA.t obs * int * int * int * float -> float
+  let eval_At_times_u_loop2 u v i j n vi =
+    if j > n
+    then vi
+    else
+      let uj = FA.get u j in
+      let vi = vi + eval_A j i * uj in
+      eval_At_times_u_loop2 u v i (j+1) n vi
+
+	
+  val eval_AtA_times_u: FA.t obs * FA.t -> FA.t
+  let eval_AtA_times_u u v =
+    let w = FA.make (FA.length u) 0.0 in
+    let w = eval_A_times_u u w in 
+    let v = eval_At_times_u (obs w) v in
+    FA.release w ;
+    v
+
+  val main_loop1: FA.t * FA.t * int -> FA.t * FA.t
+  let main_loop1 u v i = 
+    if i > 9
+    then u, v
+    else
+      let v = eval_AtA_times_u (obs u) v in
+      let u = eval_AtA_times_u (obs v) u in
+      main_loop1 u v (i+1)
+
+  val main_loop2: FA.t obs * FA.t obs * int * int * float * float -> float * float
+  let main_loop2 u v n i vv vBv =
+    if i > n-1 
+    then vv, vBv
+    else
+      let vi = FA.get v i in
+      let vv = vv + vi * vi in
+      let vBv = vBv + FA.get u i * vi in
+      main_loop2 u v n (i+1) vv vBv
+
+  val main: unit #-> unit
+  let main () =
+    let n = 2000 in
+    let u = FA.make n 1.0 in
+    let v = FA.make n 0.0 in
+    let u, v = main_loop1 u v 0 in
+    let vv, vBv = main_loop2 (obs u) (obs v) n 0 0.0 0.0 in
+    FA.release u ; 
+    FA.release v ;
+    Print.float (Math.sqrt (vBv / vv)) ;
+    Print.newline()
+     
+end

@@ -1,0 +1,4 @@
+
+module Math = struct
+  val sqrt: float #-> float = "sqrt"
+end

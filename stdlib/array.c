@@ -64,3 +64,43 @@ void* array_fold_left(void* (*f)(void*, array_t*), void* acc, array_t* t){
   free(t) ;
   return acc ;
 }
+
+typedef struct{
+  int size ;
+  double* t ;
+} farray_t ;
+
+farray_t* farray_make(int size, double d){
+  farray_t* res ;
+  int i ;
+  res = malloc(sizeof(farray_t)) ;
+  res->size = size ;
+  res->t = malloc(sizeof(double) * size) ;
+  for (i = 0 ; i < size ; i++){
+    res->t[i] = d ;
+  }
+  return res ;
+}
+
+farray_t* farray_set(farray_t* t, int i, double v){
+  if(i < 0 || i >= t->size)
+    return t ;
+  t->t[i] = v ;
+  return t ;
+}
+
+double farray_get(farray_t* t, int i){
+  if(i < 0 || i >= t->size)
+    return 0.0 ;
+  return t->t[i] ;
+}
+
+void farray_release(farray_t* t){
+  free(t->t) ;
+  free(t) ;
+  return ;
+}
+
+int farray_length(farray_t* t){
+  return t->size ;
+}
