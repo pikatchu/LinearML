@@ -72,7 +72,7 @@ rule token = parse
   | '\n'               { Lexing.new_line lexbuf; token lexbuf }
       
   (* comments *)
-  | "(*"               { comment lexbuf }
+  | "(*"               { comment 0 lexbuf }
       
   | digit+             { INT (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | float              { FLOAT (Pos.make lexbuf, Lexing.lexeme lexbuf) }
@@ -80,7 +80,7 @@ rule token = parse
   | qword              { TVAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | cword              { CSTR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | string             { STRING (Pos.make lexbuf, let s = Lexing.lexeme lexbuf in 
-			         String.escaped (String.sub s 1 (String.length s - 2))) }
+			         String.sub s 1 (String.length s - 2)) }
   | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
 
   | "->"               { ARROW (Pos.make lexbuf) }
@@ -116,9 +116,10 @@ rule token = parse
   | eof                { EOF (Pos.make lexbuf) }
 
 
-and comment  = parse
+and comment c = parse
   | eof                { error "unterminated comment" }
-  | '\n'               { Lexing.new_line lexbuf; comment lexbuf }
-  | "*)"               { token lexbuf }
-  | _                  { comment lexbuf }
+  | '\n'               { Lexing.new_line lexbuf; comment c lexbuf }
+  | "(*"               { comment (c+1) lexbuf }
+  | "*)"               { if c = 0 then token lexbuf else comment (c-1) lexbuf }
+  | _                  { comment c lexbuf }
 
