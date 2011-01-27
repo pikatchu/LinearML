@@ -17,3 +17,5 @@ Makefile.config
 \#*
 parser.output
 TODO
+*.s
+*.bc

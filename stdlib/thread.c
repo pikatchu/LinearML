@@ -57,3 +57,12 @@ int future_ready(future* t){
   return (t->v == NULL) ;
 }
 
+void* future_make_value(void* v){ 
+  future* res ;
+  res = malloc(sizeof(future)) ;
+  res->v = v ;
+  pthread_mutex_init(&(res->m), NULL) ;
+  pthread_cond_init(&(res->c), NULL) ;
+
+  return res ; 
+}

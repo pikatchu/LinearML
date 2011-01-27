@@ -1,0 +1,9 @@
+
+module String = struct
+
+  type t
+
+  val make: string #-> t = "string_make"
+  val length: t obs #-> int = "string_length"
+  val release: t #-> unit = "string_release"
+end

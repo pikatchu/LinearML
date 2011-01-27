@@ -118,7 +118,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %left EQ LT LTE GT GTE
 %right COLONCOLON
 %left PLUS MINUS 
-%left STAR
+%left STAR SLASH
 %left apply_ DOT
 %nonassoc module_dot
 %left unary_minus
