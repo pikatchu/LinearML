@@ -1,0 +1,114 @@
+
+module BinaryTree = struct
+
+  val lsl: int * int #-> int = "lsl"
+
+  type tree = Empty | Node of tree * int * tree
+
+  val make: int * int -> tree
+  let make i d =
+    if d = 0 then Node(Empty, i, Empty)
+    else 
+      let i2 = 2 * i in
+      let d = d - 1 in 
+      Node(make (i2 - 1) d, i, make i2 d)
+
+  val check: tree -> int
+  let check t = 
+    match t with 
+    | Empty -> 0 
+    | Node(l, i, r) -> i + check l - check r
+
+  type loop2_params = {
+      pd: int ;
+      pi: int ;
+      piend: int ;
+      pc: int ;
+    }
+
+  val loop2_start: loop2_params #-> IntBox.t
+  let loop2_start params = 
+    let { params ; pd = d ; pi = i ; piend = iend ; pc = c } = params in
+    free params ;
+    IntBox.make (loop2 d i iend c)
+
+  val loop2: int * int * int * int -> int
+  let loop2 d i iend c = 
+    if i > iend
+    then c
+    else begin
+      let c = c + check(make i d) + check(make (0-i) d) in
+      loop2 d (i+1) iend c
+    end
+
+  type loop1_result = {
+      d: int ;
+      niter: int ;
+      c: IntBox.t Future.t ;
+    }
+
+  val loop1: int * int * int * int * int * int * loop1_result List.t 
+    -> loop1_result List.t
+  let loop1 min_depth max_depth d threads i iend acc = 
+    if i > iend
+    then acc
+    else begin
+      let dv = d + (i * 2) in
+      let niter = lsl 1 (max_depth - dv + min_depth) in
+      let loop2_params = { pd = d ; pi = 1 ; piend = niter ; pc = 0 } in
+      let c = 
+	if i < threads
+	then Future.make_value (loop2_start loop2_params) 
+	else Future.make loop2_start loop2_params 
+      in
+      let result = { d = dv ; ~niter ; ~c } in
+      let acc = List.Cons result acc in
+      loop1 min_depth max_depth d threads (i+1) iend acc
+    end
+
+  val loop_depths: int * int * int -> loop1_result List.t
+    let loop_depths min_depth max_depth d = 
+    let last = ((max_depth - d) / 2 + 1) - 1 in
+    let threads = 2 in
+    loop1 min_depth max_depth d threads 0 last List.Empty
+
+  val print_results: loop1_result List.t -> unit
+  let print_results l = 
+    match l with
+    | List.Empty -> ()
+    | List.Cons res rl ->
+	let { res ; ~d ; ~niter ; ~c } = res in
+	let c = Future.wait c in
+	let c = IntBox.unbox c in
+        Print.int (2 * niter) ;
+	Print.string "\t trees of depth " ;
+	Print.int d ; 
+	Print.string "\t check: " ; 
+	Print.int c ; 
+	Print.newline() ;
+	free res ;
+	print_results rl
+
+
+  val main: unit #-> unit 
+  let main() =
+    let min_depth = 4 in
+    let max_depth = 20 in
+    let stretch_depth = max_depth + 1 in
+    let c = check (make 0 stretch_depth) in
+    Print.string "stretch tree of depth " ;
+    Print.int stretch_depth ;
+    Print.string "\t check: " ;
+    Print.int c ; 
+    Print.newline() ;
+    let long_lived_tree = make 0 max_depth in
+    let res_list = loop_depths min_depth max_depth min_depth in
+    let res_list = List.rev res_list in
+    print_results res_list ;
+    Print.string "long lived tree of depth " ;
+    Print.int max_depth ; 
+    Print.string "\t check: " ;
+    Print.int (check long_lived_tree) ;
+    Print.newline()
+
+end
