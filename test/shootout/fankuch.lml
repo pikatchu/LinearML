@@ -24,7 +24,6 @@ module Fankuch = struct
       flip_loop n a (i+1) iend
     end
 
-
 (** Count the number of flips so that pancake 0 is at index 0. *)
   val count: int * IA.t -> int * IA.t
   let count c ary =
@@ -35,7 +34,6 @@ module Fankuch = struct
       count c ary
     end else
       c, ary
-
 
 (** Rotate the first [n] pancakes of [a]. *)
   val rotate: int * IA.t -> IA.t
@@ -54,53 +52,85 @@ module Fankuch = struct
       let a = IA.set a (i - 1) ai in
       rotate_loop a (i+1) m
 
-  val do_iter: int * IA.t * IA.t * int * int * int -> IA.t * IA.t * int * int * int
-  let rec do_iter num perm copy ht csum m = (* perm copy csum m num *)
-    if ht = 1 then begin
+  type env = {
+      csum: int ;
+      m: int ;
+      n: int ;
+      num: int ;
+      perm: IA.t ;
+      copy: IA.t ;
+      ht: int ;
+    }
+
+  val array_copy: IA.t obs * IA.t * int -> IA.t 
+  let array_copy t1 t2 n = 
+    if n < 0
+    then t2
+    else array_copy t1 (IA.set t2 n (IA.get t1 n)) (n-1)
+       
+  val do_iter: env -> env
+  let do_iter env =
+    if env.ht = 1 then begin
+      let { env ; ~copy } = env in
+      let copy = array_copy env.perm copy (IA.length env.perm) in 
       let c, copy = count 0 copy in
-      (* csum update from Otto Bommer's Scala ver. *)
-      let csum = csum + c * (1 - (lsl (land num 1) 1)) in
-      let m = if c > m then c else m in
-      let num = num + 1 in
-      perm, copy, csum, m, num
-    end else 
-      let perm, copy, csum, m, num = do_iter_loop num perm copy 1 ht csum m in
-      perm, copy, csum, m, num
+      let csum = env.csum + c * (1 - (lsl (land env.num 1) 1)) in
+      let m = if c > env.m then c else env.m in
+      let env = { env with csum = csum ; m = m ; num = env.num + 1 ; ~copy } in
+      env
+    end else do_iter_loop env 1
 
-  val do_iter_loop: int * IA.t * IA.t * int * int * int * int 
-    -> IA.t * IA.t * int * int * int
-  let do_iter_loop num perm copy i ht csum m = 
-    let perm, copy, csum, m, num = do_iter num perm copy (ht - 1) csum m in
-    let perm = rotate ht perm in
-    perm, copy, csum, m, num
+  val do_iter_loop: env * int -> env
+  let do_iter_loop env i = 
+    if i > env.ht 
+    then env
+    else
+      let env = { env with ht = env.ht - 1 } in
+      let { ~perm ; env } = do_iter env in
+      let env = { env with ht = env.ht + 1 } in
+      let perm = rotate env.ht perm in
+      do_iter_loop { env with ~perm } (i+1)
 
-  val ia_init: int * IA.t -> IA.t
-  let ia_init n t = 
+  val init_perm: IA.t * int -> IA.t
+  let init_perm t n = 
     if n < 0
     then t
-    else ia_init (n-1) (IA.set t n n)
+    else init_perm (IA.set t n n) (n-1)
 
-  val iter_perms: int -> int * int
+(** Call [f] on each permutation of [n] numbers in order. *)
+  val iter_perms: int -> env
   let iter_perms n =
     let perm = IA.make n 0 in
-    let copy = IA.copy (obs perm) in 
-    let perm = ia_init n perm in
-    let num = 0 in
-    let perm, copy, csum, m, _ = do_iter num perm copy n 0 0 in
-    IA.release perm ;
-    IA.release copy ;
-    csum, m
+    let perm = init_perm perm n in
+    let copy = IA.make n 0 in
+    let csum = 0 in 
+    let m = 0 in
+    let env = {
+      csum = csum ;
+      m = m ;
+      n = n ;
+      num = 0 ;
+      perm = perm ;
+      copy = copy ;
+      ht = n ;
+    } in
+    do_iter env
 
   val main: unit #-> unit
   let main () =
-    let n = 10 in
-    let csum, m = iter_perms n in
-    Print.int csum ;
+    let n = 9 in
+    let env = iter_perms n in
+    Print.int env.csum ;
     Print.newline() ;
     Print.string "Pfannkuchen(" ;
-    Print.int n ;
+    Print.int env.n ;
     Print.string ") = " ;
-    Print.int m ;
-    Print.newline()
+    Print.int env.m ;
+    let { env ; ~perm ; ~copy } = env in
+    IA.release perm ;
+    IA.release copy ;
+    free env ;
+    Print.newline() 
+    
 
 end
