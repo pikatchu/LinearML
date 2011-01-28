@@ -1,0 +1,106 @@
+
+module Fankuch = struct
+
+  module IA = IntArray
+
+  val land: int * int #-> int = "land"
+  val lsl: int * int #-> int = "lsl"
+  val debug: IA.t obs #-> unit = "debug"
+
+(** Flip the front [n] pancakes of [a]. *)
+  val flip: int * IA.t -> IA.t
+  let flip n a = flip_loop n a 0 (n/2)
+
+  val flip_loop: int * IA.t * int * int -> IA.t
+  let flip_loop n a i iend = 
+    if i > iend
+    then a
+    else begin
+      let t = IA.get (obs a) i in
+      let k = n - i in
+      let ak = (IA.get (obs a) k) in
+      a := IA.set a i ak ;
+      a := IA.set a k t ; 
+      flip_loop n a (i+1) iend
+    end
+
+
+(** Count the number of flips so that pancake 0 is at index 0. *)
+  val count: int * IA.t -> int * IA.t
+  let count c ary =
+    let z = IA.get (obs ary) 0 in
+    if z <> 0 then begin
+      let ary = flip z ary in
+      let c = c + 1 in
+      count c ary
+    end else
+      c, ary
+
+
+(** Rotate the first [n] pancakes of [a]. *)
+  val rotate: int * IA.t -> IA.t
+  let rotate n a =
+    let t = IA.get (obs a) 0 in
+    let m = n - 1 in
+    let a = rotate_loop a 1 m in
+    IA.set a m t
+
+  val rotate_loop: IA.t * int * int -> IA.t
+  let rotate_loop a i m =
+    if i > m
+    then a
+    else 
+      let ai = IA.get (obs a) i in
+      let a = IA.set a (i - 1) ai in
+      rotate_loop a (i+1) m
+
+  val do_iter: int * IA.t * IA.t * int * int * int -> IA.t * IA.t * int * int * int
+  let rec do_iter num perm copy ht csum m = (* perm copy csum m num *)
+    if ht = 1 then begin
+      let c, copy = count 0 copy in
+      (* csum update from Otto Bommer's Scala ver. *)
+      let csum = csum + c * (1 - (lsl (land num 1) 1)) in
+      let m = if c > m then c else m in
+      let num = num + 1 in
+      perm, copy, csum, m, num
+    end else 
+      let perm, copy, csum, m, num = do_iter_loop num perm copy 1 ht csum m in
+      perm, copy, csum, m, num
+
+  val do_iter_loop: int * IA.t * IA.t * int * int * int * int 
+    -> IA.t * IA.t * int * int * int
+  let do_iter_loop num perm copy i ht csum m = 
+    let perm, copy, csum, m, num = do_iter num perm copy (ht - 1) csum m in
+    let perm = rotate ht perm in
+    perm, copy, csum, m, num
+
+  val ia_init: int * IA.t -> IA.t
+  let ia_init n t = 
+    if n < 0
+    then t
+    else ia_init (n-1) (IA.set t n n)
+
+  val iter_perms: int -> int * int
+  let iter_perms n =
+    let perm = IA.make n 0 in
+    let copy = IA.copy (obs perm) in 
+    let perm = ia_init n perm in
+    let num = 0 in
+    let perm, copy, csum, m, _ = do_iter num perm copy n 0 0 in
+    IA.release perm ;
+    IA.release copy ;
+    csum, m
+
+  val main: unit #-> unit
+  let main () =
+    let n = 10 in
+    let csum, m = iter_perms n in
+    Print.int csum ;
+    Print.newline() ;
+    Print.string "Pfannkuchen(" ;
+    Print.int n ;
+    Print.string ") = " ;
+    Print.int m ;
+    Print.newline()
+
+end
