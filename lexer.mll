@@ -94,6 +94,7 @@ rule token = parse
   | ','                { COMMA (Pos.make lexbuf) }
   | '|'                { BAR (Pos.make lexbuf) }
   | '='                { EQ (Pos.make lexbuf) }
+  | "<>"               { DIFF (Pos.make lexbuf) }
   | "=="               { EQEQ (Pos.make lexbuf) }
   | '+'                { PLUS (Pos.make lexbuf) }
   | '-'                { MINUS (Pos.make lexbuf)}

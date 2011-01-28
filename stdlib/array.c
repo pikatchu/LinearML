@@ -104,3 +104,57 @@ void farray_release(farray_t* t){
 int farray_length(farray_t* t){
   return t->size ;
 }
+
+typedef struct{
+  int size ;
+  int* t ;
+} iarray_t ;
+
+iarray_t* iarray_make(int size, int d){
+  iarray_t* res ;
+  int i ;
+  res = malloc(sizeof(iarray_t)) ;
+  res->size = size ;
+  res->t = malloc(sizeof(int) * size) ;
+  for (i = 0 ; i < size ; i++){
+    res->t[i] = d ;
+  }
+  return res ;
+}
+
+iarray_t* iarray_set(iarray_t* t, int i, int v){
+  if(i < 0 || i >= t->size)
+    return t ;
+  t->t[i] = v ;
+  return t ;
+}
+
+int iarray_get(iarray_t* t, int i){
+  if(i < 0 || i >= t->size)
+    return 0 ;
+  return t->t[i] ;
+}
+
+void iarray_release(iarray_t* t){
+  free(t->t) ;
+  free(t) ;
+  return ;
+}
+
+int iarray_length(iarray_t* t){
+  return t->size ;
+}
+
+iarray_t* iarray_copy(iarray_t* t){
+  iarray_t* res ;
+  int i ;
+
+  res = malloc(sizeof(iarray_t)) ;
+  res->size = t->size ;
+  res->t = malloc(sizeof(int) * res->size) ;
+  
+  for(i = 0 ; i < t->size ; i++)
+    res->t[i] = t->t[i] ;
+  
+  return res ;
+}

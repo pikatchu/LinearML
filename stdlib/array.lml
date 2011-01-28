@@ -23,3 +23,13 @@ module FloatArray = struct
   val length: t obs #-> int = "farray_length"
   val release: t #-> unit = "farray_release"
 end
+
+module IntArray = struct
+  type t 
+  val make: int * int #-> t = "iarray_make"
+  val set: t * int * int #-> t = "iarray_set"
+  val get: t obs * int #-> int = "iarray_get"
+  val length: t obs #-> int = "iarray_length"
+  val copy: t obs #-> t = "iarray_copy"
+  val release: t #-> unit = "iarray_release"
+end

@@ -92,6 +92,7 @@ and field =
 
 and bop = 
   | Eeq
+  | Ediff
   | Elt
   | Elte
   | Egt

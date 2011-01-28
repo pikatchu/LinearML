@@ -55,6 +55,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> COLON
 %token <Pos.t> COMMA
 %token <Pos.t * string> CSTR
+%token <Pos.t> DIFF
 %token <Pos.t> DO
 %token <Pos.t> DONE
 %token <Pos.t> DOT
@@ -115,7 +116,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %right SC
 %nonassoc if_
 %right COMMA
-%left EQ LT LTE GT GTE
+%left EQ DIFF LT LTE GT GTE
 %right COLONCOLON
 %left PLUS MINUS 
 %left STAR SLASH
@@ -341,6 +342,7 @@ expr:
 | FUN simpl_pat_l ARROW expr { Pos.btw $1 (fst $4), Efun ($2, $4) }
 | MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euop (Euminus, $2) }
 | expr EQ expr { btw $1 $3, Ebinop (Eeq, $1, $3) }
+| expr DIFF expr { btw $1 $3, Ebinop (Ediff, $1, $3) }
 | expr LT expr { btw $1 $3, Ebinop (Elt, $1, $3) }
 | expr LTE expr { btw $1 $3, Ebinop (Elte, $1, $3) }
 | expr GT expr { btw $1 $3, Ebinop (Egt, $1, $3) }

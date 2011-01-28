@@ -625,6 +625,7 @@ and proj env ty fty =
 and binop env bop p ty1 ty2 = 
   match bop with
   | Ast.Eeq 
+  | Ast.Ediff
   | Ast.Elt
   | Ast.Elte
   | Ast.Egt

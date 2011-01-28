@@ -8,7 +8,7 @@ CC = gcc -O3
 LIML_LIBS = ../../stdlib/*.lml
 CC_LIBS = -lpthread -lm
 
-default: bintree spectral 
+default: fankuch
 
 
 FILES_LIML = \
@@ -20,7 +20,8 @@ MODULES_LIML = \
 	IntBox.bc \
 	Future.bc \
 	BinaryTree.bc \
-	SpectralNorm.bc 
+	SpectralNorm.bc \
+	Fankuch.bc
 
 STDLIB_OBJS = ../../stdlib/*.o
 FILES_ASM = $(MODULES_LIML:.bc=.s)
@@ -35,6 +36,9 @@ bintree: objects $(FILES_ASM) custom_lib.o bintree_main.o
 
 spectral: objects $(FILES_ASM) custom_lib.o spectral_main.o
 	$(CC) $(FILES_ASM) $(STDLIB_OBJS) custom_lib.o spectral_main.o $(CC_LIBS) -o $@ 
+
+fankuch: objects $(FILES_ASM) custom_lib.o fankuch_main.o
+	$(CC) $(FILES_ASM) $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS) -o $@ 
 
 
 %.s : %.bc

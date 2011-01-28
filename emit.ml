@@ -180,7 +180,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-(*   Llvm.dump_module md ;  *)
+(*    Llvm.dump_module md ;  *)
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -438,6 +438,14 @@ and expr bb env acc (ty, x) e =
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = const env ty v in
       IMap.add x v acc
+  | Ebinop (Ediff, (ty, x1), (_, x2)) -> 
+      let x1 = IMap.find x1 acc in
+      let x2 = IMap.find x2 acc in
+      let ty = match ty with Tprim ty -> ty | _ -> assert false in
+      let bop = binop ty Eeq in
+      let v = bop x1 x2 "" env.builder in
+      let v = build_not v xs env.builder in
+      IMap.add x v acc      
   | Ebinop (bop, (ty, x1), (_, x2)) -> 
       let x1 = IMap.find x1 acc in
       let x2 = IMap.find x2 acc in
@@ -523,6 +531,7 @@ and binop ty = function
       | Tfloat -> build_fcmp Llvm.Fcmp.Oeq
       | Tint -> build_icmp Llvm.Icmp.Eq
       | _ -> failwith "TODO rest of comparisons emit2.ml")
+  | Ediff -> assert false
   | Elt -> 
       (match ty with
       | Tint -> 

@@ -164,6 +164,7 @@ and value = function
 
 and binop = function 
   | Ast.Eeq -> o "eq"
+  | Ast.Ediff -> o "diff"
   | Ast.Elt -> o "lt"
   | Ast.Elte -> o "lte"
   | Ast.Egt -> o "gt"
