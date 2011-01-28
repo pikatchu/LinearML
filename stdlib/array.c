@@ -18,22 +18,6 @@ array_t* array_make(int size){
   return res ;
 }
 
-array_t* array_set(array_t *t, int n, void* v){
-  if(n < 0 || n >= t->size)
-    return t ;
-  t->t[n] = v ;
-  return t ;
-}
-
-void* array_get(array_t *t, int n){
-  if( n < 0 || n >= t->size)
-    return NULL ;
-
-  void* res ;
-  res = t->t[n] ;
-  t->t[n] = NULL ;
-  return res ;
-}
 
 void* array_swap(array_t *t, int n, void* v){
   if( n < 0 || n >= t->size)
@@ -63,6 +47,16 @@ void* array_fold_left(void* (*f)(void*, array_t*), void* acc, array_t* t){
   }
   free(t) ;
   return acc ;
+}
+
+int array_length(array_t* t){
+  return t->size ;
+}
+
+void* array_get(array_t* t, int n){
+  if( n < 0 || n >= t->size)
+    return NULL ;
+  return t->t[n] ;
 }
 
 typedef struct{
@@ -157,4 +151,25 @@ iarray_t* iarray_copy(iarray_t* t){
     res->t[i] = t->t[i] ;
   
   return res ;
+}
+
+iarray_t* iarray_copy_to(iarray_t* t, iarray_t* res){
+  int i ;
+
+  res = malloc(sizeof(iarray_t)) ;
+  res->size = t->size ;
+  res->t = malloc(sizeof(int) * res->size) ;
+  
+  for(i = 0 ; i < res->size ; i++)
+    res->t[i] = t->t[i] ;
+  
+  return res ;
+}
+
+iarray_t* iarray_iteri(iarray_t* (*f)(iarray_t*, int, int), iarray_t* t){
+  int i ;
+  for (i = 0 ; i < t->size ; i++){
+    t = f(t, i, t->t[i]) ;
+  }
+  return t ;
 }

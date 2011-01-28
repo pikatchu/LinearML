@@ -13,6 +13,10 @@ module Array = struct
   let swap t n x = 
     let res = swap__ (obs t) n x in
     t, res
+
+  val get: 'a t obs * int #-> 'a option obs = "array_get"
+
+  val length: 'a t obs #-> int = "array_length"
 end
 
 module FloatArray = struct
@@ -31,5 +35,8 @@ module IntArray = struct
   val get: t obs * int #-> int = "iarray_get"
   val length: t obs #-> int = "iarray_length"
   val copy: t obs #-> t = "iarray_copy"
+  val copy_to: t obs * t #-> t = "iarray_copy_to"
   val release: t #-> unit = "iarray_release"
+  val iteri: (t * int * int #-> t) * t #-> t = "iarray_mapti"
+
 end
