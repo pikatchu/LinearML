@@ -9,6 +9,7 @@ let make_cconv = function
   | Ast.Cfun -> Llvm.CallConv.c 
   | Ast.Lfun -> Llvm.CallConv.fast
 
+
 module MakeNames = struct
 
   let rec program mdl = 
@@ -18,7 +19,7 @@ module MakeNames = struct
     List.iter (decl md.md_id) md.md_decls 
 
   and decl md = function
-    | Dval (x, _, Some y) -> 
+    | Dval (x, _, (Ast.Ext_C (_, y) | Ast.Ext_Asm (_, y))) -> 
 	Ident.set_name x y
     | Dtype (x, _)
     | Dval (x, _, _) ->
@@ -74,7 +75,7 @@ module Type = struct
     IMap.add df.df_id fun_ acc
 
   and def_external mds t md ctx acc = function
-    | Dval (x, Tfun (_, ty1, ty2), Some v) ->
+    | Dval (x, Tfun (_, ty1, ty2), (Ast.Ext_C (_, v) | Ast.Ext_Asm (_, v))) ->
 	let ty = type_fun mds t ctx ty1 ty2 in
 	let fdec = declare_function v ty md in
 	IMap.add x fdec acc
@@ -425,7 +426,7 @@ and extract_values env acc xl v =
     IMap.add x nv acc
  ) acc xl
 
-and expr bb env acc (ty, x) e = 
+and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
   match e with
   | Efree _ -> assert false
@@ -584,6 +585,8 @@ and binop ty = function
       | Tint -> build_sdiv
       | Tfloat -> build_fdiv
       | _ -> assert false)
+  | Eand -> build_and
+  | Eor -> build_or
 
 and const env ty = function
   | Eunit -> assert false

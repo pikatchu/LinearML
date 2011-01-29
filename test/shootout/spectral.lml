@@ -1,16 +1,16 @@
 
 module SpectralNorm = struct
 
-  module FA = FloatArray
+  module FA = UnsafeFloatArray
 
   val float_of_int: int #-> float = "float_of_int"
 
   val eval_A: int * int -> float
   let eval_A i j = 1.0 / float_of_int ((i+j)*(i+j+1)/2+i+1)
 
-  val eval_A_times_u: FA.t obs * FA.t -> FA.t
-  let eval_A_times_u u v =
-    let n = FA.length (obs v) - 1 in
+  val eval_A_times_u: int * FA.t obs * FA.t -> FA.t
+  let eval_A_times_u n u v =
+    let n = n - 1 in
     eval_A_times_u_loop u v 0 n
 
   val eval_A_times_u_loop: FA.t obs * FA.t * int * int -> FA.t
@@ -31,9 +31,9 @@ module SpectralNorm = struct
       let vi = vi + eval_A i j * uj in
       eval_A_times_u_loop2 u v i (j+1) n vi
 
-  val eval_At_times_u: FA.t obs * FA.t -> FA.t
-  let eval_At_times_u u v =
-    let n = FA.length (obs v) - 1 in
+  val eval_At_times_u: int * FA.t obs * FA.t -> FA.t
+  let eval_At_times_u n u v =
+    let n = n - 1 in
     eval_At_times_u_loop u v 0 n
 
   val eval_At_times_u_loop: FA.t obs * FA.t * int * int -> FA.t
@@ -55,22 +55,22 @@ module SpectralNorm = struct
       eval_At_times_u_loop2 u v i (j+1) n vi
 
 	
-  val eval_AtA_times_u: FA.t obs * FA.t -> FA.t
-  let eval_AtA_times_u u v =
-    let w = FA.make (FA.length u) 0.0 in
-    let w = eval_A_times_u u w in 
-    let v = eval_At_times_u (obs w) v in
+  val eval_AtA_times_u: int * FA.t obs * FA.t -> FA.t
+  let eval_AtA_times_u n u v =
+    let w = FA.make n 0.0 in
+    let w = eval_A_times_u n u w in 
+    let v = eval_At_times_u n (obs w) v in
     FA.release w ;
     v
 
-  val main_loop1: FA.t * FA.t * int -> FA.t * FA.t
-  let main_loop1 u v i = 
+  val main_loop1: int * FA.t * FA.t * int -> FA.t * FA.t
+  let main_loop1 n u v i = 
     if i > 9
     then u, v
     else
-      let v = eval_AtA_times_u (obs u) v in
-      let u = eval_AtA_times_u (obs v) u in
-      main_loop1 u v (i+1)
+      let v = eval_AtA_times_u n (obs u) v in
+      let u = eval_AtA_times_u n (obs v) u in
+      main_loop1 n u v (i+1)
 
   val main_loop2: FA.t obs * FA.t obs * int * int * float * float -> float * float
   let main_loop2 u v n i vv vBv =
@@ -87,7 +87,7 @@ module SpectralNorm = struct
     let n = 2000 in
     let u = FA.make n 1.0 in
     let v = FA.make n 0.0 in
-    let u, v = main_loop1 u v 0 in
+    let u, v = main_loop1 n u v 0 in
     let vv, vBv = main_loop2 (obs u) (obs v) n 0 0.0 0.0 in
     FA.release u ; 
     FA.release v ;

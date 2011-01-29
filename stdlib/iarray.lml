@@ -1,0 +1,49 @@
+
+module UnsafeIntArray = struct
+  type t
+
+  val make: int * int #-> t = "unsafe_iarray_make"
+  val release: t #-> unit = "unsafe_iarray_release"
+  val set: t * int * int -> t = asm "unsafe_iarray_set"
+  val get: t obs * int -> int = asm "unsafe_iarray_get"
+  val copy: t obs * t * int #-> t = "unsafe_iarray_copy"
+  
+end
+
+module IntArray = struct
+
+  type t = {
+      size: int ;
+      v: UnsafeIntArray.t ;
+    }
+
+  val make: int * int -> t 
+  let make n d = 
+    { size = n ;
+      v = UnsafeIntArray.make n d }
+
+  val set: t * int * int #-> t 
+  let set t x f = 
+    if x < 0 || x >= t.size
+    then t
+    else 
+      let { t ; ~v } = t in
+      let v = UnsafeIntArray.set v x f in
+      { t with ~v }
+
+  val get: t obs * int -> int 
+  let get t x = 
+    if x < 0 || x >= t.size
+    then 0
+    else UnsafeIntArray.get t.v x
+
+  val length: t obs -> int 
+  let length t = t.size
+
+  val release: t -> unit 
+  let release t = 
+    let { t ; ~v } = t in
+    UnsafeIntArray.release v ;
+    free t
+
+end

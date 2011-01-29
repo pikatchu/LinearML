@@ -46,8 +46,9 @@ and decl = function
   | Dval (x, ty, v) -> 
       o "val " ; id x ; o ": " ; type_expr ty ;
       (match v with 
-      | None -> ()
-      | Some x -> o " = " ; o x) ;
+      | Ast.Ext_none -> ()
+      | Ast.Ext_C x -> o " = " ; o (snd x)
+      | Ast.Ext_Asm x -> o " = (asm)" ; o (snd x)) ;
       nl () ;
 
 and type_expr = function
@@ -177,6 +178,9 @@ and binop = function
   | Ast.Eminus -> o "minus"
   | Ast.Estar -> o "star"
   | Ast.Ediv -> o "div"
+  | Ast.Eor -> o "or"
+  | Ast.Eand -> o "and"
 
 and unop = function
   | Ast.Euminus -> o "uminus"
+  | Ast.Enot -> o "not"

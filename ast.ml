@@ -33,7 +33,12 @@ and def =
   | Dmodule of id * id
   | Dlet of id * pat list * expr
   | Dtype of (id * type_expr) list
-  | Dval of id * type_expr * pstring option
+  | Dval of id * type_expr * extern_def
+
+and extern_def = 
+  | Ext_none
+  | Ext_C of pstring (* C function *)
+  | Ext_Asm of pstring (* Assembly function *)
 
 and pat = Pos.t * pat_
 and pat_ = 
@@ -101,6 +106,9 @@ and bop =
   | Eminus
   | Estar
   | Ediv
+  | Eor
+  | Eand
 
 and uop =
   | Euminus
+  | Enot

@@ -349,8 +349,8 @@ with Error.Type errl ->
   Error.unify errl
   
 and declare env = function
-  | Dval (x, ty, Some _) -> IMap.add (snd x) ty env
-  | Dval (x, ty, None) -> IMap.add (snd x) ty env
+  | Dval (x, ty, (Ast.Ext_C _ | Ast.Ext_Asm _)) -> IMap.add (snd x) ty env
+  | Dval (x, ty, Ast.Ext_none) -> IMap.add (snd x) ty env
   | _ -> env
 
 and def env (fid, p, e) = 
@@ -553,15 +553,22 @@ and expr_ env (p, e) =
       (match bop with
       | Ast.Eplus
       | Ast.Eminus
-      | Ast.Estar -> 
+      | Ast.Estar 
+      | Ast.Ediv -> 
 	  check_numeric p ty1 ;
 	  check_numeric p ty2 
+      | Ast.Eor | Ast.Eand -> (* TODO check bool *) ()
       | _ -> ()) ;
       let _ = Unify.unify_el env ty1 ty2 in
       let ty = binop env bop p ty1 ty2 in
       (ty, Tast.Ebinop (bop, e1, e2))
+  | Euop (Ast.Enot, e) ->
+      let (ty, _ as e) = expr env e in
+      (* TODO check bool *)
+      (ty, Tast.Euop (Ast.Euminus, e))
   | Euop (Ast.Euminus, e) -> 
       let (ty, _ as e) = expr env e in
+      (* TODO check numeric *)
       (ty, Tast.Euop (Ast.Euminus, e))
   | Erecord fdl -> 
       let fdl = List.map (variant env) fdl in
@@ -634,6 +641,7 @@ and binop env bop p ty1 ty2 =
   | Ast.Eminus
   | Ast.Estar 
   | Ast.Ediv -> Unify.unify_el env ty1 ty2
+  | Ast.Eand | Ast.Eor -> (* TODO check bool ty1 ty2 *) (p, Tprim Tbool)
 
 and value = function
   | Nast.Eunit -> Tunit

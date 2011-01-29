@@ -14,7 +14,7 @@ and module_ = {
 
 and decl = 
   | Dtype of id * type_expr
-  | Dval of id * type_expr * pstring option
+  | Dval of id * type_expr * Ast.extern_def
 
 and type_expr =
   | Tany

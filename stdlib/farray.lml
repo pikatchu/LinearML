@@ -1,0 +1,48 @@
+
+module UnsafeFloatArray = struct
+  type t
+
+  val make: int * float #-> t = "unsafe_farray_make"
+  val release: t #-> unit = "unsafe_farray_release"
+  val set: t * int * float -> t = asm "unsafe_farray_set"
+  val get: t obs * int -> float = asm "unsafe_farray_get"
+  
+end
+
+module FloatArray = struct
+
+  type t = {
+      size: int ;
+      v: UnsafeFloatArray.t ;
+    }
+
+  val make: int * float -> t 
+  let make n d = 
+    { size = n ;
+      v = UnsafeFloatArray.make n d }
+
+  val set: t * int * float #-> t 
+  let set t x f = 
+    if x < 0 || x >= t.size
+    then t
+    else 
+      let { t ; ~v } = t in
+      let v = UnsafeFloatArray.set v x f in
+      { t with ~v }
+
+  val get: t obs * int -> float 
+  let get t x = 
+    if x < 0 || x >= t.size
+    then 0.0
+    else UnsafeFloatArray.get t.v x
+
+  val length: t obs -> int 
+  let length t = t.size
+
+  val release: t -> unit 
+  let release t = 
+    let { t ; ~v } = t in
+    UnsafeFloatArray.release v ;
+    free t
+
+end

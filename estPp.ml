@@ -173,6 +173,9 @@ and binop = function
   | Ast.Eminus -> o "minus"
   | Ast.Estar -> o "star"
   | Ast.Ediv -> o "div"
+  | Ast.Eand -> o "and"
+  | Ast.Eor -> o "or"
 
 and unop = function
   | Ast.Euminus -> o "uminus"
+  | Ast.Enot -> o "not"

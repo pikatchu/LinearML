@@ -19,24 +19,3 @@ module Array = struct
   val length: 'a t obs #-> int = "array_length"
 end
 
-module FloatArray = struct
-  type t 
-  val make: int * float #-> t = "farray_make"
-  val set: t * int * float #-> t = "farray_set"
-  val get: t obs * int #-> float = "farray_get"
-  val length: t obs #-> int = "farray_length"
-  val release: t #-> unit = "farray_release"
-end
-
-module IntArray = struct
-  type t 
-  val make: int * int #-> t = "iarray_make"
-  val set: t * int * int #-> t = "iarray_set"
-  val get: t obs * int #-> int = "iarray_get"
-  val length: t obs #-> int = "iarray_length"
-  val copy: t obs #-> t = "iarray_copy"
-  val copy_to: t obs * t #-> t = "iarray_copy_to"
-  val release: t #-> unit = "iarray_release"
-  val iteri: (t * int * int #-> t) * t #-> t = "iarray_mapti"
-
-end

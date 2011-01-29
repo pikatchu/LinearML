@@ -43,12 +43,14 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 
 %}
 
+%token <Pos.t> AMPAMP
 %token <Pos.t> AND
 %token <Pos.t> ARROW 
 %token <Pos.t> SARROW 
 %token <Pos.t> AS
 %token <Pos.t> ASSIGN
 %token <Pos.t> BAR
+%token <Pos.t> BARBAR
 %token <Pos.t> BEGIN
 %token <Pos.t * string> CHAR
 %token <Pos.t> COLEQ
@@ -73,6 +75,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> IF
 %token <Pos.t> IN
 %token <Pos.t * string> INT
+%token <Pos.t> ASM
 %token <Pos.t * string> FLOAT
 %token <Pos.t> LET
 %token <Pos.t> LB
@@ -83,6 +86,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> MATCH
 %token <Pos.t> MINUS
 %token <Pos.t> MODULE
+%token <Pos.t> NOT
 %token <Pos.t> OF
 %token <Pos.t> RB
 %token <Pos.t> RCB
@@ -116,10 +120,12 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %right SC
 %nonassoc if_
 %right COMMA
+%left BARBAR AMPAMP
 %left EQ DIFF LT LTE GT GTE
 %right COLONCOLON
 %left PLUS MINUS 
 %left STAR SLASH
+%nonassoc NOT
 %left apply_ DOT
 %nonassoc module_dot
 %left unary_minus
@@ -159,8 +165,9 @@ rec_opt:
 | REC { } 
 
 external_opt:
-| { None }
-| EQ STRING { Some $2 }
+| { Ext_none }
+| EQ STRING { Ext_C $2 }
+| EQ ASM STRING { Ext_Asm $3 }
 
 type_decl:
 | type_id { $1, (Pos.none, Tabstract) }
@@ -351,6 +358,9 @@ expr:
 | expr MINUS expr { btw $1 $3, Ebinop (Eminus, $1, $3) }
 | expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
 | expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
+| expr BARBAR expr { btw $1 $3, Ebinop (Eor, $1, $3) }
+| expr AMPAMP expr { btw $1 $3, Ebinop (Eand, $1, $3) }
+| NOT expr { Pos.btw $1 (fst $2), Euop (Enot, $2) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
 | ID COLEQ expr SC expr { btw $1 $5, Elet ((fst $1, Pid $1), $3, $5) }

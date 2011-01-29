@@ -36,6 +36,8 @@ let assoc_keyword = [
   "to"     , (fun lb -> TO (Pos.make lb)) ;
   "begin"  , (fun lb -> BEGIN (Pos.make lb)) ;
   "in"     , (fun lb -> IN (Pos.make lb)) ;
+  "not"    , (fun lb -> NOT (Pos.make lb)) ;
+  "asm"    , (fun lb -> ASM (Pos.make lb)) ;
   ]
 
 let _ = 
@@ -96,6 +98,8 @@ rule token = parse
   | '='                { EQ (Pos.make lexbuf) }
   | "<>"               { DIFF (Pos.make lexbuf) }
   | "=="               { EQEQ (Pos.make lexbuf) }
+  | "||"               { BARBAR (Pos.make lexbuf) }
+  | "&&"               { AMPAMP (Pos.make lexbuf) }
   | '+'                { PLUS (Pos.make lexbuf) }
   | '-'                { MINUS (Pos.make lexbuf)}
   | '*'                { STAR (Pos.make lexbuf) }

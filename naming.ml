@@ -327,7 +327,7 @@ and dtype genv sig_ env tdl =
   env, (List.map (type_def genv sig_ env) tdl)
 
 and external_ sig_ env = function
-  | Dval (x, _, Some _) -> Env.add_value env x (Env.value sig_ x)
+  | Dval (x, _, (Ext_C _ | Ext_Asm _)) -> Env.add_value env x (Env.value sig_ x)
   | _ -> env
 
 and bind_type sig_ env (x, _) = 

@@ -199,7 +199,7 @@ module CheckExternal = struct
     List.iter decl md.md_decls
 
   and decl = function
-    | Dval (_, ty, Some _) -> 
+    | Dval (_, ty, Ast.Ext_C _) -> 
 	(try type_expr ty 
 	with Error p ->
 	  Error.invalid_extern_type (fst ty) p)
@@ -254,8 +254,8 @@ module CheckSig = struct
     | _ -> acc
 
   and extern exts x = function
-    | None -> exts 
-    | Some v -> IMap.add (snd x) (fst v) exts
+    | Ast.Ext_none -> exts 
+    | Ast.Ext_C v | Ast.Ext_Asm v -> IMap.add (snd x) (fst v) exts
 
   and def acc (x, _, _) = 
     let lets = IMap.add (snd x) (fst x) acc.lets in
