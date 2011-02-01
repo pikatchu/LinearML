@@ -147,7 +147,7 @@ and expr_ t ty = function
       ObsCheck.tuple e2 ;
       ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
-  | Eapply (fk, fty, x, e) -> 
+  | Eapply (fk, fty, x, e) ->
       let fty = type_expr t fty in
       let e = tuple t e in
       Stast.Eapply (fk, fty, x, e)

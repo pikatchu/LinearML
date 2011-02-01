@@ -194,7 +194,10 @@ and expr_ t = function
   | Ebinop (_, e1, e2) -> expr (expr t e1) e2 
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.fold_left field t fdl 
-  | Ewith (e, fdl) -> List.fold_left field (expr t e) fdl 
+  | Ewith (e, x :: rl) -> 
+      let t = List.fold_left field (field t x) rl in
+      expr t e
+  | Ewith _ -> assert false
   | Efield (_, _) as e -> fields t e
   | Ematch (e, al) -> 
       let t = tuple t e in

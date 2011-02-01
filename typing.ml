@@ -241,7 +241,9 @@ module Instantiate = struct
       let fv = FreeVars.type_expr ISet.empty ty1 in
       if ISet.mem x fv
       then Error.recursive_type p
-      else inst env subst ty1 (p, ty2)
+      else 
+	let ty = Unify.unify_el env ty1 (p, ty2) in
+	IMap.add x ty subst
     with Not_found -> IMap.add x (p, ty2) subst
 
   and replace path subst env (p, ty) = 
@@ -483,7 +485,7 @@ and tuple_ env p = function
   | Eapply (x, el) ->
       let ((tyl, _) as el) = tuple env el in
       let rty = apply env p x tyl in
-      let fty = IMap.find (snd x) env in
+      let fty = unobserve (IMap.find (snd x) env) in
       let fk = match fty with _, Tfun (k, _, _) -> k | _ -> assert false in
       let res = rty, Tast.Eapply (fk, fty, x, el) in
       res 
@@ -652,7 +654,7 @@ and value = function
   | Nast.Estring _ -> Tstring
 
 and apply env p (fp, x) tyl = 
-  match IMap.find x env with
+  match unobserve (IMap.find x env) with
   | (_, Tfun (_, tyl1, tyl2)) ->
       let ty = Instantiate.call env tyl1 tyl tyl2 in
       let ty = p, List.map (fun (_, x) -> p, x) (snd ty) in
