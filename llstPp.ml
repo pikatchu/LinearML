@@ -48,7 +48,8 @@ and decl = function
       (match v with 
       | Ast.Ext_none -> ()
       | Ast.Ext_C x -> o " = " ; o (snd x)
-      | Ast.Ext_Asm x -> o " = (asm)" ; o (snd x)) ;
+      | Ast.Ext_Asm x -> o " = (asm)" ; o (snd x)
+      | Ast.Ext_I x -> o " = (internal) " ; o (snd x)) ;
       nl () ;
 
 and type_expr = function

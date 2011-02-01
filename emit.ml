@@ -19,8 +19,8 @@ module MakeNames = struct
     List.iter (decl md.md_id) md.md_decls 
 
   and decl md = function
-    | Dval (x, _, (Ast.Ext_C (_, y) | Ast.Ext_Asm (_, y))) -> 
-	Ident.set_name x y
+    | Dval (x, _, (Ast.Ext_C y| Ast.Ext_Asm y | Ast.Ext_I y)) -> 
+	Ident.set_name x (snd y)
     | Dtype (x, _)
     | Dval (x, _, _) ->
 	Ident.expand_name md x
@@ -124,7 +124,7 @@ module Type = struct
 
   and type_ mds t ctx = function
     | Tany -> pointer_type (i8_type ctx)
-    | Tprim tp -> type_prim mds t ctx tp
+    | Tprim tp -> type_prim ctx tp
     | Tid x -> (
 	try IMap.find x t 
 	with Not_found -> 
@@ -145,7 +145,7 @@ module Type = struct
 	let ty = type_ mds t ctx ty in
 	pointer_type ty
 
-  and type_prim mds t ctx = function 
+  and type_prim ctx = function 
     | Tunit -> void_type ctx
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
@@ -167,6 +167,123 @@ module Type = struct
     | _ -> assert false
 end
 
+module Pervasives = struct
+
+  let unsafe_farray_get md ctx interns = 
+    let builder = builder ctx in
+    let name = "unsafe_farray_get" in
+    let link = Llvm.Linkage.Private in
+    let float = double_type ctx in
+    let int = Type.type_prim ctx Llst.Tint in
+    let farray = pointer_type float in
+    let args = [| pointer_type (i8_type ctx) ; int |] in
+    let ftype = function_type float args in
+    let fdec = declare_function name ftype md in
+    let cconv = Llvm.CallConv.fast in
+    set_linkage link fdec ;
+    set_function_call_conv cconv fdec ;
+    add_function_attr fdec Attribute.Alwaysinline ;
+    let params = params fdec in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;  
+    let t = build_bitcast params.(0) farray "" builder in
+    let t = build_gep t [|params.(1)|] "" builder in
+    let res = build_load t "" builder in
+    let _ = build_ret res builder in
+    SMap.add name fdec interns
+
+  let unsafe_farray_set md ctx interns = 
+    let builder = builder ctx in
+    let name = "unsafe_farray_set" in
+    let link = Llvm.Linkage.Private in
+    let float = double_type ctx in
+    let int = Type.type_prim ctx Llst.Tint in
+    let farray = pointer_type float in
+    let void_star = pointer_type (i8_type ctx) in
+    let args = [| void_star ; int ; float |] in
+    let ftype = function_type void_star args in
+    let fdec = declare_function name ftype md in
+    let cconv = Llvm.CallConv.fast in
+    set_linkage link fdec ;
+    set_function_call_conv cconv fdec ;
+    add_function_attr fdec Attribute.Alwaysinline ;
+    let params = params fdec in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;  
+    let t = build_bitcast params.(0) farray "" builder in
+    let t = build_gep t [|params.(1)|] "" builder in
+    let _ = build_store params.(2) t builder in
+    let _ = build_ret params.(0) builder in
+    SMap.add name fdec interns
+
+  let unsafe_iarray_get md ctx interns = 
+    let builder = builder ctx in
+    let name = "unsafe_iarray_get" in
+    let link = Llvm.Linkage.Private in
+    let int = Type.type_prim ctx Llst.Tint in
+    let iarray = pointer_type int in
+    let args = [| pointer_type (i8_type ctx) ; int |] in
+    let ftype = function_type int args in
+    let fdec = declare_function name ftype md in
+    let cconv = Llvm.CallConv.fast in
+    set_linkage link fdec ;
+    set_function_call_conv cconv fdec ;
+    add_function_attr fdec Attribute.Alwaysinline ;
+    let params = params fdec in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;  
+    let t = build_bitcast params.(0) iarray "" builder in
+    let t = build_gep t [|params.(1)|] "" builder in
+    let res = build_load t "" builder in
+    let _ = build_ret res builder in
+    SMap.add name fdec interns
+
+  let unsafe_iarray_set md ctx interns = 
+    let builder = builder ctx in
+    let name = "unsafe_iarray_set" in
+    let link = Llvm.Linkage.Private in
+    let int = Type.type_prim ctx Llst.Tint in
+    let iarray = pointer_type int in
+    let void_star = pointer_type (i8_type ctx) in
+    let args = [| void_star ; int ; int |] in
+    let ftype = function_type void_star args in 
+    let fdec = declare_function name ftype md in
+    let cconv = Llvm.CallConv.fast in
+    set_linkage link fdec ;
+    set_function_call_conv cconv fdec ;
+    add_function_attr fdec Attribute.Alwaysinline ;
+    let params = params fdec in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;  
+    let t = build_bitcast params.(0) iarray "" builder in
+    let t = build_gep t [|params.(1)|] "" builder in
+    let _ = build_store params.(2) t builder in
+    let _ = build_ret params.(0) builder in 
+    SMap.add name fdec interns
+
+  let make ctx md = 
+    let string = pointer_type (i8_type ctx) in
+    let unit = void_type ctx in
+    let args = i64_type ctx in
+    let fty = function_type string [|args|] in
+    let malloc = declare_function "malloc" fty md in
+    let free = declare_function "free" 
+	(function_type unit [|pointer_type (i8_type ctx)|]) md in    
+    set_linkage Linkage.External malloc ; 
+    set_linkage Linkage.External free ; 
+    let prims = IMap.empty in 
+    let prims = IMap.add Naming.malloc malloc prims in
+    let prims = IMap.add Naming.ifree free prims in
+
+    let interns = unsafe_farray_get md ctx SMap.empty in
+    let interns = unsafe_farray_set md ctx interns in
+    let interns = unsafe_iarray_get md ctx interns in
+    let interns = unsafe_iarray_set md ctx interns in
+
+    prims, interns
+
+end
+
 type env = {
     mds: (llmodule * lltype IMap.t) IMap.t ;
     cmd: llmodule ;
@@ -175,13 +292,14 @@ type env = {
     builder: llbuilder ;
     types: lltype IMap.t ;
     prims: llvalue IMap.t ;
+    internals: llvalue SMap.t ;
     bls: llbasicblock IMap.t ;
     orig_types: Llst.type_expr IMap.t ;
   }
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-(*    Llvm.dump_module md ;  *)
+    Llvm.dump_module md ;     
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -190,21 +308,6 @@ let dump_module md_file md pm =
   then () 
   else failwith ("Error: module generation failed"^md_file)
 
-let pervasives ctx md = 
-  let string = pointer_type (i8_type ctx) in
-  let unit = void_type ctx in
-  let args = i64_type ctx in
-  let fty = function_type string [|args|] in
-  let malloc = declare_function "malloc" fty md in
-  let free = declare_function "free" 
-      (function_type unit [|pointer_type (i8_type ctx)|]) md in
-
-  set_linkage Linkage.External malloc ; 
-  set_linkage Linkage.External free ; 
-  let prims = IMap.empty in 
-  let prims = IMap.add Naming.malloc malloc prims in
-  let prims = IMap.add Naming.ifree free prims in
-  prims
 
 let optims pm = 
   add_constant_propagation pm ;
@@ -250,9 +353,9 @@ and module_ mds ctx t orig_types md =
   let (md, tys, fs, dl) = IMap.find md_id t in
 (*   Globals.module_ ctx md strings ;*)
   let pm = PassManager.create () in
-  optims pm ;   
+  optims pm ;    
   let builder = builder ctx in
-  let prims = pervasives ctx md in
+  let prims, internals = Pervasives.make ctx md in
   let env = { 
     mds = mds ;
     cmd = md ;
@@ -261,6 +364,7 @@ and module_ mds ctx t orig_types md =
     builder = builder ; 
     types = tys ;
     prims = prims ;
+    internals = internals ;
     bls = IMap.empty ;
     orig_types = orig_types ;
   } in
@@ -394,15 +498,17 @@ and find_function env acc fty f =
   let is_prim = IMap.mem f env.prims in
   try if is_prim then IMap.find f env.prims else IMap.find f acc 
   with Not_found ->
-    let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
     let name = Ident.full f in 
-    let fdec = declare_function name ftype env.cmd in
-    let cconv = match fty with
-    | Tfun (fk, _, _) -> make_cconv fk 
-    | _ -> assert false in
-    set_linkage Linkage.External fdec ; 
-    set_function_call_conv cconv fdec ;
-    fdec
+    try SMap.find name env.internals
+    with Not_found ->
+      let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
+      let fdec = declare_function name ftype env.cmd in
+      let cconv = match fty with
+      | Tfun (fk, _, _) -> make_cconv fk 
+      | _ -> assert false in
+      set_linkage Linkage.External fdec ; 
+      set_function_call_conv cconv fdec ;
+      fdec
 
 and apply env acc xl fk (fty, f) l = 
   let f = find_function env acc fty f in

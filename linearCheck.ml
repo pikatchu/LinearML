@@ -195,7 +195,7 @@ and expr_ t = function
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.fold_left field t fdl 
   | Ewith (e, fdl) -> List.fold_left field (expr t e) fdl 
-  | Efield (_, _) -> t (* Accessing a field doesn't consume *)
+  | Efield (_, _) as e -> fields t e
   | Ematch (e, al) -> 
       let t = tuple t e in
       let tl = List.map (action t) al in
@@ -226,6 +226,14 @@ and expr_ t = function
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2
+
+and fields t = function
+  | Efield ((_, Eid (p, x)), _) ->
+      (match get x t with
+      | Used p' -> Error.already_used p p'
+      | _ -> t)
+  | Efield ((_, e), _) -> fields t e
+  | _ -> assert false
 
 and pvar t p x = 
   match get x t with

@@ -255,6 +255,7 @@ module CheckSig = struct
 
   and extern exts x = function
     | Ast.Ext_none -> exts 
+    | Ast.Ext_I v
     | Ast.Ext_C v | Ast.Ext_Asm v -> IMap.add (snd x) (fst v) exts
 
   and def acc (x, _, _) = 

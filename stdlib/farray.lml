@@ -4,8 +4,8 @@ module UnsafeFloatArray = struct
 
   val make: int * float #-> t = "unsafe_farray_make"
   val release: t #-> unit = "unsafe_farray_release"
-  val set: t * int * float -> t = asm "unsafe_farray_set"
-  val get: t obs * int -> float = asm "unsafe_farray_get"
+  val set: t * int * float -> t = internal "unsafe_farray_set"
+  val get: t obs * int -> float = internal "unsafe_farray_get"
   
 end
 

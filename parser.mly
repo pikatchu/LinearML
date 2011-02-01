@@ -75,6 +75,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> IF
 %token <Pos.t> IN
 %token <Pos.t * string> INT
+%token <Pos.t> INTERNAL
 %token <Pos.t> ASM
 %token <Pos.t * string> FLOAT
 %token <Pos.t> LET
@@ -168,6 +169,7 @@ external_opt:
 | { Ext_none }
 | EQ STRING { Ext_C $2 }
 | EQ ASM STRING { Ext_Asm $3 }
+| EQ INTERNAL STRING { Ext_I $3 }
 
 type_decl:
 | type_id { $1, (Pos.none, Tabstract) }
@@ -311,12 +313,10 @@ simpl_expr:
 | FLOAT { fst $1, Efloat $1 }
 | STRING { fst $1, Estring $1 }
 | CHAR { fst $1, Echar $1 }
-| LCB field_l RCB dot_id { simpl_arg (Pos.btw $1 $3, Erecord $2) $4 }
-| LCB simpl_expr WITH field_l RCB dot_id { 
-  simpl_arg (Pos.btw $1 $5, Ewith ($2, $4)) $6 
-}
-| LP expr RP dot_id { simpl_arg (Pos.btw $1 $3, snd $2) $4 }
-| BEGIN expr END dot_id { simpl_arg $2 $4 }
+| LCB field_l RCB { Pos.btw $1 $3, Erecord $2 }
+| LCB simpl_expr WITH field_l RCB { Pos.btw $1 $5, Ewith ($2, $4) }
+| LP expr RP { Pos.btw $1 $3, snd $2 }
+| BEGIN expr END { $2 }
 
 dot_cstr:
 | { `Null }

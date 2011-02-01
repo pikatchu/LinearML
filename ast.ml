@@ -39,6 +39,7 @@ and extern_def =
   | Ext_none
   | Ext_C of pstring (* C function *)
   | Ext_Asm of pstring (* Assembly function *)
+  | Ext_I of pstring (* Internally defined *)
 
 and pat = Pos.t * pat_
 and pat_ = 

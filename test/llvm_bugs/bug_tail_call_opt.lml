@@ -1,0 +1,24 @@
+
+module Fankuch = struct
+
+   
+  val do_iter: int * int * int * int  -> int * int * int * int
+  let do_iter m n num perm =
+    if n = 1 then begin
+      m, n, num, perm
+    end else 
+      do_iter_loop m n num perm
+
+  val do_iter_loop: int * int * int * int  -> int * int * int * int
+  let do_iter_loop m n num perm = 
+      m, n, num, perm
+
+  val main: unit #-> unit
+  let main () =
+    let m, n, num, perm = do_iter 0 0 0 0 in
+    Print.int n ;
+    Print.newline() ;
+    Print.newline() 
+    
+
+end
