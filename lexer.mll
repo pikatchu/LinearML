@@ -39,6 +39,8 @@ let assoc_keyword = [
   "not"    , (fun lb -> NOT (Pos.make lb)) ;
   "asm"    , (fun lb -> ASM (Pos.make lb)) ;
   "internal" , (fun lb -> INTERNAL (Pos.make lb)) ;
+  "private"  , (fun lb -> PRIVATE (Pos.make lb)) ;
+  "abstract" , (fun lb -> ABSTRACT (Pos.make lb)) ;
   ]
 
 let _ = 

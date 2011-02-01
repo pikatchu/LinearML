@@ -63,7 +63,7 @@ end = struct
     | Dabstract _ -> ()
     | Drecord td
     | Dalgebric td -> tdef env td
-    | Dval (_, ty, _) -> type_expr env ty
+    | Dval (_, _, ty, _) -> type_expr env ty
 
   and tdef env td = 
     IMap.iter (fun _ (_, tyl) -> type_expr_list env tyl) td.td_map
@@ -199,7 +199,7 @@ module CheckExternal = struct
     List.iter decl md.md_decls
 
   and decl = function
-    | Dval (_, ty, Ast.Ext_C _) -> 
+    | Dval (_, _, ty, Ast.Ext_C _) -> 
 	(try type_expr ty 
 	with Error p ->
 	  Error.invalid_extern_type (fst ty) p)
@@ -247,7 +247,7 @@ module CheckSig = struct
     IMap.iter (check_let acc) acc.lets
 
   and decl acc = function
-    | Dval (x, _, ext) -> 
+    | Dval (_, x, _, ext) -> 
 	let vals = IMap.add (snd x) (fst x) acc.vals in
 	let exts = extern acc.exts x ext in
 	{ acc with vals = vals ; exts = exts }

@@ -16,7 +16,7 @@ and module_ md = {
 and decl = function
   | Dalgebric x -> Ist.Dalgebric (tdef x)
   | Drecord x -> Ist.Drecord (tdef x)
-  | Dval (x, y, v) -> Ist.Dval (id x, type_expr y, v)
+  | Dval (ll, x, y, v) -> Ist.Dval (ll, id x, type_expr y, v)
 
 and tdef td = {
     Ist.td_id = id td.td_id ;

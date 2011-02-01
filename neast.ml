@@ -15,7 +15,7 @@ and decl =
   | Dalgebric of tdef
   | Drecord of tdef
   | Dabstract of id * id list
-  | Dval of id * type_expr * Ast.extern_def
+  | Dval of Ast.link * id * type_expr * Ast.extern_def
 
 and tdef = {
     td_id: id ;

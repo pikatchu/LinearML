@@ -43,8 +43,12 @@ and decl = function
   | Dtype (x, ty) -> 
       o "type " ; id x ; o " = " ; type_expr ty ;
       nl () ;
-  | Dval (x, ty, v) -> 
-      o "val " ; id x ; o ": " ; type_expr ty ;
+  | Dval (ll, x, ty, v) -> 
+      o "val " ; 
+      (match ll with 
+      | Ast.Abstract -> assert false
+      | Ast.Public -> () | Ast.Private -> o "private ") ;
+      id x ; o ": " ; type_expr ty ;
       (match v with 
       | Ast.Ext_none -> ()
       | Ast.Ext_C x -> o " = " ; o (snd x)

@@ -32,8 +32,13 @@ and type_expr_ =
 and def = 
   | Dmodule of id * id
   | Dlet of id * pat list * expr
-  | Dtype of (id * type_expr) list
-  | Dval of id * type_expr * extern_def
+  | Dtype of link * (id * type_expr) list
+  | Dval of link * id * type_expr * extern_def
+
+and link =
+  | Abstract
+  | Public
+  | Private
 
 and extern_def = 
   | Ext_none

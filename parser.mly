@@ -43,6 +43,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 
 %}
 
+%token <Pos.t> ABSTRACT
 %token <Pos.t> AMPAMP
 %token <Pos.t> AND
 %token <Pos.t> ARROW 
@@ -94,6 +95,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> REC
 %token <Pos.t> RP
 %token <Pos.t> PLUS
+%token <Pos.t> PRIVATE
 %token <Pos.t> SC
 %token <Pos.t> SLASH
 %token <Pos.t> STAR 
@@ -157,9 +159,18 @@ def_l:
 
 def:
 | MODULE CSTR EQ CSTR { Dmodule ($2, $4) }
-| TYPE type_decl type_decl_l { Dtype (dtype ($2 :: $3))}
-| VAL ID COLON type_expr external_opt { Dval ($2, $4, $5) }
+| TYPE kind_opt type_decl type_decl_l { Dtype ($2, dtype ($3 :: $4))}
+| VAL private_opt ID COLON type_expr external_opt { Dval ($2, $3, $5, $6) }
 | LET rec_opt ID simpl_pat_l EQ expr { Dlet ($3, $4, $6) }
+
+kind_opt:
+|          { Public   }
+| PRIVATE  { Private  }
+| ABSTRACT { Abstract }
+
+private_opt:
+|          { Public  }
+| PRIVATE  { Private }
 
 rec_opt:
 | { }

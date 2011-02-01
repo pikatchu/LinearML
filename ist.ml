@@ -14,7 +14,7 @@ and module_ = {
 and decl = 
   | Dalgebric of tdef
   | Drecord of tdef
-  | Dval of id * type_expr * Ast.extern_def
+  | Dval of Ast.link * id * type_expr * Ast.extern_def
 
 and tdef = {
     td_id: id ;

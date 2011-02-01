@@ -68,6 +68,8 @@ module Env:sig
   val add_env: t -> t -> t
   val check_penv: Pos.t -> t -> t -> unit
 
+  val fresh_tvars: t -> t
+
   val print_values: t -> unit
 
 end = struct
@@ -175,6 +177,8 @@ end = struct
     let id = value t y in
     add_value t x id
 
+  let fresh_tvars t = { t with tvars = SMap.empty }
+
   let print_values penv = 
     SMap.iter (fun x _ -> o x ; o " ") penv.values ;
     o "\n"
@@ -210,6 +214,7 @@ end = struct
 
   let new_module t (_, x) = 
     let id = Ident.make x in
+    Ident.set_name id x ;
     let t = { t with module_ids = SMap.add x id t.module_ids } in
     t, id
 
@@ -223,27 +228,42 @@ end = struct
     List.fold_left module_decl empty mdl
 
   and module_decl t md =
-    let env = List.fold_left decl Env.empty md.md_defs in
     let t, md_id = new_module t md.md_id in
+    let env = List.fold_left (decl md_id) Env.empty md.md_defs in
     { t with sigs = IMap.add md_id env t.sigs }
 
-  and decl env = function
-    | Dtype tdef_l -> List.fold_left tdef env tdef_l
-    | Dval (id, _, _) -> fst (Env.new_decl env id)
+  and decl md_id env = function
+    | Dtype (Public | Abstract as ll, tdef_l) -> 
+	List.fold_left (tdef md_id ll) env tdef_l
+    | Dval (Public, id, _, _) ->
+	let env, x = Env.new_decl env id in 
+	Ident.expand_name md_id (snd x) ;
+	env
     | _ -> env
 
-  and tdef env (id, (_, ty)) = 
-    let env, _ = Env.new_type env id in
-    type_ id env ty
+  and tdef md_id ll env (id, (_, ty)) = 
+    let env, x = Env.new_type env id in
+    Ident.expand_name md_id (snd x) ;
+    match ll with
+    | Abstract -> env
+    | Public -> type_ md_id env ty
+    | _ -> assert false
 
-  and type_ id env = function
-    | Tabs (_, (_, ty)) -> type_ id env ty
-    | Talgebric vtl -> List.fold_left variant env vtl 
-    | Trecord fdl -> List.fold_left field env fdl
+  and type_ md_id env = function
+    | Tabs (_, (_, ty)) -> type_ md_id env ty
+    | Talgebric vtl -> List.fold_left (variant md_id) env vtl 
+    | Trecord fdl -> List.fold_left (field md_id) env fdl
     | _ -> env
 
-  and variant env (id, _) = fst (Env.new_cstr env id)
-  and field env (id, _) = fst (Env.new_field env id)
+  and variant md_id env (id, _) = 
+    let env, x = Env.new_cstr env id in
+    Ident.expand_name md_id (snd x) ;
+    env
+
+  and field md_id env (id, _) = 
+    let env, x = Env.new_field env id in
+    Ident.expand_name md_id (snd x) ;
+    env
 
 end
 
@@ -284,91 +304,113 @@ let rec program mdl =
 
 and module_ genv md = 
   let md_id = Genv.module_id genv md.md_id in
-  let sig_ = Genv.sig_ genv md_id in
-  let acc = (genv, Env.empty, []) in
-  let _, env, decls = List.fold_left (decl sig_) acc md.md_defs in
+  let env = Genv.sig_ genv md_id in
+  let acc = (genv, env, []) in
+  let _, env, decls = List.fold_left decl acc md.md_defs in
   let decls = List.rev decls in
-  let env = List.fold_left (external_ sig_) Env.empty md.md_defs in
-  let env = List.fold_left (def_name sig_) env md.md_defs in
+  let env = List.fold_left external_ env md.md_defs in
+  let env = List.fold_left def_name env md.md_defs in
   let acc = genv, env, [] in
-  let _, env, defs = List.fold_left (def sig_) acc md.md_defs in
+  let _, env, defs = List.fold_left def acc md.md_defs in
   let defs = List.rev defs in
   { Nast.md_id = md_id ;
     Nast.md_decls = decls ;
     Nast.md_defs = defs ;
   }
 
-and decl sig_ (genv, env, acc) = function
+and decl (genv, env, acc) = function
   | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
-  | Dtype tdl -> 
-      let env, ty = dtype genv sig_ env tdl in
+  | Dtype (ll, tdl) -> 
+      let env, ty = dtype genv env ll tdl in
       let ty = Nast.Dtype ty in
       genv, env, ty :: acc
-  | Dval (x, y, z) -> 
-      let env, (x, y, z) = dval genv sig_ env x y z in
-      let dval = Nast.Dval (x, y, z) in
+  | Dval (ll, x, y, z) -> 
+      let env, (x, y, z) = dval genv env ll x y z in
+      let dval = Nast.Dval (ll, x, y, z) in
       genv, env, dval :: acc
   | _ -> genv, env, acc
 
-and dval genv sig_ env id ((p, ty_) as ty) def = 
+and dval genv env ll id ((p, ty_) as ty) def = 
   match ty_ with 
   | Tfun (_, _, _) ->
-      let id = Env.value sig_ id in
+      let env, id = link env id ll in
+      let env = Env.fresh_tvars env in
       let tvarl = FreeVars.type_expr ty in
-      let sub_env, tvarl = lfold Env.new_tvar env tvarl in
-      let ty = type_expr genv sig_ sub_env ty in
+      let env, tvarl = lfold Env.new_tvar env tvarl in
+      let env, ty = type_expr genv ll env ty in
       (* The declaration of the type variables is implicit *)
       let ty = match tvarl with [] -> ty | l -> p, Nast.Tabs(tvarl, ty) in
       env, (id, ty, def)  
   | _ -> Error.value_function p
 
-and dtype genv sig_ env tdl = 
-  let env = List.fold_left (bind_type sig_) env tdl in
-  env, (List.map (type_def genv sig_ env) tdl)
+and link env id = function
+  | Ast.Abstract -> assert false 
+  | Ast.Private -> Env.new_decl env id
+  | Ast.Public -> env, Env.value env id
 
-and external_ sig_ env = function
-  | Dval (x, _, (Ext_C _ | Ext_Asm _)) -> Env.add_value env x (Env.value sig_ x)
+and dtype genv env ll tdl = 
+  let env = List.fold_left (bind_type ll) env tdl in
+  lfold (type_def genv ll) env tdl
+
+and external_ env = function
+  | Dval (_, x, _, (Ext_C _ | Ext_Asm _)) -> Env.add_value env x (Env.value env x)
   | _ -> env
 
-and bind_type sig_ env (x, _) = 
-  let id = Env.type_ sig_ x in
+and bind_type ll env (x, _) = 
+  let env, id = 
+    match ll with
+    | Public | Abstract -> env, Env.type_ env x 
+    | Private -> Env.new_type env x 
+  in
   Env.add_type env x id
 
-and type_def genv sig_ env (id, ty) = 
+and type_def genv ll env (id, ty) = 
   let id = Env.type_ env id in
-  let ty = type_expr genv sig_ env ty in
-  id, ty
+  let env, ty = type_expr genv ll env ty in
+  env, (id, ty)
 
-and type_expr genv sig_ env (p, ty) = p, type_expr_ genv sig_ env ty
-and type_expr_ genv sig_ env x = 
-  let k = type_expr genv sig_ env in
+and type_expr genv ll env (p, ty) = 
+  let env, ty = type_expr_ genv env ll ty in
+  env, (p, ty)
+
+and type_expr_ genv env ll x = 
+  let k = type_expr genv ll in
   match x with
-  | Tany -> Nast.Tany
-  | Tvar x -> Nast.Tvar (Env.tvar env x)
-  | Tid x -> tid env x
+  | Tany -> env, Nast.Tany
+  | Tvar x -> env, Nast.Tvar (Env.tvar env x)
+  | Tid x -> env, tid env x
   | Tapply (ty, tyl) -> 
-      let tyl = List.map k tyl in
+      let env, tyl = lfold k env tyl in
       List.iter check_apply tyl ;
-      Nast.Tapply (k ty, tyl)
-  | Ttuple tyl -> Nast.Ttuple (List.map k tyl)
+      let env, ty = k env ty in
+      env, Nast.Tapply (ty, tyl)
+  | Ttuple tyl -> 
+      let env, tyl = lfold k env tyl in
+      env, Nast.Ttuple tyl
   | Tpath (id1, id2) -> 
       let (p1, _) as md_id = Genv.module_id genv id1 in
       let sig_ = Genv.sig_ genv md_id in
       let (p2, v) = Env.type_ sig_ id2 in
       let id2 = Pos.btw p1 p2, v in
-      Nast.Tpath (md_id, id2)
-  | Tfun (fkind, ty1, ty2) -> Nast.Tfun (fkind, k ty1, k ty2)
+      env, Nast.Tpath (md_id, id2)
+  | Tfun (fkind, ty1, ty2) -> 
+      let env, ty1 = k env ty1 in
+      let env, ty2 = k env ty2 in
+      env, Nast.Tfun (fkind, ty1, ty2)
   | Talgebric l -> 
-      let vl = List.map (tvariant genv sig_ env) l in
-      Nast.Talgebric (imap_of_list vl)
+      let env, vl = lfold (tvariant genv ll) env l in
+      env, Nast.Talgebric (imap_of_list vl)
   | Trecord l -> 
-      let fdl = List.map (tfield genv sig_ env) l in
-      Nast.Trecord (imap_of_list fdl)
-  | Tabbrev ty -> Nast.Tabbrev (k ty)
-  | Tabstract -> Nast.Tabstract
+      let env, fdl = lfold (tfield genv ll) env l in
+      env, Nast.Trecord (imap_of_list fdl)
+  | Tabbrev ty -> 
+      let env, ty = k env ty in
+      env, Nast.Tabbrev ty
+  | Tabstract -> env, Nast.Tabstract
   | Tabs (tvarl, ty) -> 
       let env, tvarl = lfold Env.new_tvar env tvarl in
-      Nast.Tabs (tvarl, type_expr genv sig_ env ty)
+      let env, ty = type_expr genv ll env ty in
+      env, Nast.Tabs (tvarl, ty)
 
 and check_apply (p, ty) = 
   match ty with
@@ -385,43 +427,58 @@ and tid_ env p = function
   | "string" -> Nast.Tprim Nast.Tstring
   | x -> Nast.Tid (Env.type_ env (p, x))
 
-and tvariant genv sig_ env (id, ty) = 
-  let ty = match ty with 
-  | None -> None
-  | Some ty -> Some (type_expr genv sig_ env ty) in
-  Env.cstr sig_ id, ty
+and tvariant genv ll env (id, ty) = 
+  let env, ty = 
+    match ty with 
+    | None -> env, None
+    | Some ty -> 
+	let env, ty = type_expr genv ll env ty in
+	env, Some ty 
+  in
+  let env, id = 
+    match ll with
+    | Public -> env, Env.cstr env id
+    | _ -> Env.new_cstr env id 
+  in
+  env, (id, ty)
 
-and tfield genv sig_ env (id, ty) = 
-  Env.field sig_ id, type_expr genv sig_ env ty  
+and tfield genv ll env (id, ty) = 
+  let env, id = 
+    match ll with
+    | Public -> env, Env.field env id
+    | Private | Abstract -> Env.new_field env id
+  in
+  let env, ty = type_expr genv ll env ty in
+  env, (id, ty) 
 
-and def_name sig_ env = function
+and def_name env = function
   | Dlet ((p, _) as x, pl, e) -> 
-      (match Env.try_value sig_  x with
+      (match Env.try_value env x with
       | None -> Error.type_missing p
       | Some id -> Env.add_value env x id)
   | _ -> env
 
-and def sig_ (genv, env, acc) = function
+and def (genv, env, acc) = function
   | Dmodule (id1, id2) -> Genv.alias genv id1 id2, env, acc
   | Dlet (id, pl, e) -> 
-      let sub_env, pl = lfold (pat genv sig_) env pl in
-      let e = expr genv sig_ sub_env e in
+      let sub_env, pl = lfold (pat genv) env pl in
+      let e = expr genv sub_env e in
       let id = Env.value env id in
       genv, env, (id, pl, e) :: acc
   | Dtype _
   | Dval _ -> genv, env, acc
 
-and dlet genv sig_ env acc (id, pl, e) = 
+and dlet genv env acc (id, pl, e) = 
   let id = Env.value env id in
-  let env, pl = lfold (pat genv sig_) env pl in
-  let e = expr genv sig_ env e in
+  let env, pl = lfold (pat genv) env pl in
+  let e = expr genv env e in
   (id, pl, e) :: acc
 
-and pat genv sig_ env (pos, p) = 
-  let env, p = pat_ genv sig_ env pos p in
+and pat genv env (pos, p) = 
+  let env, p = pat_ genv env pos p in
   env, (pos, p)
 
-and pat_ genv sig_ env pos = function
+and pat_ genv env pos = function
   | Punit -> env, Nast.Pvalue Nast.Eunit
   | Pany -> env, Nast.Pany
   | Pid x -> 
@@ -432,12 +489,12 @@ and pat_ genv sig_ env pos = function
   | Pbool b -> env, Nast.Pvalue (Nast.Ebool b)
   | Pfloat f -> env, Nast.Pvalue (Nast.Efloat f)
   | Pstring s -> env, Nast.Pvalue (Nast.Estring s)
-  | Pcstr id -> env, Nast.Pcstr (Env.cstr sig_ id)
+  | Pcstr id -> env, Nast.Pcstr (Env.cstr env id)
   | Pvariant (id, p) -> 
-      let env, p = pat genv sig_ env p in
-      env, Nast.Pvariant (Env.cstr sig_ id, p)
+      let env, p = pat genv env p in
+      env, Nast.Pvariant (Env.cstr env id, p)
   | Precord fl -> 
-      let env, fl = lfold (pat_field genv sig_) env fl in
+      let env, fl = lfold (pat_field genv) env fl in
       let fid = List.filter (
 	function _, Nast.PField _ -> false | _ -> true
        ) fl in
@@ -448,18 +505,18 @@ and pat_ genv sig_ env pos = function
       env, Nast.Precord fl
   | Pbar (p1, p2) ->  (* TODO this is bad *)
       let penv = Env.pattern_env env in
-      let penv1, p1 = pat genv sig_ penv p1 in
-      let penv2, p2 = pat genv sig_ penv1 p2 in
+      let penv1, p1 = pat genv penv p1 in
+      let penv2, p2 = pat genv penv1 p2 in
       Env.check_penv pos penv1 penv2 ;
       env, Nast.Pbar (p1, p2)
   | Ptuple pl -> 
-      let env, pl = lfold (pat genv sig_) env pl in
+      let env, pl = lfold (pat genv) env pl in
       env, Nast.Ptuple pl
   | Pevariant (id1, id2, arg) -> 
       let md_id = Genv.module_id genv id1 in
       let md_sig = Genv.sig_ genv md_id in
       let id2 = Env.cstr md_sig id2 in
-      let env, arg = pat genv sig_ env arg in
+      let env, arg = pat genv env arg in
       env, Nast.Pevariant (md_id, id2, arg)
   | Pecstr (md_id, id) -> 
       let md_id = Genv.module_id genv md_id in
@@ -467,26 +524,26 @@ and pat_ genv sig_ env pos = function
       let id = Env.cstr md_sig id in
       env, Nast.Pecstr (md_id, id)
   | Pas (x, p) -> 
-      let env, p = pat genv sig_ env p in
+      let env, p = pat genv env p in
       let env, x = Env.new_value env x in
       env, Nast.Pas (x, p)
       
-and pat_field genv sig_ env (p, pf) = 
-  let env, pf = pat_field_ genv sig_ env pf in
+and pat_field genv env (p, pf) = 
+  let env, pf = pat_field_ genv env pf in
   env, (p, pf)
 
-and pat_field_ genv sig_ env = function
+and pat_field_ genv env = function
   | PFany -> env, Nast.PFany
   | PFid x -> 
       let env, x = Env.new_value env x in
       env, Nast.PFid x
   | PField (id, p) -> 
-      let env, p = pat genv sig_ env p in
-      env, Nast.PField (Env.field sig_ id, p)
+      let env, p = pat genv env p in
+      env, Nast.PField (Env.field env id, p)
 
-and expr genv sig_ env (p, e) = p, expr_ genv sig_ env e
-and expr_ genv sig_ env e = 
-  let k = expr genv sig_ env in
+and expr genv env (p, e) = p, expr_ genv env e
+and expr_ genv env e = 
+  let k = expr genv env in
   match e with
   | Eunit -> Nast.Evalue Nast.Eunit
   | Ebool x -> Nast.Evalue (Nast.Ebool x)
@@ -500,18 +557,18 @@ and expr_ genv sig_ env e =
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
   | Etuple el -> Nast.Etuple (List.map k el)
-  | Ecstr x -> Nast.Ecstr (Env.cstr sig_ x)
+  | Ecstr x -> Nast.Ecstr (Env.cstr env x)
   | Ematch (e, pel) -> 
-      let pel = List.map (pat_expr genv sig_ env) pel in
+      let pel = List.map (pat_expr genv env) pel in
       Nast.Ematch (k e, pel) 
   | Elet (p, e1, e2) -> 
-      let env, p = pat genv sig_ env p in
-      let e2 = expr genv sig_ env e2 in
+      let env, p = pat genv env p in
+      let e2 = expr genv env e2 in
       Nast.Elet (p, k e1, e2)
   | Eif (e1, e2, e3) -> Nast.Eif (k e1, k e2, k e3) 
   | Efun (pl, e) -> 
-      let env, pl = lfold (pat genv sig_) env pl in
-      let e = expr genv sig_ env e in
+      let env, pl = lfold (pat genv) env pl in
+      let e = expr genv env e in
       Nast.Efun (pl, e)
   | Eapply ((_, Eid (_, "free")), e) ->
       (match e with
@@ -524,8 +581,8 @@ and expr_ genv sig_ env e =
       | (p, _) :: _ -> Error.obs_expects_id p
       | _ -> assert false)
   | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
-  | Erecord fdl -> Nast.Erecord (List.map (field genv sig_ env) fdl)
-  | Efield (e, v) -> Nast.Efield (k e, Env.field sig_ v)
+  | Erecord fdl -> Nast.Erecord (List.map (field genv env) fdl)
+  | Efield (e, v) -> Nast.Efield (k e, Env.field env v)
   | Eextern (md_id, id2) -> 
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
@@ -542,22 +599,22 @@ and expr_ genv sig_ env e =
       let id = Env.cstr sig_md id in      
       Nast.Ecstr id
   | Ewith (e, fdl) -> 
-      let e = expr genv sig_ env e in
-      Nast.Ewith (e, List.map (field genv sig_ env) fdl)
+      let e = expr genv env e in
+      Nast.Ewith (e, List.map (field genv env) fdl)
   | Eseq (e1, e2) -> 
-      let e1 = expr genv sig_ env e1 in
-      let e2 = expr genv sig_ env e2 in
+      let e1 = expr genv env e1 in
+      let e2 = expr genv env e2 in
       Nast.Eseq (e1, e2)
 
-and field genv sig_ env = function
+and field genv env = function
   | Eflocl (id, e) -> 
-      Env.field sig_ id, expr genv sig_ env e
+      Env.field env id, expr genv env e
   | Efextr (md_id, id, e) -> 
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
       let id = Env.field sig_md id in      
-      id, expr genv sig_ env e
+      id, expr genv env e
 
-and pat_expr genv sig_ env (p, e) = 
-  let env, p = pat genv sig_ env p in
-  p, expr genv sig_ env e
+and pat_expr genv env (p, e) = 
+  let env, p = pat genv env p in
+  p, expr genv env e

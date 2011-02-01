@@ -75,8 +75,8 @@ and decl t de acc =
       if ty = Tprim Tunit
       then acc 
       else (Dtype (x, type_expr t ty)) :: acc
-  | Dval (x, ty, ext) -> 
-      Dval (x, type_expr t ty, ext) :: acc
+  | Dval (ll, x, ty, ext) -> 
+      Dval (ll, x, type_expr t ty, ext) :: acc
 
 and type_expr t = function
   | Tany 

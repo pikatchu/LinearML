@@ -60,7 +60,7 @@ and decl t d acc =
   | Neast.Dabstract _ -> acc
   | Neast.Dalgebric td -> Stast.Dalgebric (tdef t td) :: acc
   | Neast.Drecord td -> Stast.Drecord (tdef t td) :: acc
-  | Neast.Dval (x, ty, v) -> Stast.Dval (x, type_expr t ty, v) :: acc
+  | Neast.Dval (ll, x, ty, v) -> Stast.Dval (ll, x, type_expr t ty, v) :: acc
 
 and tdef t td = {
   Stast.td_id = td.Neast.td_id ;

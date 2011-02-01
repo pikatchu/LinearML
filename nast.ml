@@ -13,7 +13,7 @@ and module_ = {
 
 and decl = 
   | Dtype of (id * type_expr) list
-  | Dval of id * type_expr * Ast.extern_def
+  | Dval of Ast.link * id * type_expr * Ast.extern_def
 
 and type_expr = Pos.t * type_expr_
 and type_expr_ = 

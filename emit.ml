@@ -19,10 +19,11 @@ module MakeNames = struct
     List.iter (decl md.md_id) md.md_decls 
 
   and decl md = function
-    | Dval (x, _, (Ast.Ext_C y| Ast.Ext_Asm y | Ast.Ext_I y)) -> 
+    | Dval (_, x, _, (Ast.Ext_C y| Ast.Ext_Asm y | Ast.Ext_I y)) -> 
+	Ident.no_origin x ;
 	Ident.set_name x (snd y)
     | Dtype (x, _)
-    | Dval (x, _, _) ->
+    | Dval (_, x, _, _) ->
 	Ident.expand_name md x
 end
 
@@ -75,7 +76,7 @@ module Type = struct
     IMap.add df.df_id fun_ acc
 
   and def_external mds t md ctx acc = function
-    | Dval (x, Tfun (_, ty1, ty2), (Ast.Ext_C (_, v) | Ast.Ext_Asm (_, v))) ->
+    | Dval (_, x, Tfun (_, ty1, ty2), (Ast.Ext_C (_, v) | Ast.Ext_Asm (_, v))) ->
 	let ty = type_fun mds t ctx ty1 ty2 in
 	let fdec = declare_function v ty md in
 	IMap.add x fdec acc

@@ -14,3 +14,4 @@ val origin_id: t -> t
 val to_ustring: t -> string
 val full: t -> string
 val set_name: t -> string -> unit
+val no_origin: t -> unit

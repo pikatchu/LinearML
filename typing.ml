@@ -311,7 +311,7 @@ module Env = struct
     | Dabstract _ -> env
     | Dalgebric tdef
     | Drecord tdef -> algebric env tdef
-    | Dval ((p, x), (_, ty), _) -> IMap.add x (p, ty) env
+    | Dval (_, (p, x), (_, ty), _) -> IMap.add x (p, ty) env
 
   and algebric env tdef =
     IMap.fold (variant tdef.td_args tdef.td_id) tdef.td_map env
@@ -351,8 +351,8 @@ with Error.Type errl ->
   Error.unify errl
   
 and declare env = function
-  | Dval (x, ty, (Ast.Ext_C _ | Ast.Ext_Asm _)) -> IMap.add (snd x) ty env
-  | Dval (x, ty, Ast.Ext_none) -> IMap.add (snd x) ty env
+  | Dval (_, x, ty, (Ast.Ext_C _ | Ast.Ext_Asm _)) -> IMap.add (snd x) ty env
+  | Dval (_, x, ty, Ast.Ext_none) -> IMap.add (snd x) ty env
   | _ -> env
 
 and def env (fid, p, e) = 

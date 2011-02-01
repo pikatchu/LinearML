@@ -17,8 +17,6 @@ FILES_LIML = \
 	bintree.lml
 
 BC_FILES = \
-	../../stdlib/iarray.bc \
-	../../stdlib/farray.bc \
 	Print.bc\
 	List.bc \
 	FloatArray.bc \

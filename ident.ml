@@ -29,13 +29,23 @@ let tmp () = make "__tmp"
 let compare x y = x - y
 
 let to_string x = 
-  try IMap.find x !trace
-  with Not_found -> "v"^string_of_int x
+  let v =
+    try IMap.find x !trace
+    with Not_found -> "v"^string_of_int x
+  in
+  try 
+    let md_id = IMap.find x !origin in
+    md_id ^ "." ^ v
+  with Not_found -> v
+
+let no_origin x = 
+  origin := IMap.remove x !origin ;
+  origin_id := IMap.remove x !origin_id
 
 let expand_name md x = 
   let md_name = IMap.find md !trace in
   origin_id := IMap.add x md !origin_id ;
-  origin := IMap.add x md_name !origin
+  origin := IMap.add x md_name !origin 
  
 let debug x =
   try IMap.find x !trace^"["^string_of_int x^"]"
@@ -57,10 +67,15 @@ let to_ustring x =
   | _ -> s ^ string_of_int x
   
 let full x = 
+  let v =
+    try IMap.find x !trace
+    with Not_found -> "v"^string_of_int x
+  in
   let md = try origin x with Not_found -> "" in
   if md = ""
-  then to_string x
-  else md ^ "_" ^ to_string x
+  then v
+  else md ^ "_" ^ v
 
 let set_name x y = 
   trace := IMap.add x y !trace
+
