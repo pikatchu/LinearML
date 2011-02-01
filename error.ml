@@ -352,7 +352,7 @@ let free_not_value p =
 let obs_not_allowed p = 
   pos p ;
   err "Illegal usage of observable" ;
-  raise Exit 
+  exit 2 
 
 let forgot_free p = 
   pos p ;
