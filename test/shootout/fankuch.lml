@@ -105,7 +105,6 @@ module Fankuch = struct
       copy = copy ;
       ht = n ;
     } in
-    debug !env ;
     do_iter env
 
   val main: unit #-> unit
@@ -118,7 +117,6 @@ module Fankuch = struct
     Print.int env.n ;
     Print.string ") = " ;
     Print.int env.m ;
-    debug !env ;
     let { env ; ~perm ; ~copy } = env in
     IA.release perm ;
     IA.release copy ;

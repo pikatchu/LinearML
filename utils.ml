@@ -40,6 +40,8 @@ let imap2 f m1 m2 =
 let imap2 f m1 m2 = 
   imap2 f (imap2 f m1 m2) m1
 
+let union m1 m2 = IMap.fold IMap.add m1 m2
+
 let iimap2 f m1 m2 = 
   IMap.fold (fun x t2 acc ->
     try let t1 = IMap.find x m1 in

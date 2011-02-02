@@ -35,21 +35,21 @@ objects: $(FILES_LIML)
 
 bintree: objects $(BC_FILES) custom_lib.o bintree_main.o
 	$(LINK) $(BC_FILES) -o bintree.bc
-	$(OPT) -std-link-opts bintree.bc -o bintree_opt.bc
+	$(OPT) -inline -std-link-opts -tailcallelim -O3 bintree.bc -o bintree_opt.bc
 	$(LLC) bintree_opt.bc
 	$(CC) bintree_opt.s $(STDLIB_OBJS) custom_lib.o bintree_main.o $(CC_LIBS) -o $@ 
 
 spectral: objects $(BC_FILES) custom_lib.o spectral_main.o
 	$(LINK)  Print.bc FloatArray.bc SpectralNorm.bc -o spectral.bc
-	$(OPT) -std-link-opts spectral.bc -o spectral_opt.bc
+	$(OPT) -inline -std-link-opts -tailcallelim -O3 spectral.bc -o spectral_opt.bc
 	$(LLC) spectral_opt.bc
 	$(CC) spectral_opt.s $(STDLIB_OBJS) custom_lib.o spectral_main.o $(CC_LIBS) -o $@ 
 
 fankuch: objects $(BC_FILES) custom_lib.o fankuch_main.o
-	$(LINK) Fankuch.bc Print.bc -o fankuch_opt.bc
-	$(OPT) -std-link-opts fankuch.bc -o fankuch_opt.bc 
+	$(LINK) Fankuch.bc Print.bc -o fankuch.bc
+	$(OPT) -inline -std-link-opts -tailcallelim -O3 fankuch.bc -o fankuch_opt.bc 
 	$(LLC) fankuch_opt.bc
-	$(CC) fankuch_opt.s $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS)  -o $@ 
+	$(CC) fankuch_opt.s $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS) -pg -o $@ 
 
 
 %.o : %.c

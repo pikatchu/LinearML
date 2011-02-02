@@ -56,3 +56,5 @@ let push p h =
   p.pos_history := h :: !(p.pos_history)
 
 let history p = !(p.pos_history)
+
+let compare = Pervasives.compare

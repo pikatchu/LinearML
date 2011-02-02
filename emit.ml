@@ -340,9 +340,15 @@ let optims pm =
   add_loop_deletion pm ;
   add_tail_call_elimination pm ;
   add_lib_call_simplification pm ;
-
   add_ind_var_simplification pm ;
-  add_instruction_combination pm  
+  add_instruction_combination pm  ;
+  add_constant_propagation pm ;
+  add_sccp pm ;
+  add_dead_store_elimination pm ;
+  add_aggressive_dce pm ;
+  add_scalar_repl_aggregation pm ;
+  add_ind_var_simplification pm ;
+  add_instruction_combination pm 
 
 let rec program mdl = 
   let ctx = global_context() in
@@ -362,7 +368,7 @@ and module_ mds ctx t orig_types md =
   let (md, tys, fs, dl) = IMap.find md_id t in
 (*   Globals.module_ ctx md strings ;*)
   let pm = PassManager.create () in
-  optims pm ;    
+(*  optims pm ;    *)
   let builder = builder ctx in
   let prims, internals = Pervasives.make ctx md in
   let env = { 
