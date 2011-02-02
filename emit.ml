@@ -55,7 +55,12 @@ module Type = struct
   and module_funs ctx mds acc md = 
     let md_id, dl, decl = md.md_id, md.md_defs, md.md_decls in
     let (md, tys) = IMap.find md_id mds in
-    let fs = List.fold_left (def_fun md_id mds tys md ctx) IMap.empty dl in
+    let lkinds = List.fold_left (
+      fun acc dec -> 
+	match dec with 
+	| Dval (ll, x, _, _) -> IMap.add x ll acc
+	| _ -> acc) IMap.empty decl in
+    let fs = List.fold_left (def_fun md_id mds tys md ctx lkinds) IMap.empty dl in
     let fs = List.fold_left (def_external mds tys md ctx) fs decl in
     IMap.add md_id (md, tys, fs, dl) acc
 
@@ -71,8 +76,8 @@ module Type = struct
     | Dtype (x, ty) -> IMap.add x (type_ mds t ctx ty) t
     | _ -> t
 
-  and def_fun md_name mds t md ctx acc df = 
-    let fun_ = function_ md_name mds t md ctx df in
+  and def_fun md_name mds t md ctx lkinds acc df = 
+    let fun_ = function_ md_name mds t md ctx lkinds df in
     IMap.add df.df_id fun_ acc
 
   and def_external mds t md ctx acc = function
@@ -92,8 +97,11 @@ module Type = struct
 	()
     | _ -> ()
 
-  and function_ md_name mds t md ctx df = 
-    let link = Llvm.Linkage.External in
+  and function_ md_name mds t md ctx lkinds df = 
+    let link = 
+      match IMap.find df.df_id lkinds with 
+      | Public | Abstract -> Llvm.Linkage.External 
+      | Private -> Llvm.Linkage.Private in
     let args = List.map fst df.df_args in
     let ftype = type_fun mds t ctx args df.df_ret in
     let name = public_name md_name df.df_id in
@@ -300,7 +308,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-    Llvm.dump_module md ;     
+(*    Llvm.dump_module md ;     *)
   (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;

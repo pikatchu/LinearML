@@ -47,9 +47,9 @@ spectral: objects $(BC_FILES) custom_lib.o spectral_main.o
 
 fankuch: objects $(BC_FILES) custom_lib.o fankuch_main.o
 	$(LINK) Fankuch.bc Print.bc -o fankuch_opt.bc
-#	$(OPT) -std-link-opts fankuch.bc -o fankuch_opt.bc 
+	$(OPT) -std-link-opts fankuch.bc -o fankuch_opt.bc 
 	$(LLC) fankuch_opt.bc
-	$(CC) fankuch_opt.s $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS) -pg -o $@ 
+	$(CC) fankuch_opt.s $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS)  -o $@ 
 
 
 %.o : %.c

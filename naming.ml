@@ -551,7 +551,6 @@ and expr_ genv env e =
   | Efloat x -> Nast.Evalue (Nast.Efloat x)
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
-  | Eid (p, "obs") -> Error.obs_not_value p
   | Eid (p, "free") -> Error.free_not_value p
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
@@ -605,6 +604,7 @@ and expr_ genv env e =
       let e1 = expr genv env e1 in
       let e2 = expr genv env e2 in
       Nast.Eseq (e1, e2)
+  | Eobs y -> Nast.Eobs (Env.value env y)
 
 and field genv env = function
   | Eflocl (id, e) -> 

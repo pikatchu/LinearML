@@ -63,6 +63,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> DONE
 %token <Pos.t> DOT
 %token <Pos.t> ELSE
+%token <Pos.t> EM
 %token <Pos.t> END
 %token <Pos.t> EOF 
 %token <Pos.t> EQ
@@ -130,7 +131,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %left STAR SLASH
 %nonassoc NOT
 %left apply_ DOT
-%nonassoc module_dot
+%nonassoc module_dot EM
 %left unary_minus
 
 
@@ -328,6 +329,7 @@ simpl_expr:
 | LCB simpl_expr WITH field_l RCB { Pos.btw $1 $5, Ewith ($2, $4) }
 | LP expr RP { Pos.btw $1 $3, snd $2 }
 | BEGIN expr END { $2 }
+| EM ID { Pos.btw $1 (fst $2), Eobs $2 }
 
 dot_cstr:
 | { `Null }

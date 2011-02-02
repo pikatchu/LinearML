@@ -5,7 +5,7 @@ module BinaryTree = struct
 
   type tree = Empty | Node of tree * int * tree
 
-  val make: int * int -> tree
+  val private make: int * int -> tree
   let make i d =
     if d = 0 then Node(Empty, i, Empty)
     else 
@@ -13,7 +13,7 @@ module BinaryTree = struct
       let d = d - 1 in 
       Node(make (i2 - 1) d, i, make i2 d)
 
-  val check: tree -> int
+  val private check: tree -> int
   let check t = 
     match t with 
     | Empty -> 0 
@@ -26,13 +26,13 @@ module BinaryTree = struct
       pc: int ;
     }
 
-  val loop2_start: loop2_params #-> IntBox.t
+  val private loop2_start: loop2_params #-> IntBox.t
   let loop2_start params = 
     let { params ; pd = d ; pi = i ; piend = iend ; pc = c } = params in
     free params ;
     IntBox.make (loop2 d i iend c)
 
-  val loop2: int * int * int * int -> int
+  val private loop2: int * int * int * int -> int
   let loop2 d i iend c = 
     if i > iend
     then c
@@ -47,7 +47,7 @@ module BinaryTree = struct
       c: IntBox.t Future.t ;
     }
 
-  val loop1: int * int * int * int * int * int * loop1_result List.t 
+  val private loop1: int * int * int * int * int * int * loop1_result List.t 
     -> loop1_result List.t
   let loop1 min_depth max_depth d threads i iend acc = 
     if i > iend
@@ -66,13 +66,13 @@ module BinaryTree = struct
       loop1 min_depth max_depth d threads (i+1) iend acc
     end
 
-  val loop_depths: int * int * int -> loop1_result List.t
+  val private loop_depths: int * int * int -> loop1_result List.t
     let loop_depths min_depth max_depth d = 
     let last = ((max_depth - d) / 2 + 1) - 1 in
     let threads = 2 in
     loop1 min_depth max_depth d threads 0 last List.Empty
 
-  val print_results: loop1_result List.t -> unit
+  val private print_results: loop1_result List.t -> unit
   let print_results l = 
     match l with
     | List.Empty -> ()

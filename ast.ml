@@ -96,6 +96,7 @@ and expr_ =
   | Eapply of expr * expr list
   | Ewith of expr * field list
   | Eseq of expr * expr
+  | Eobs of id
 
 and field = 
   | Eflocl of id * expr 
