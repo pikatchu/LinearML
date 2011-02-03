@@ -187,8 +187,7 @@ and tuple t (_, tpl) = List.fold_left tuple_pos t tpl
 and tuple_pos t (_, e) = expr_ t e
 and expr t (_, e) = expr_ t e
 and expr_ t = function
-  | Eid (p, x) -> 
-      pvar t p x
+  | Eid (p, x) -> pvar t p x
   | Evalue _ -> t
   | Evariant (_, e) -> tuple t e
   | Ebinop (_, e1, e2) -> expr (expr t e1) e2 
@@ -220,6 +219,8 @@ and expr_ t = function
       let sub = unify_map t t' t'' in
       let sub = snd sub in
       union t sub
+  | Elength (_, (p, x))
+  | Eget ((p, x), _)
   | Eobs (p, x) -> 
       (match get x t with
       | Used p' -> Error.already_used p p'
@@ -229,6 +230,7 @@ and expr_ t = function
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2
+  | Eset ((p, x), _, _) -> pvar t p x
 
 and fields t = function
   | Efield ((_, Eid (p, x)), _) ->

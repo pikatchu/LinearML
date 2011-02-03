@@ -25,10 +25,16 @@ let float	= prim_type "float"
 let string      = prim_type "string"
 let tobs        = prim_type "obs"
 let toption     = prim_type "option"
+let barray      = prim_type "barray"
+let carray      = prim_type "carray"
+let iarray      = prim_type "iarray"
+let farray      = prim_type "farray"
+let array       = prim_type "array"
 
 let malloc      = prim_value "malloc"
 let ifree       = prim_value "free"
 let eunit       = prim_value "()"
+let length      = prim_value "length"
 
 let some        = prim_cstr "Some"
 let none        = prim_cstr "None"
@@ -552,6 +558,7 @@ and expr_ genv env e =
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
   | Eid (p, "free") -> Error.free_not_value p
+  | Eid (p, "length") -> Error.free_not_value p (* TODO add error *)
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -573,6 +580,11 @@ and expr_ genv env e =
       (match e with
       | [_, Eid y] -> Nast.Efree (Env.value env y)
       | (p, _) :: _ -> Error.free_expects_id p
+      | _ -> assert false)
+  | Eapply ((_, Eid (_, "length")), e) ->
+      (match e with
+      | [_, Eid y] -> Nast.Elength (Env.value env y)
+      | (p, _) :: _ -> Error.free_expects_id p (* TODO add error *)
       | _ -> assert false)
   | Eapply ((_, Eid (_, "obs")), e) ->
       (match e with
@@ -605,6 +617,15 @@ and expr_ genv env e =
       let e2 = expr genv env e2 in
       Nast.Eseq (e1, e2)
   | Eobs y -> Nast.Eobs (Env.value env y)
+  | Eget (x, e) -> 
+      let x = Env.value env x in
+      let e = expr genv env e in
+      Nast.Eget (x, e)
+  | Eset (x, e1, e2) ->
+      let x = Env.value env x in
+      let e1 = expr genv env e1 in
+      let e2 = expr genv env e2 in
+      Nast.Eset (x, e1, e2)
 
 and field genv env = function
   | Eflocl (id, e) -> 

@@ -431,6 +431,9 @@ and expr_ p = function
       Neast.Eseq (e1, e2)
   | Eobs x -> Neast.Eobs x
   | Efree x -> Neast.Efree x
+  | Elength x -> Neast.Elength x
+  | Eget (x, e) -> Neast.Eget (x, simpl_expr e)
+  | Eset (x, e1, e2) -> Neast.Eset (x, simpl_expr e1, simpl_expr e2)
 
 and simpl_expr ((p, _) as e) = 
   match expr e [] with

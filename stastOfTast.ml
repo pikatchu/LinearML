@@ -162,6 +162,9 @@ and expr_ t ty = function
       | Neast.Tid (_, x) when ISet.mem x t -> ()
       | _ -> Error.cannot_free (fst ty) (Typing.Print.type_expr ty)) ;
       Stast.Efree (type_expr t ty, x)
+  | Eget (x, e) -> Stast.Eget (x, expr t e)
+  | Eset (x, e1, e2) -> Stast.Eset (x, expr t e1, expr t e2)
+  | Elength (ty, x) -> Stast.Elength (type_expr t ty, x)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

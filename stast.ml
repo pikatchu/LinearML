@@ -79,6 +79,9 @@ and expr_ =
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of type_expr * id
+  | Eget of id * expr
+  | Eset of id * expr * expr
+  | Elength of type_expr * id
 
 and value = Nast.value =
   | Eunit

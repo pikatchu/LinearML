@@ -367,6 +367,20 @@ module Env = struct
     else Tany
 end
 
+
+let array_el_type = function
+  | _, Tid (_, x) -> 
+      if x = Naming.barray
+      then Tprim Tbool
+      else if x = Naming.carray
+      then Tprim Tchar
+      else if x = Naming.iarray
+      then Tprim Tint
+      else if x = Naming.farray
+      then Tprim Tfloat
+      else (* TODO error *) raise Exit
+  | _ -> (* TODO error *) raise Exit
+
 let rec program mdl = 
   let env = Env.make mdl in
   List.map (module_ env) mdl
@@ -626,6 +640,28 @@ and expr_ env (p, e) =
       let ty = IMap.find x env in
       let ty = p, (snd ty) in
       ((p, Tprim Tunit), Tast.Efree (ty, id))
+  | Elength ((p, x) as id) -> 
+      let ty = IMap.find x env in
+      let ty = unobserve ty in
+      let ty = p, snd ty in
+      let ty = array_el_type ty in
+      let ty = p, ty in
+      ((p, Tprim Tint), Tast.Elength (ty, id))
+  | Eget (x, e) -> 
+      let xty = IMap.find (snd x) env in
+      let e = expr env e in
+      (* TODO check int *)
+      let ty = array_el_type (unobserve xty) in
+      ((p, ty), Tast.Eget (x, e))
+  | Eset (x, e1, e2) -> 
+      let xty = IMap.find (snd x) env in
+      let e1 = expr env e1 in
+      let e2 = expr env e2 in
+      (* TODO check int *)
+      let elty = array_el_type xty in
+      let elty = p, elty in
+      ignore (Type.unify_el env elty (fst e2)) ;
+      (xty, Tast.Eset (x, e1, e2))      
   | Eapply (_, _)
   | Eif (_, _, _)
   | Elet (_, _, _)

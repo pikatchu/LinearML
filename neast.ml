@@ -78,6 +78,9 @@ and expr_ =
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of id
+  | Eget of id * expr
+  | Eset of id * expr * expr
+  | Elength of id
 
 and tuple = Pos.t * expr list
 

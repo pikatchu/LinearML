@@ -49,6 +49,7 @@ OBJECTS_ML = \
 	stastCheck.ml\
 	recordCheck.ml\
 	linearCheck.ml\
+	stastBoundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
 	istRecords.ml\

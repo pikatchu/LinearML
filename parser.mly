@@ -373,6 +373,14 @@ expr:
 | expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
 | expr BARBAR expr { btw $1 $3, Ebinop (Eor, $1, $3) }
 | expr AMPAMP expr { btw $1 $3, Ebinop (Eand, $1, $3) }
+| ID dot_id LB expr RB assign_opt { 
+  let t = simpl_arg (fst $1, Eid $1) $2 in
+  match $5 with
+  | None -> Pos.btw (snd t) $5, Eget (t, $4)
+  | Some (v, r) -> 
+      let e = Pos.btw t v, Eset ($1, $3, v) in
+      btw t r, Elet ((fst $1, Pid $1), e, r)
+}
 | NOT expr { Pos.btw $1 (fst $2), Euop (Enot, $2) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
@@ -382,4 +390,9 @@ expr:
   | [] -> $1 
   | _ -> Pos.btw (fst $1) (last $2), Eapply ($1, $2)
 }
+
+assign_opt:
+| { None }
+| ASSIGN expr SC expr { Some ($2, $4) }
+
 
