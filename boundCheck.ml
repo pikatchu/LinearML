@@ -6,11 +6,11 @@ module Value = struct
 
   type t = 
     | Undef
-    | Array of PSet.t
+    | Array of PSet.t * Int64.t
     | Const of Int64.t
-    | Sum of expr list IMap.t
-    | Rec of expr list IMap.t
-    | Int of bool * PSet.t * PSet.t 
+    | Sum of t list IMap.t
+    | Rec of t list IMap.t
+    | Int of bool * PSet.t * PSet.t * Int64.t
 
   and expr = 
     | Id of Stast.id
@@ -27,11 +27,18 @@ module Value = struct
     | Lt of expr * expr
     | Gt of expr * expr
 
+  let debug t =       (match t with
+    | Undef -> o "Undef"
+    | Array _ -> o "Array" 
+    | Const _ -> o "Const" 
+    | Sum _ -> o "Sum" 
+    | Rec _ -> o "Rec" 
+    | Int _ -> o "Int") 
 
   let compare = Pervasives.compare
 
   let int_of_const n = 
-    Int (n >= Int64.zero, PSet.empty, PSet.empty)
+    Int (n >= Int64.zero, PSet.empty, PSet.empty, n)
 
   let rec unify env v1 v2 = 
     match v1, v2 with
@@ -45,12 +52,20 @@ module Value = struct
     match v1, v2 with
     | Const n, x 
     | x, Const n -> unify_value env (int_of_const n) x
-    | Int (b1, good1, bad1), Int (b2, good2, bad2) -> 
-	Int (b1 && b2, PSet.inter good1 good2, PSet.inter bad1 bad2)
-    | Sum x1, Sum x2 -> Sum (imap2 (unify_list env) x1 x2)
-    | Rec x1, Rec x2 -> Rec (imap2 (unify_list env) x1 x2)
-    | Array p1, Array p2 -> Array (PSet.union p1 p2)
+    | Int (b1, good1, bad1, n1), Int (b2, good2, bad2, n2) -> 
+	let good = PSet.inter good1 good2 in
+	let bad = PSet.inter bad1 bad2 in
+	Int (b1 && b2, good, bad, max n1 n2)
+    | Sum x1, Sum x2 -> Sum (imap2 (unify_value_list env) x1 x2)
+    | Rec x1, Rec x2 -> Rec (imap2 (unify_value_list env) x1 x2)
+    | Array (p1, n1), Array (p2, n2) -> Array (PSet.union p1 p2, min n1 n2)
     | _ -> Undef
+
+  and unify_value_list env l1 l2 = 
+    match l1, l2 with
+    | [], l | l, [] -> l
+    | x1 :: rl1, x2 :: rl2 -> 
+	unify_value env x1 x2 :: unify_value_list env rl1 rl2
 
   and unify_list env l1 l2 = 
     match l1, l2 with
@@ -68,8 +83,9 @@ module Value = struct
     | Div (Plus (x1, x2) as v1, (Value (Const n) as v2)) -> 
 	if n >= Int64.of_int 2
 	then match eval env x1, eval env x2 with
-	| Int (b1, good1, _), Int (b2, good2, _) ->
-	    Int (b1 && b2, PSet.inter good1 good2, PSet.empty)
+	| Int (b1, good1, _, n1), Int (b2, good2, _, n2) ->
+	    let n = Int64.div (Int64.add n1 n2) n in
+	    Int (b1 && b2, PSet.inter good1 good2, PSet.empty, n)
 	| _ -> div (eval env v1) (eval env v2)
 	else div (eval env v1) (eval env v2)
     | Div (v1, v2) -> div (eval env v1) (eval env v2)
@@ -78,17 +94,18 @@ module Value = struct
   and plus v1 v2 = 
     match v1, v2 with
     | Const n1, Const n2 -> Const (Int64.add n1 n2)
-    | Const n, Int (b, good, bad) 
-    | Int (b, good, bad), Const n -> 
+    | Const n, Int (b, good, bad, m) 
+    | Int (b, good, bad, m), Const n -> 
 	let b = b && n >= Int64.zero in
+	let m = Int64.add m n in
 	let good, bad = 
 	  if n < Int64.zero 
 	  then PSet.union good bad, PSet.empty
 	  else PSet.empty, PSet.empty
 	in
-	Int (b, good, bad)
-    | Int (b1, good1, bad1), Int (b2, good2, bad2) ->
-	Int (b1 && b2, PSet.empty, PSet.empty)
+	Int (b, good, bad, m)
+    | Int (b1, good1, bad1, n1), Int (b2, good2, bad2, n2) ->
+	Int (b1 && b2, PSet.empty, PSet.empty, Int64.add n1 n2)
     | _ -> Undef
 
   and minus v1 v2 = 
@@ -100,69 +117,81 @@ module Value = struct
   and mult v1 v2 = 
     match v1, v2 with
     | Const n1, Const n2 -> Const (Int64.add n1 n2)
-    | Const n, Int (b, _, _) 
-    | Int (b, _, _), Const n -> Int (b && n >= Int64.zero, PSet.empty, PSet.empty)
+    | Const n, Int (b, _, _, m) 
+    | Int (b, _, _, m), Const n -> 
+	Int (b && n >= Int64.zero, PSet.empty, PSet.empty, Int64.max_int)
     | _ -> Undef
 
-  and div v1 v2 = mult v1 v2
+  and div v1 v2 = 
+    match v1, v2 with
+    | Const n1, Const n2 -> 
+	if n2 = Int64.zero then Undef else Const (Int64.div n1 n2)
+    | Int (b, good, bad, m), Const n -> 
+	if n > Int64.zero
+	then Int (b, PSet.union good bad, PSet.empty, Int64.div m n)
+	else Undef
+    | _ -> Undef
 
   let get_int env x = try
     match eval env (IMap.find (snd x) env) with
-    | Int (b, good, bad) -> b, good, bad
-    | Const n -> n >= Int64.zero, PSet.empty, PSet.empty 
-    | _ -> false, PSet.empty, PSet.empty 
-  with Not_found -> false, PSet.empty, PSet.empty
+    | Int (b, good, bad, m) -> b, good, bad, m
+    | Const n -> n >= Int64.zero, PSet.empty, PSet.empty, n
+    | _ -> false, PSet.empty, PSet.empty, Int64.max_int
+  with Not_found -> false, PSet.empty, PSet.empty, Int64.max_int
 
   let rec lte env x y = 
     match x with
     | Id x -> 
-	let lower, good, bad = get_int env x in
-	let good, bad = 
+	let lower, good, bad, m = get_int env x in
+	let good, bad, m = 
 	  match eval env y with
-	  | Int (_, good', bad') -> 
-	      PSet.union good good', PSet.union bad bad'
-	  | _ -> good, bad
+	  | Int (_, good', bad', m') -> 
+	      PSet.union good good', PSet.union bad bad', min m m'
+	  | Const m' -> good, bad, min m m'
+	  | _ -> good, bad, m
 	in
-	IMap.add (snd x) (Value (Int (lower, good, bad))) env
+	IMap.add (snd x) (Value (Int (lower, good, bad, m))) env
     | _ -> env 
 
   and gte env x y = 
     match x with
     | Id x -> 
-	let lower, good, bad = get_int env x in
+	let lower, good, bad, m = get_int env x in
 	let lower = 
 	  match eval env y with
 	  | Const n -> lower || n >= Int64.zero
-	  | Int (b, _, _) -> lower || b
+	  | Int (b, _, _, _) -> lower || b
 	  | _ -> lower
 	in
-	IMap.add (snd x) (Value (Int (lower, good, bad))) env
+	IMap.add (snd x) (Value (Int (lower, good, bad, m))) env
     | _ -> env 
 
   and lt env x y = 
     match x with
     | Id x -> 
-	let lower, good, bad = get_int env x in
-	let good, bad = 
+	let lower, good, bad, m = get_int env x in
+	let good, bad, m = 
 	  match eval env y with
-	  | Int (_, good', bad') -> 
-	      PSet.union (PSet.union good good') bad', PSet.empty
-	  | _ -> good, bad
+	  | Int (_, good', bad', m') -> 
+	      PSet.union (PSet.union good good') bad', PSet.empty, 
+	      min m (Int64.sub m' Int64.one)
+	  | Const m' -> good, bad, min m (Int64.sub m' Int64.one)
+	  | _ -> good, bad, m
 	in
-	IMap.add (snd x) (Value (Int (lower, good, bad))) env
+	IMap.add (snd x) (Value (Int (lower, good, bad, m))) env
     | _ -> env 
 
   and gt env x y =
     match x with
     | Id x -> 
-	let lower, good, bad = get_int env x in
+	let lower, good, bad, m = get_int env x in
 	let lower = 
 	  match eval env y with
 	  | Const n -> lower || n >= (Int64.sub Int64.zero Int64.one)
-	  | Int (b, _, _) -> lower || b
+	  | Int (b, _, _, _) -> lower || b
 	  | _ -> lower
 	in
-	IMap.add (snd x) (Value (Int (lower, good, bad))) env
+	IMap.add (snd x) (Value (Int (lower, good, bad, m))) env
     | _ -> env 
 
   let rec if_is_true env = function
@@ -250,10 +279,11 @@ and def privs mem ((_, (_, x), _, _) as df) =
 and def_private env (_, (_, x), p, e) v = 
   let v = List.map (fun x -> Value x) v in
   let env = pat env p v in
-  tuple env e
+  let e = tuple env e in
+  let e = List.map (eval env.values) e in
+  List.map (fun x -> Value x) e
 
 and def_public env (_, (_, x), p, e) = 
-  Ident.print x ;
   let v = type_expr_list (fst p) in
   let env = pat env p v in
   ignore (tuple env e)
@@ -261,16 +291,14 @@ and def_public env (_, (_, x), p, e) =
 and type_expr_list (_, l) = 
   List.map type_expr l
 
-and type_expr (_, ty) =
+and type_expr (p, ty) =
   match ty with
     | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> 
 	type_expr ty
-    | Tid (p, x) ->
-	if x = Naming.barray || x = Naming.carray || 
-	x = Naming.iarray || x = Naming.farray
-	then Value (Array (PSet.singleton p))
-	else Value Undef
+    | Tapply ((_, x), _) when x = Naming.array ->
+	Value (Array (PSet.singleton p, Int64.max_int))
     | _ -> Value Undef
+
 
 and pat env (_, p) v = 
   match p with
@@ -291,7 +319,7 @@ and pat_ env p v =
       (try 
 	match eval env.values v with
 	| Sum m -> 
-	    pat env p (IMap.find (snd x) m)
+	    pat env p (List.map (fun x -> Value x) (IMap.find (snd x) m))
 	| _ -> env
       with Not_found -> env)
   | Precord fdl -> 
@@ -309,15 +337,17 @@ and pat_field_ m v env = function
   | PFany -> env
   | PFid (_, x) -> { env with values = IMap.add x v env.values }
   | PField (x, p) -> 
-      (try pat env p (IMap.find (snd x) m) with Not_found -> env)
+      let vals = IMap.find (snd x) m in
+      let vals = List.map (fun x -> Value x) vals in
+      (try pat env p vals with Not_found -> env)
 
 and tuple env (_, tpl) = List.fold_right (tuple_pos env) tpl []
 and tuple_pos env (ty, e) acc = 
   let undef = List.map (fun _ -> Value Undef) (snd ty) in
-  expr_ env undef e @ acc
+  expr_ env undef (fst ty) e @ acc
 
-and expr env (ty, e) = expr_ env [Value Undef] e
-and expr_ env undef = function
+and expr env (ty, e) = expr_ env [Value Undef] (fst ty) e
+and expr_ env undef p = function
   | Eid x -> 
       if IMap.mem (snd x) env.privates
       then def_public env (IMap.find (snd x) env.privates) ;
@@ -325,6 +355,7 @@ and expr_ env undef = function
   | Evalue v -> [Value (value v)]
   | Evariant (x, e) -> 
       let e = tuple env e in
+      let e = List.map (eval env.values) e in
       [Value (Sum (IMap.add (snd x) e IMap.empty))]
   | Ebinop (bop, e1, e2) -> 
     let e1 = expr env e1 in
@@ -353,7 +384,9 @@ and expr_ env undef = function
       let e = expr env e in
       let e = List.hd e in
       (match eval env.values e with
-      | Rec m -> IMap.find (snd fd) m
+      | Rec m -> 
+	  let vals = IMap.find (snd fd) m in
+	  List.map (fun x -> Value x) vals
       | _ -> undef)
   | Ematch (e, al) -> 
       let e = tuple env e in
@@ -371,6 +404,30 @@ and expr_ env undef = function
       let env' = { env with values = if_is_false env.values e1 } in
       let e3 = tuple env' e3 in
       unify_list env.values e2 e3
+  | Eapply (_, _, (_, f), (_, [init ; size])) when f = Naming.amake -> 
+      let _ = tuple_pos env init [] in
+      let size = tuple_pos env size [] in
+      let size = 
+	match eval env.values (List.hd size) with
+	| Const n -> n
+	| _ -> Int64.max_int
+      in
+      [Value (Array (PSet.singleton p, size))]
+  | Eapply (_, _, (_, f), (_, [x])) when f = Naming.alength -> 
+      [length env x]
+  | Eapply (_, _, (_, f), e) when f = Naming.aget ->
+      (match tuple env e with
+      | [x ; e] ->
+	  check_bound env p x e ; 
+	  undef
+      | _ -> undef)
+  | Eapply (_, _, (_, f), e) when f = Naming.aset -> 
+      (match tuple env e with
+      | [x ; e ; _] ->
+	  check_bound env p x e ; 
+	  debug (eval env.values x) ;
+	  [Value (eval env.values x)]
+      | _ -> undef)
   | Eapply (_, _, x, e) ->
       let e = tuple env e in
       if IMap.mem (snd x) env.privates
@@ -382,6 +439,7 @@ and expr_ env undef = function
 	  env.mem := TMap.add call undef !(env.mem) ;
 	  let env' = { env with values = IMap.empty } in
 	  let res = def_private env' (IMap.find (snd x) env.privates) e in
+	  debug (eval env.values (List.hd res)) ;
 	  env.mem := TMap.add call res !(env.mem) ;
 	res)
       else undef
@@ -390,24 +448,16 @@ and expr_ env undef = function
       tuple env e2
   | Eobs x -> [Id x]
   | Efree _ -> undef
-  | Eget (x, e) -> 
-      let pos = fst (fst e) in
-      let e = expr env e in
-      check_get env pos x e ; 
-      undef
-  | Eset (x, e1, e2) -> check_set env x e1 ; id env x
-  | Elength (_, x) -> [length env x]
-
-and id env (_, x) = 
-  (try [IMap.find x env.values] with Not_found -> [Value Undef])
 
 and value = function
   | Eint (_, n) -> Const (Int64.of_string n)
   | _ -> Undef
 
-and length env x = 
-  match eval env.values (Id x) with
-  | Array p -> Value (Int (true, PSet.empty, p))
+and length env e = 
+  let e = List.hd (snd (fst e)), snd e in
+  let e = List.hd (expr env e) in
+  match eval env.values e with
+  | Array (p, n) -> Value (Int (true, PSet.empty, p, n))
   | _ -> Value Undef
 
 and binop bop v1 v2 = 
@@ -431,23 +481,31 @@ and unop uop v =
 
 and field env m ((_, x), e) = 
   let v = tuple env e in
+  let v = List.map (eval env.values) v in
   IMap.add x v m 
 
 and action env v (p, e) = 
   let env = pat env p v in
   tuple env e
 
-and check_get env p t e =
-  let t = eval env.values (Id t) in
-  let e = eval env.values (List.hd e) in
+and check_bound env p t e =
+  let t = eval env.values t in
+  let e = eval env.values e in
   match t, e with
-  | Array t, Int (b, good, bad) -> 
+  | Array (t, n), Const n' ->
+      if n' < n && n' >= Int64.zero
+      then ()
+      else (Error.pos p ; exit 6)
+  | Array (t, n), Int (b, good, bad, m) -> 
       if not b 
       then (Error.pos p ; exit 3) ;
-      let bad = PSet.diff t good in
-      if PSet.is_empty bad
+      if m < n 
       then ()
-      else (Error.pos p ; Error.pos (PSet.choose bad) ; exit 4) ;
-  | _ -> Error.pos p ; exit 5
+      else
+	let bad = PSet.diff t good in
+	if PSet.is_empty bad
+	then ()
+	else (Error.pos p ; Error.pos (PSet.choose bad) ; exit 4) ;
+  | _ -> 
+      Error.pos p ; exit 5
 
-and check_set _ _ _ = assert false
