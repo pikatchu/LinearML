@@ -1,0 +1,17 @@
+
+module Test = struct
+
+  val f: 'a -> 'a
+  let f x = x
+
+  val g: 'a -> 'a
+  let g x = x
+
+  val main: unit ->  unit
+  let main() =
+    let _ = f 1 in
+    let _ = f 1.0 in
+    let x = f g in 
+    let _ = f "hello" in
+    ()
+end
