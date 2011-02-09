@@ -11,7 +11,7 @@ module Array = struct
 
   val swap: 'a t * int * 'a option -> 'a t * 'a option
   let swap t n x = 
-    let res = swap__ (obs t) n x in
+    let res = swap__ !t n x in
     t, res
 
   val get: 'a t obs * int #-> 'a option obs = "array_get"

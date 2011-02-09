@@ -60,7 +60,7 @@ module NBodies = struct
       match b with
       | None -> bodies
       | Some b ->
-	  let size = Array.length (obs bodies) in
+	  let size = Array.length !bodies in
 	  let bodies, b = advance_loop2 dt bodies b (i+1) size in
 	  let bodies = set_planet bodies i b in
 	  advance_loop1 dt bodies (i+1) iend
@@ -84,7 +84,7 @@ module NBodies = struct
 	    
   val advance: planet Array.t * float -> planet Array.t
   let advance bodies dt =
-    let size = Array.length (obs bodies) in
+    let size = Array.length !bodies in
     let bodies = advance_loop1 dt bodies 0 size in
     let bodies = advance_loop3 dt bodies 0 size in
     bodies
@@ -144,8 +144,8 @@ module NBodies = struct
     let px = 0.0 in
     let py = 0.0 in
     let pz = 0.0 in
-    let size = Array.length (obs bodies) in
-    let px, py, pz = offset_loop (obs bodies) px py pz 0 size in
+    let size = Array.length !bodies in
+    let px, py, pz = offset_loop !bodies px py pz 0 size in
     let bodies, b0 = Array.swap bodies 0 None in
     match b0 with
     | None -> bodies
@@ -215,10 +215,10 @@ module NBodies = struct
     bodies := set_planet bodies 2 saturn ;
     bodies := set_planet bodies 3 uranus ;
     bodies := set_planet bodies 4 neptune ;
-    bodies := offset_momentum (obs env) bodies;
-    Print.float (energy (obs bodies));
+    bodies := offset_momentum !env bodies;
+    Print.float (energy !bodies);
     bodies := main_loop bodies 1 n;
-    Print.float (energy (obs bodies)) ;
+    Print.float (energy !bodies) ;
     Array.release bodies free_planet ;
     free env
 

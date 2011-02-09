@@ -19,7 +19,7 @@ module MakeNames = struct
     List.iter (decl md.md_id) md.md_decls 
 
   and decl md = function
-    | Dval (_, x, _, (Ast.Ext_C y| Ast.Ext_Asm y | Ast.Ext_I y)) -> 
+    | Dval (_, x, _, (Ast.Ext_C y| Ast.Ext_Asm y)) -> 
 	Ident.no_origin x ;
 	Ident.set_name x (snd y)
     | Dtype (x, _)
@@ -159,7 +159,7 @@ module Type = struct
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
     | Tint  -> i32_type ctx (* TODO *)
-    | Tfloat -> double_type ctx
+    | Tfloat -> float_type ctx (* TODO *)
     | Tstring -> pointer_type (i8_type ctx)
 
   and type_list mds t ctx l = 
@@ -454,7 +454,8 @@ and return env acc = function
       let sw = build_switch x default n env.builder in
       List.iter (
       fun (v, lbl) -> 
-	let v = const env (i32_type env.ctx) v in
+	let int = Type.type_prim env.ctx Llst.Tint in
+	let v = const env int v in
 	let lbl = IMap.find lbl env.bls in
 	ignore (add_case sw v lbl)
      ) cases
@@ -504,6 +505,19 @@ and instruction bb env acc (idl, e) =
       let cconv = Llvm.CallConv.c in
       set_instruction_call_conv cconv v ;
       acc
+  | [(_, x1) ; (_, x2)], Eswap (t, i, (ty, v)) ->
+      let el_ty = Type.type_ env.mds env.types env.ctx ty in
+      let t = IMap.find (snd t) acc in
+      let i = IMap.find (snd i) acc in
+      let v = IMap.find v acc in
+      let tarray = pointer_type el_ty in
+      let t' = build_bitcast t tarray "" env.builder in
+      let t' = build_gep t' [|i|] "" env.builder in
+      let res = build_load t' "" env.builder in
+      let _ = build_store v t' env.builder in
+      let acc = IMap.add x1 t acc in
+      let acc = IMap.add x2 res acc in
+      acc
   | (xl, Eapply (fk, _, f, l)) -> 
       apply env acc xl fk f l
   | [x], e -> expr bb env acc x e
@@ -550,12 +564,44 @@ and extract_values env acc xl v =
 and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
   match e with
+  | Eswap _ -> assert false
   | Efree _ -> assert false
-  | Eid (_, y) -> 
+  | Eid (yty, y) -> 
       let y = try IMap.find y acc with Not_found -> find_function env acc ty y in
-      let ty = Type.type_ env.mds env.types env.ctx ty in
-      let v = build_bitcast y ty xs env.builder in
-      IMap.add x v acc
+      (match ty, yty with 
+      | Tprim _, Tprim _ -> IMap.add x y acc
+      | Tprim Tstring, _ -> 
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let v = build_bitcast y ty xs env.builder in
+	  IMap.add x v acc
+      | Tprim Tfloat, _ -> 
+	  let int = Type.type_prim env.ctx Llst.Tint in
+	  let v = build_ptrtoint y int "" env.builder in
+	  let float = Type.type_prim env.ctx Llst.Tfloat in
+	  let v = build_bitcast v float xs env.builder in
+	  IMap.add x v acc
+      | _, Tprim Tstring -> 
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let v = build_bitcast y ty xs env.builder in
+	  IMap.add x v acc
+      | _, Tprim Tfloat ->
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let int = Type.type_prim env.ctx Llst.Tint in
+	  let v = build_bitcast y int xs env.builder in
+	  let v = build_inttoptr v ty "" env.builder in
+	  IMap.add x v acc
+      | Tprim _, _ -> 
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let v = build_ptrtoint y ty "" env.builder in
+	  IMap.add x v acc
+      | _, Tprim _ ->
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let v = build_inttoptr y ty "" env.builder in
+	  IMap.add x v acc
+      | _, _ ->
+	  let ty = Type.type_ env.mds env.types env.ctx ty in
+	  let v = build_bitcast y ty xs env.builder in
+	  IMap.add x v acc)
   | Evalue v ->
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = const env ty v in
@@ -582,7 +628,8 @@ and expr bb env acc (ty, x) e =
       IMap.add x v acc
   | Eproj ((_, y), n) -> 
       let y = IMap.find y acc in
-      let z = const_int (i32_type env.ctx) 0 in
+      let int = Type.type_prim env.ctx Llst.Tint in
+      let z = const_int int 0 in
       let v = build_gep y [|z|] xs env.builder in
       let v = build_struct_gep v n xs env.builder in 
       let v = build_load v xs env.builder in
@@ -603,10 +650,12 @@ and expr bb env acc (ty, x) e =
 	  let bl = build_bitcast bl ty xs env.builder in 
 	  bl
       | Some (_, v) -> IMap.find v acc in
-      let z = const_int (i32_type env.ctx) 0 in
+      let int = Type.type_prim env.ctx Llst.Tint in
+      let z = const_int int 0 in
       List.iter (
       fun (n, (_, v)) -> 
-	let n = const_int (i32_type env.ctx) n in
+	let int = Type.type_prim env.ctx Llst.Tint in
+	let n = const_int int n in
 	let v = IMap.find v acc in
 	let ptr = build_gep bl [|z;n|] "" env.builder in
 	ignore (build_store v ptr env.builder)
@@ -627,10 +676,30 @@ and expr bb env acc (ty, x) e =
       IMap.add x v acc
   | Egettag (_, v) -> 
       let bl = IMap.find v acc in
-      let z = const_int (i32_type env.ctx) 0 in
+      let int = Type.type_prim env.ctx Llst.Tint in
+      let z = const_int int 0 in
       let ptr = build_gep bl [|z|] "" env.builder in
       let v = build_load ptr "" env.builder in
       IMap.add x v acc
+  | Eget (t, i) ->
+      let el_ty = Type.type_ env.mds env.types env.ctx ty in
+      let t = IMap.find (snd t) acc in
+      let i = IMap.find (snd i) acc in
+      let tarray = pointer_type el_ty in
+      let t = build_bitcast t tarray "" env.builder in
+      let t = build_gep t [|i|] "" env.builder in
+      let res = build_load t xs env.builder in
+      IMap.add x res acc
+  | Eset (t, i, (ty, v)) ->
+      let el_ty = Type.type_ env.mds env.types env.ctx ty in
+      let t = IMap.find (snd t) acc in
+      let i = IMap.find (snd i) acc in
+      let v = IMap.find v acc in
+      let tarray = pointer_type el_ty in
+      let t' = build_bitcast t tarray "" env.builder in
+      let t' = build_gep t' [|i|] "" env.builder in
+      let _ = build_store v t' env.builder in
+      IMap.add x t acc
   | Efield (_, _) -> failwith "TODO Efield"
   | Euop (_, _) -> failwith "TODO Euop"
 (*  
@@ -716,7 +785,8 @@ and const env ty = function
   | Eint s -> 
       const_int_of_string ty s 10 (* TODO different radix *)
   | Eiint x ->
-      const_int (i32_type env.ctx) x 
+      let int = Type.type_prim env.ctx Llst.Tint in
+      const_int int x 
   | Efloat s -> 
       const_float_of_string ty s
   | Estring s -> 

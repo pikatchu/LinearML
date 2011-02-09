@@ -18,7 +18,7 @@ module SpectralNorm = struct
     if i > n
     then v
     else 
-      let vi = eval_A_times_u_loop2 u (obs v) i 0 n 0.0 in
+      let vi = eval_A_times_u_loop2 u !v i 0 n 0.0 in
       let v = FA.set v i vi in
       eval_A_times_u_loop u v (i+1) n
 
@@ -41,7 +41,7 @@ module SpectralNorm = struct
     if i > n
     then v
     else 
-      let vi = eval_At_times_u_loop2 u (obs v) i 0 n 0.0 in
+      let vi = eval_At_times_u_loop2 u !v i 0 n 0.0 in
       let v = FA.set v i vi in
       eval_At_times_u_loop u v (i+1) n
 
@@ -58,7 +58,7 @@ module SpectralNorm = struct
   let eval_AtA_times_u n u v =
     let w = FA.make n 0.0 in
     let w = eval_A_times_u n u w in 
-    let v = eval_At_times_u n (obs w) v in
+    let v = eval_At_times_u n !w v in
     FA.release w ;
     v
 
@@ -67,8 +67,8 @@ module SpectralNorm = struct
     if i > 9
     then u, v
     else
-      let v = eval_AtA_times_u n (obs u) v in
-      let u = eval_AtA_times_u n (obs v) u in
+      let v = eval_AtA_times_u n !u v in
+      let u = eval_AtA_times_u n !v u in
       main_loop1 n u v (i+1)
 
   val private main_loop2: FA.t obs * FA.t obs * int * int * float * float -> float * float
@@ -87,7 +87,7 @@ module SpectralNorm = struct
     let u = FA.make n 1.0 in
     let v = FA.make n 0.0 in
     let u, v = main_loop1 n u v 0 in
-    let vv, vBv = main_loop2 (obs u) (obs v) n 0 0.0 0.0 in
+    let vv, vBv = main_loop2 !u !v n 0 0.0 0.0 in
     FA.release u ; 
     FA.release v ;
     Print.float (Math.sqrt (vBv / vv)) ;

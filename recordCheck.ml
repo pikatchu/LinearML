@@ -267,8 +267,6 @@ and expr_ t pos ty = function
   | Eseq (e1, e2) -> 
       ignore (expr t e1) ;
       tuple t e2
-  | Elength _
-  | Eget _ | Eset _ -> type_expr_list (pos, ty)
 
 and field t m ((_, x), e) = 
   IMap.add x (Read, tuple t e) m

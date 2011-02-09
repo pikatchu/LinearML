@@ -49,10 +49,11 @@ OBJECTS_ML = \
 	stastCheck.ml\
 	recordCheck.ml\
 	linearCheck.ml\
-	stastBoundCheck.ml\
+	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
 	istRecords.ml\
+	istOptim.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\

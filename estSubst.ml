@@ -50,6 +50,9 @@ and expr t = function
   | Eif (x1, l1, l2) -> Eif (ty_id t x1, l1, l2)
   | Eis_null x -> Eis_null (ty_id t x)
   | Efree x -> Efree (ty_id t x)
+  | Eget (a, i) -> Eget (ty_id t a, ty_id t i)
+  | Eset (a, i, v) -> Eset (ty_id t a, ty_id t i, ty_id t v)
+  | Eswap (a, i, v) -> Eswap (ty_id t a, ty_id t i, ty_id t v)
 
 and fields t l = List.map (field t) l
 and field t (fd, e) = fd, ty_idl t e

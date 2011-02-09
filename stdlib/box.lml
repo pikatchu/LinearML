@@ -13,7 +13,7 @@ module IntBox = struct
 
   val unbox: t -> int
   let unbox x = 
-    let res = get (obs x) in
+    let res = get !x in
     release x ;
     res
 
@@ -25,8 +25,8 @@ module IntBox = struct
 
   val add: t * t -> t
   let add x y = 
-    let n1 = get (obs x) in
-    let n2 = get (obs y) in
+    let n1 = get !x in
+    let n2 = get !y in
     free x ;
     free y ;
     make (n1 + n2)

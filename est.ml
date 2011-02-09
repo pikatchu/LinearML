@@ -69,4 +69,7 @@ and expr =
   | Eif of ty_id * label * label
   | Eis_null of ty_id
   | Efree of ty_id
+  | Eget of ty_id * ty_id
+  | Eset of ty_id * ty_id * ty_id
+  | Eswap of ty_id * ty_id * ty_id
 

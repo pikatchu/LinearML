@@ -183,7 +183,13 @@ and pat_field_ ty t p = function
   | PFid (p, x) -> IMap.add x (Fresh (p, IMap.empty)) t 
   | PField (_, p) -> pat t p
 
-and tuple t (_, tpl) = List.fold_left tuple_pos t tpl
+and tuple t (_, tpl) = 
+(* This for more flexibility *)
+(* without this special case we wouldn't be able to write set t 0 (get !t ..) *)
+  let ids, others = List.partition (function (_, Eid _) -> true | _ -> false) tpl in
+  let t = List.fold_left tuple_pos t others in
+  List.fold_left tuple_pos t ids
+
 and tuple_pos t (_, e) = expr_ t e
 and expr t (_, e) = expr_ t e
 and expr_ t = function
@@ -219,8 +225,6 @@ and expr_ t = function
       let sub = unify_map t t' t'' in
       let sub = snd sub in
       union t sub
-  | Elength (_, (p, x))
-  | Eget ((p, x), _)
   | Eobs (p, x) -> 
       (match get x t with
       | Used p' -> Error.already_used p p'
@@ -230,7 +234,6 @@ and expr_ t = function
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2
-  | Eset ((p, x), _, _) -> pvar t p x
 
 and fields t = function
   | Efield ((_, Eid (p, x)), _) ->

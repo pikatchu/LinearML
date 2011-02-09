@@ -53,7 +53,7 @@ and decl = function
       | Ast.Ext_none -> ()
       | Ast.Ext_C x -> o " = " ; o (snd x)
       | Ast.Ext_Asm x -> o " = (asm)" ; o (snd x)
-      | Ast.Ext_I x -> o " = (internal) " ; o (snd x)) ;
+      | Ast.Ext_I -> o " = (internal)") ;
       nl () ;
 
 and type_expr = function
@@ -153,6 +153,9 @@ and expr = function
   | Eptr_of_int x -> o "(pointer) " ; id x
   | Eint_of_ptr x -> o "(int) " ; id x
   | Efree x -> o "free " ; id (snd x)
+  | Eget (x, y) -> o "get " ; id (snd x) ; id (snd y)
+  | Eset (x, y, z) -> o "set " ; id (snd x) ; id (snd y) ; id (snd z)
+  | Eswap (x, y, z) -> o "swap " ; id (snd x) ; id (snd y) ; id (snd z)
 
 and field (x, l) = o (soi x) ; o " = " ; idl l
 and action (x, e) = 

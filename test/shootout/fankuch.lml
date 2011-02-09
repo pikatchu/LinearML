@@ -13,9 +13,9 @@ module Fankuch = struct
     if i > iend
     then a
     else begin
-      let t = IA.get (obs a) i in
+      let t = IA.get !a i in
       let k = n - i in
-      let ak = (IA.get (obs a) k) in
+      let ak = (IA.get !a k) in
       a := IA.set a i ak ;
       a := IA.set a k t ; 
       flip n a (i+1) iend
@@ -24,7 +24,7 @@ module Fankuch = struct
 (** Count the number of flips so that pancake 0 is at index 0. *)
   val private count: int * IA.t -> int * IA.t
   let count c ary =
-    let z = IA.get (obs ary) 0 in
+    let z = IA.get !ary 0 in
     if z = 0 then c, ary
     else begin
       let ary = flip z ary 0 (z/2) in
@@ -35,7 +35,7 @@ module Fankuch = struct
 (** Rotate the first [n] pancakes of [a]. *)
   val private rotate: int * IA.t -> IA.t
   let rotate n a =
-    let t = IA.get (obs a) 0 in
+    let t = IA.get !a 0 in
     let m = n - 1 in
     let a = rotate_loop a 1 m in
     IA.set a m t
@@ -45,7 +45,7 @@ module Fankuch = struct
     if i > m
     then a
     else 
-      let ai = IA.get (obs a) i in
+      let ai = IA.get !a i in
       let a = IA.set a (i - 1) ai in
       rotate_loop a (i+1) m
 

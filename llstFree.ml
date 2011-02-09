@@ -42,9 +42,16 @@ module Usage = struct
     | Eptr_of_int x
     | Eint_of_ptr x -> ISet.add x acc
     | Evalue _ -> acc
+    | Eget (x1, x2)
     | Ebinop (_, x1, x2) -> 
 	let acc = ty_id acc x1 in
 	let acc = ty_id acc x2 in
+	acc
+    | Eset (x1, x2, x3)
+    | Eswap (x1, x2, x3) ->
+	let acc = ty_id acc x1 in
+	let acc = ty_id acc x2 in
+	let acc = ty_id acc x3 in
 	acc
     | Euop (_, x) -> ty_id acc x 
     | Efield (x, _) -> ty_id acc x 

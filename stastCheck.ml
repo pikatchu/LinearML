@@ -354,12 +354,10 @@ and expr_ t pos = function
   | Eid _ -> ()
   | Evalue _ -> ()
   | Evariant (_, e) -> tuple t e
-  | Eset (_, e1, e2)
   | Ebinop (_, e1, e2) -> expr t e1 ; expr t e2
   | Euop (_, e) -> expr t e
   | Erecord fdl -> List.iter (field t) fdl
   | Ewith (e, fdl) -> expr t e ; List.iter (field t) fdl
-  | Eget (_, e)
   | Efield (e, _) -> expr t e
   | Ematch (_, al) ->
       let pl = List.map fst al in
@@ -378,7 +376,6 @@ and expr_ t pos = function
       tuple t e2
   | Eobs _ -> ()
   | Efree _ -> ()
-  | Elength _ -> ()
 
 and field t (_, e) = tuple t e
 and action t (_, e) = tuple t e

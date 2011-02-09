@@ -72,7 +72,6 @@ and make_field rid x acc p =
 and tuple l = List.map expr l
 and expr (ty, e) = ty, expr_ ty e
 and expr_ ty = function
-  | Enull
   | Eid _
   | Efree _
   | Evalue _ as e -> e

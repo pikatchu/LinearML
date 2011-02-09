@@ -163,6 +163,9 @@ and expr t = function
   | Eint_of_ptr _ as x -> x
   | Eis_null x -> Eis_null (ty_id t x)
   | Efree x -> Efree (ty_id t x)
+  | Eget (x, y) -> Eget (ty_id t x, ty_id t y)
+  | Eset (x, y, z) -> Eset (ty_id t x, ty_id t y, ty_id t z)
+  | Eswap (x, y, z) -> Eswap (ty_id t x, ty_id t y, ty_id t z)
 
 and field t (n, x) acc = 
   let x = ty_id t x in

@@ -44,7 +44,7 @@ and extern_def =
   | Ext_none
   | Ext_C of pstring (* C function *)
   | Ext_Asm of pstring (* Assembly function *)
-  | Ext_I of pstring (* Internally defined *)
+  | Ext_I (* Internally defined *)
 
 and pat = Pos.t * pat_
 and pat_ = 
@@ -97,8 +97,6 @@ and expr_ =
   | Ewith of expr * field list
   | Eseq of expr * expr
   | Eobs of id
-  | Eget of id * expr
-  | Eset of id * expr * expr
 
 and field = 
   | Eflocl of id * expr 

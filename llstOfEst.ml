@@ -507,6 +507,9 @@ and expr t idl = function
   | Eseq _ -> assert false
   | Evariant _ -> assert false
   | Eapply _ -> assert false
+  | Eget (a, i) -> Llst.Eget (ty_id a, ty_id i)
+  | Eset (a, i, v) -> Llst.Eset (ty_id a, ty_id i, ty_id v)
+  | Eswap (a, i, v) -> Llst.Eswap (ty_id a, ty_id i, ty_id v)
 
 and fields t fdl = 
   let tag x = IMap.find x t.values in

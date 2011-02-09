@@ -302,7 +302,6 @@ and type_expr_ = function
   | Tvar x -> Neast.Tvar x
   | Tid x -> Neast.Tid x 
   | Tapply ((_, Tpath (md, x)), tyl) -> 
-      Ident.expand_name (snd md) (snd x) ;
       let p, tyl = Pos.list tyl in
       let tyl = List.map type_expr tyl in
       let tyl = p, tyl in
@@ -314,7 +313,6 @@ and type_expr_ = function
       Neast.Tapply (x, tyl)
   | Tapply ((p, _), _) -> Error.bad_type_app p
   | Tpath (x, y) -> 
-      Ident.expand_name (snd x) (snd y) ;
       Neast.Tid y
   | Tfun (fk, ty1, ty2) -> 
       let ty1 = type_expr_tuple ty1 in
@@ -431,9 +429,6 @@ and expr_ p = function
       Neast.Eseq (e1, e2)
   | Eobs x -> Neast.Eobs x
   | Efree x -> Neast.Efree x
-  | Elength x -> Neast.Elength x
-  | Eget (x, e) -> Neast.Eget (x, simpl_expr e)
-  | Eset (x, e1, e2) -> Neast.Eset (x, simpl_expr e1, simpl_expr e2)
 
 and simpl_expr ((p, _) as e) = 
   match expr e [] with

@@ -122,6 +122,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %left BAR
 %right ARROW SARROW
 %right SC
+%nonassoc ASSIGN
 %nonassoc if_
 %right COMMA
 %left BARBAR AMPAMP
@@ -181,7 +182,7 @@ external_opt:
 | { Ext_none }
 | EQ STRING { Ext_C $2 }
 | EQ ASM STRING { Ext_Asm $3 }
-| EQ INTERNAL STRING { Ext_I $3 }
+| EQ INTERNAL { Ext_I }
 
 type_decl:
 | type_id { $1, (Pos.none, Tabstract) }
@@ -270,6 +271,7 @@ simpl_pat_l:
 | simpl_pat { [$1] }
 | simpl_pat simpl_pat_l { $1 :: $2 }
 
+
 pat_:
 | simpl_pat { $1 }
 | CSTR simpl_pat_l { 
@@ -317,6 +319,11 @@ field_l:
 
 simpl_expr: 
 | ID dot_id { simpl_arg (fst $1, Eid $1) $2 }
+| ID DOT LP expr RP { 
+  let f = $2, Eextern (($2, "Array"), ($2, "get")) in
+  let args = [fst $1, Eobs $1 ; $4] in
+  Pos.btw (fst $1) $5, Eapply (f, args)
+}
 | CSTR dot_cstr { cstr_arg $1 $2 }
 | LP RP { Pos.btw $1 $2, Eunit }
 | TRUE { $1, Ebool true }
@@ -373,13 +380,24 @@ expr:
 | expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
 | expr BARBAR expr { btw $1 $3, Ebinop (Eor, $1, $3) }
 | expr AMPAMP expr { btw $1 $3, Ebinop (Eand, $1, $3) }
-| ID dot_id LB expr RB assign_opt { 
-  let t = simpl_arg (fst $1, Eid $1) $2 in
-  match $5 with
-  | None -> Pos.btw (snd t) $5, Eget (t, $4)
-  | Some (v, r) -> 
-      let e = Pos.btw t v, Eset ($1, $3, v) in
-      btw t r, Elet ((fst $1, Pid $1), e, r)
+| ID DOT ID ASSIGN expr SC expr { 
+  let fdl = [Eflocl ($3, $5)] in
+  let t = fst $1, Eid $1 in
+  let e = btw $1 $5, Ewith (t, fdl) in
+  btw $1 $7, Elet ((fst $1, Pid $1), e, $7)
+}
+| ID DOT CSTR DOT ID ASSIGN expr SC expr { 
+  let fdl = [Efextr ($3, $5, $7)] in
+  let t = fst $1, Eid $1 in
+  let e = btw $1 $7, Ewith (t, fdl) in
+  btw $1 $9, Elet ((fst $1, Pid $1), e, $9)
+}
+| ID DOT LP expr RP ASSIGN expr SC expr {
+  let f = $2, Eextern (($2, "Array"), ($2, "set")) in
+  let arg1 = fst $1, Eid $1 in
+  let args = [arg1 ; $4 ; $7] in
+  let eset = Pos.btw (fst $1) $5, Eapply (f, args) in
+  btw $1 $9, Elet ((fst $1, Pid $1), eset, $9)
 }
 | NOT expr { Pos.btw $1 (fst $2), Euop (Enot, $2) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
@@ -391,8 +409,5 @@ expr:
   | _ -> Pos.btw (fst $1) (last $2), Eapply ($1, $2)
 }
 
-assign_opt:
-| { None }
-| ASSIGN expr SC expr { Some ($2, $4) }
 
 

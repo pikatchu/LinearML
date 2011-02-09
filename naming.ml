@@ -19,22 +19,29 @@ let prim_cstr s =
   prim_cstrs := SMap.add s id !prim_cstrs ;
   id
 
+let prim_arrays = ref SMap.empty
+let prim_array s = 
+  let id = Ident.make s in
+  prim_arrays := SMap.add s id !prim_arrays ;
+  id
+
 let int 	= prim_type "int"
 let bool	= prim_type "bool"
 let float	= prim_type "float"
 let string      = prim_type "string"
 let tobs        = prim_type "obs"
 let toption     = prim_type "option"
-let barray      = prim_type "barray"
-let carray      = prim_type "carray"
-let iarray      = prim_type "iarray"
-let farray      = prim_type "farray"
 let array       = prim_type "array"
 
 let malloc      = prim_value "malloc"
 let ifree       = prim_value "free"
+let vassert     = prim_value "assert"
 let eunit       = prim_value "()"
-let length      = prim_value "length"
+let alength     = prim_array "length"
+let amake       = prim_array "make"
+let aget        = prim_array "get"
+let aset        = prim_array "set"
+let aswap       = prim_array "swap"
 
 let some        = prim_cstr "Some"
 let none        = prim_cstr "None"
@@ -42,6 +49,7 @@ let none        = prim_cstr "None"
 let prim_types  = !prim_types
 let prim_values = !prim_values
 let prim_cstrs  = !prim_cstrs
+let prim_arrays = !prim_arrays
 
 module Env:sig
 
@@ -194,6 +202,7 @@ module Genv: sig
 
   type t
 
+  val garray: Ident.t
   val make: Ast.program -> t
   val module_id: t -> Ast.id -> Nast.id
   val sig_: t -> Nast.id -> Env.t
@@ -211,6 +220,8 @@ end = struct
     module_ids = SMap.empty ;
   }
 
+  let garray = Ident.make "Array"
+
   let sig_ t (_, id) = 
     IMap.find id t.sigs
 
@@ -219,7 +230,7 @@ end = struct
     with Not_found -> Error.unbound_name p x
 
   let new_module t (_, x) = 
-    let id = Ident.make x in
+    let id = if x = "Array" then garray else Ident.make x in
     Ident.set_name id x ;
     let t = { t with module_ids = SMap.add x id t.module_ids } in
     t, id
@@ -239,12 +250,23 @@ end = struct
     { t with sigs = IMap.add md_id env t.sigs }
 
   and decl md_id env = function
-    | Dtype (Public | Abstract as ll, tdef_l) -> 
-	List.fold_left (tdef md_id ll) env tdef_l
+    | Dtype (Public, [(id, _)]) when md_id = garray && snd id = "t" ->
+	let x = fst id, array in
+	Env.add_type env id x
     | Dval (Public, id, _, _) ->
-	let env, x = Env.new_decl env id in 
+	let env, x = 
+	  if md_id = garray
+	  then 
+	    try 
+	      let x = fst id, SMap.find (snd id) prim_arrays in
+	      Env.add_value env id x, x
+	    with Not_found -> Env.new_decl env id
+	  else Env.new_decl env id  
+	in 
 	Ident.expand_name md_id (snd x) ;
 	env
+    | Dtype (Public | Abstract as ll, tdef_l) -> 
+	List.fold_left (tdef md_id ll) env tdef_l
     | _ -> env
 
   and tdef md_id ll env (id, (_, ty)) = 
@@ -387,7 +409,6 @@ and type_expr_ genv env ll x =
   | Tid x -> env, tid env x
   | Tapply (ty, tyl) -> 
       let env, tyl = lfold k env tyl in
-      List.iter check_apply tyl ;
       let env, ty = k env ty in
       env, Nast.Tapply (ty, tyl)
   | Ttuple tyl -> 
@@ -417,11 +438,6 @@ and type_expr_ genv env ll x =
       let env, tvarl = lfold Env.new_tvar env tvarl in
       let env, ty = type_expr genv ll env ty in
       env, Nast.Tabs (tvarl, ty)
-
-and check_apply (p, ty) = 
-  match ty with
-  | Nast.Tprim _ -> Error.poly_is_not_prim p
-  | _ -> ()
 
 and tid env (p, x) = tid_ env p x
 and tid_ env p = function
@@ -547,8 +563,8 @@ and pat_field_ genv env = function
       let env, p = pat genv env p in
       env, Nast.PField (Env.field env id, p)
 
-and expr genv env (p, e) = p, expr_ genv env e
-and expr_ genv env e = 
+and expr genv env (p, e) = p, expr_ genv env p e
+and expr_ genv env p e = 
   let k = expr genv env in
   match e with
   | Eunit -> Nast.Evalue Nast.Eunit
@@ -558,7 +574,6 @@ and expr_ genv env e =
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
   | Eid (p, "free") -> Error.free_not_value p
-  | Eid (p, "length") -> Error.free_not_value p (* TODO add error *)
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -581,23 +596,18 @@ and expr_ genv env e =
       | [_, Eid y] -> Nast.Efree (Env.value env y)
       | (p, _) :: _ -> Error.free_expects_id p
       | _ -> assert false)
-  | Eapply ((_, Eid (_, "length")), e) ->
-      (match e with
-      | [_, Eid y] -> Nast.Elength (Env.value env y)
-      | (p, _) :: _ -> Error.free_expects_id p (* TODO add error *)
-      | _ -> assert false)
-  | Eapply ((_, Eid (_, "obs")), e) ->
-      (match e with
-      | [_, Eid y] -> Nast.Eobs (Env.value env y)
-      | (p, _) :: _ -> Error.obs_expects_id p
-      | _ -> assert false)
   | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
   | Erecord fdl -> Nast.Erecord (List.map (field genv env) fdl)
   | Efield (e, v) -> Nast.Efield (k e, Env.field env v)
   | Eextern (md_id, id2) -> 
       let md_id = Genv.module_id genv md_id in
       let sig_md = Genv.sig_ genv md_id in
-      let id2 = Env.value sig_md id2 in
+      let id2 = 
+	if snd md_id = Genv.garray 
+	then 
+	  (try p, SMap.find (snd id2) prim_arrays
+	  with Not_found -> Env.value sig_md id2)
+	else Env.value sig_md id2 in
       Nast.Eid id2
   | Eefield (e, id1, id2) -> 
       let id1 = Genv.module_id genv id1 in
@@ -617,15 +627,6 @@ and expr_ genv env e =
       let e2 = expr genv env e2 in
       Nast.Eseq (e1, e2)
   | Eobs y -> Nast.Eobs (Env.value env y)
-  | Eget (x, e) -> 
-      let x = Env.value env x in
-      let e = expr genv env e in
-      Nast.Eget (x, e)
-  | Eset (x, e1, e2) ->
-      let x = Env.value env x in
-      let e1 = expr genv env e1 in
-      let e2 = expr genv env e2 in
-      Nast.Eset (x, e1, e2)
 
 and field genv env = function
   | Eflocl (id, e) -> 

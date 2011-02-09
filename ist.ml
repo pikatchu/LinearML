@@ -61,7 +61,6 @@ and pat_field =
 and tuple = expr list
 and expr = type_expr_list * expr_
 and expr_ = 
-  | Enull
   | Eid of id
   | Evalue of value
   | Evariant of id * tuple

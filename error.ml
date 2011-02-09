@@ -394,16 +394,6 @@ let internal s =
   err s ;
   exit 3
 
-let poly_is_not_prim p = 
-  pos p ;
-  err "You cannot use a primitive type here, a pointer is expected" ;
-  exit 2
-
-let prim_is_not_poly p = 
-  pos p ;
-  err "You cannot use a pointer here, a primitive type is expected" ;
-  exit 2
-
 
 let cannot_free_field p v = 
   pos p ;
@@ -458,3 +448,38 @@ let fun_no_decl p =
   pos p ;
   err "You must define a signature for this function" ;
   exit 2
+
+let bound_neg p = 
+  pos p ;
+  err "Negative index" ;
+  exit 2
+
+let bound_up p t = 
+  pos p ;
+  err "Couldn't prove that the index is lesser than the length of " ;
+  pos t ;
+  err "this array" ;
+  exit 2
+
+let bound_low p = 
+  pos p ;
+  err "Couldn't prove that the index is positive" ;
+  exit 2
+
+let set_without_get p = 
+  pos p ;
+  err "Set before get" ;
+  exit 2
+
+let array_ids p = 
+  pos p ;
+  err "You must use identifiers when accessing elements of
+    an arrays of non-primitive values" ;
+  exit 2
+
+
+let expected_prim_array p = 
+  pos p ;
+  err "Expected an array of primivite values" ;
+  exit 2
+  

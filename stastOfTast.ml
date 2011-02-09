@@ -3,11 +3,6 @@ open Tast
 
 type t = type_expr IMap.t
 
-let check_apply (p, ty) = 
-  match ty with
-  | Stast.Tprim _ -> Error.poly_is_not_prim p
-  | _ -> ()
-
 module ObsCheck = struct
   open Stast
 
@@ -81,7 +76,6 @@ and type_expr_ t = function
     | Neast.Tid x -> Stast.Tid x
     | Neast.Tapply (x, tyl) -> 
 	let tyl = type_expr_list t tyl in
-	List.iter check_apply (snd tyl) ;
 	Stast.Tapply (x, tyl)
     | Neast.Tfun (k, tyl1, tyl2) -> 
 	Stast.Tfun (k, type_expr_list t tyl1, type_expr_list t tyl2)
@@ -162,9 +156,6 @@ and expr_ t ty = function
       | Neast.Tid (_, x) when ISet.mem x t -> ()
       | _ -> Error.cannot_free (fst ty) (Typing.Print.type_expr ty)) ;
       Stast.Efree (type_expr t ty, x)
-  | Eget (x, e) -> Stast.Eget (x, expr t e)
-  | Eset (x, e1, e2) -> Stast.Eset (x, expr t e1, expr t e2)
-  | Elength (ty, x) -> Stast.Elength (type_expr t ty, x)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

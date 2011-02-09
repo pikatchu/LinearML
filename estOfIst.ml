@@ -406,6 +406,26 @@ and expr_ t tyl = function
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
       t, ridl
+  | Eapply (_, _, x, [a ; i]) when x = Naming.aget -> 
+      let t, a = expr t a in
+      let t, i = expr t i in
+      let idl = make_idl tyl in
+      let t = equation t idl (Est.Eget (a, i)) in
+      t, idl
+  | Eapply (_, _, x, [a ; i ; v]) when x = Naming.aset -> 
+      let t, a = expr t a in
+      let t, i = expr t i in
+      let t, v = expr t v in
+      let idl = make_idl tyl in
+      let t = equation t idl (Est.Eset (a, i, v)) in
+      t, idl
+  | Eapply (_, _, x, [a ; i ; v]) when x = Naming.aswap -> 
+      let t, a = expr t a in
+      let t, i = expr t i in
+      let t, v = expr t v in
+      let idl = make_idl tyl in
+      let t = equation t idl (Est.Eswap (a, i, v)) in
+      t, idl
   | Eapply (fk, ty, x, e) -> 
       let t, idl1 = tuple t e in
       let idl2 = make_idl tyl in
@@ -426,7 +446,6 @@ and simpl_expr t tyl e =
   t, [id]
   
 and simpl_expr_ t ty = function
-  | Enull -> t, Est.Enull 
   | Evalue v -> t, Est.Evalue v
   | Evariant (x, e') -> 
       let t, idl = tuple t e' in

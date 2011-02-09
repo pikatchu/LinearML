@@ -81,7 +81,6 @@ and expr_ = function
   | Eseq (e1, e2) -> Ist.Eseq (expr e1, tuple e2)
   | Eobs x -> Ist.Eid (id x)
   | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)
-  | Eget _ | Eset _ | Elength _ -> failwith "TODO eget eset"
 
 and field (x, e) = id x, tuple e
 and action (p, e) = pat p, tuple e

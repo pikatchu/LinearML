@@ -221,8 +221,6 @@ module Type = struct
 
   and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
-    | Tprim _, (Tany | Tvar _) -> Error.prim_is_not_poly p2
-    | (Tany | Tvar _), Tprim _ -> Error.poly_is_not_prim p2
     | Tany, _ -> ty2
     | _, Tany -> ty1
     | Tprim x, Tprim y when x = y -> ty2
@@ -239,8 +237,6 @@ module Type = struct
         
   and inst env subst (pl1, ty1) (pl2, ty2) = 
     match ty1, ty2 with
-    | Tprim _, (Tany | Tvar _) -> Error.prim_is_not_poly pl2
-    | (Tany | Tvar _), Tprim _ -> Error.poly_is_not_prim pl2
     | Tany, _  -> subst
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> subst
     | Tvar x, Tapply (y, _)
@@ -320,7 +316,7 @@ end
 
 module Env = struct
 
-  let tfree = tfun [tany] [tprim Tunit]
+  let tassert = tfun [tprim Tbool] [tprim Tunit]
 
   let tsome = 
     let tmp = Ident.tmp() in
@@ -332,6 +328,7 @@ module Env = struct
     let env = IMap.empty in
     let env = IMap.add Naming.some tsome env in
     let env = IMap.add Naming.none tnone env in
+    let env = IMap.add Naming.vassert tassert env in
     let env = List.fold_left module_ env mdl in
     env
 
@@ -366,20 +363,6 @@ module Env = struct
     then Tvar id
     else Tany
 end
-
-
-let array_el_type = function
-  | _, Tid (_, x) -> 
-      if x = Naming.barray
-      then Tprim Tbool
-      else if x = Naming.carray
-      then Tprim Tchar
-      else if x = Naming.iarray
-      then Tprim Tint
-      else if x = Naming.farray
-      then Tprim Tfloat
-      else (* TODO error *) raise Exit
-  | _ -> (* TODO error *) raise Exit
 
 let rec program mdl = 
   let env = Env.make mdl in
@@ -640,28 +623,6 @@ and expr_ env (p, e) =
       let ty = IMap.find x env in
       let ty = p, (snd ty) in
       ((p, Tprim Tunit), Tast.Efree (ty, id))
-  | Elength ((p, x) as id) -> 
-      let ty = IMap.find x env in
-      let ty = unobserve ty in
-      let ty = p, snd ty in
-      let ty = array_el_type ty in
-      let ty = p, ty in
-      ((p, Tprim Tint), Tast.Elength (ty, id))
-  | Eget (x, e) -> 
-      let xty = IMap.find (snd x) env in
-      let e = expr env e in
-      (* TODO check int *)
-      let ty = array_el_type (unobserve xty) in
-      ((p, ty), Tast.Eget (x, e))
-  | Eset (x, e1, e2) -> 
-      let xty = IMap.find (snd x) env in
-      let e1 = expr env e1 in
-      let e2 = expr env e2 in
-      (* TODO check int *)
-      let elty = array_el_type xty in
-      let elty = p, elty in
-      ignore (Type.unify_el env elty (fst e2)) ;
-      (xty, Tast.Eset (x, e1, e2))      
   | Eapply (_, _)
   | Eif (_, _, _)
   | Elet (_, _, _)
