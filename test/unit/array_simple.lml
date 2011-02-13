@@ -1,0 +1,36 @@
+
+module T = struct
+
+  val iinit: int #-> int
+  let iinit _ = 12
+
+  val finit: int #-> float
+  let finit _ = 0.0
+
+  val ifree: int #-> unit
+  let ifree _ = ()
+
+  val ffree: float #-> unit
+  let ffree _ = ()
+
+  val test_int: unit -> unit
+  let test_int () =
+    let t = Array.make !iinit 10 in
+    let x = t.(10) in
+    Print.int x ;
+    Print.newline() ;
+    Array.release ifree t
+
+  val sin: float #-> float = "sin"
+
+  val id: ('a #-> 'a) * 'a -> 'a 
+  let id f x = f x 
+
+  val test_float: unit -> unit
+  let test_float () =
+    Print.float (id sin 1.0) 
+
+  val main: unit -> unit
+  let main() = 
+    test_float ()
+end

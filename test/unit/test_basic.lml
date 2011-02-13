@@ -1,0 +1,29 @@
+
+
+module Test1 = struct
+
+  val f: int -> int
+  let f x = x+1
+      
+end
+
+module Test = struct
+
+  val init: int #-> int
+  let init x = x
+
+  val nothing: int #-> unit
+  let nothing _ = ()
+
+  val main: unit -> unit
+  let main() = 
+    let t = Array.make !init 10 in
+    t.(0) <- 23 ;
+    let x = t.(0) in
+    Print.int (Array.length !t) ;
+    Print.newline() ;
+    Array.release nothing t ;
+    Print.int x ;
+    Print.newline()
+
+end

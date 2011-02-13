@@ -13,6 +13,7 @@
 open Utils
 
 module PSet = Set.Make(Pos)
+module PMap = Map.Make(Pos)
 
 module Value = struct
 
@@ -20,8 +21,6 @@ module Value = struct
     | Undef
     | Array of PSet.t * Int64.t
     | Const of Int64.t
-    | Sum of t list IMap.t
-    | Rec of t list IMap.t
     | Int of bool * PSet.t * PSet.t
 
   and expr = 
@@ -60,8 +59,6 @@ module Value = struct
 	let good = PSet.inter good1 good2 in
 	let bad = PSet.inter bad1 bad2 in
 	Int (b1 && b2, good, bad)
-    | Sum x1, Sum x2 -> Sum (imap2 (unify_value_list env) x1 x2)
-    | Rec x1, Rec x2 -> Rec (imap2 (unify_value_list env) x1 x2)
     | Array (p1, n1), Array (p2, n2) -> Array (PSet.union p1 p2, min n1 n2)
     | _ -> Undef
 
@@ -244,8 +241,6 @@ module Debug = struct
     | Undef -> o "Undef"
     | Array _ -> o "Array"
     | Const _ -> o "Const"
-    | Sum _ -> o "Sum"
-    | Rec _ -> o "Rec"
     | Int (x, y, z) -> 
 	let y = not (PSet.is_empty y) in
 	let z = not (PSet.is_empty z) in
@@ -279,10 +274,12 @@ end
 )
 
 type env = {
+    show: bool ;
     values: Value.expr IMap.t ;
     privates: Stast.def IMap.t ;
     arrays: (Int64.t * PSet.t ) list ;
     mem: Value.expr list TMap.t ref ;
+    checks: (bool * bool) PMap.t ref ;
   }
 
 let empty env = { env with
@@ -293,14 +290,24 @@ let empty env = { env with
 let add x v env = 
   { env with values = IMap.add x v env.values }
 
-let rec program mdl = 
-  List.iter module_ mdl 
+let rec program show mdl = 
+  let checks = ref PMap.empty in
+  List.iter (module_ show checks) mdl ;
+  !checks
 
-and module_ md = 
+and module_ show checks md =
   let privs = List.fold_left decl ISet.empty md.md_decls in
   let mem = ref TMap.empty in
   let privs = List.fold_left (def_priv privs) IMap.empty md.md_defs in
-  List.iter (def privs mem) md.md_defs 
+  let env = { 
+    show = show ;
+    values = IMap.empty; 
+    privates = privs; 
+    mem = mem;
+    arrays = [];
+    checks = checks ;
+  } in 
+  List.iter (def env) md.md_defs 
 
 and decl s = function
   | Dval (Ast.Private, (_, x), _, _) -> ISet.add x s 
@@ -311,17 +318,10 @@ and def_priv privs acc ((_, (_, x), _, _) as def) =
   then IMap.add x def acc
   else acc
 
-and def privs mem ((_, (_, x), _, _) as df) = 
-  if IMap.mem x privs
+and def env ((_, (_, x), _, _) as df) = 
+  if IMap.mem x env.privates
   then ()
-  else 
-    let env = { 
-      values = IMap.empty; 
-      privates = privs; 
-      mem = mem;
-      arrays = [];
-    } in
-    def_public env df
+  else def_public env df
 
 and def_private env (_, (pos, x), p, e) v = 
   let v = List.map (fun x -> Value x) v in
@@ -362,35 +362,11 @@ and pat_ env p v =
   | Pany -> env
   | Pid (_, x) -> add x v env 
   | Pvalue _ -> env
-  | Pvariant (x, p) -> pat_variant env x p v
-  | Precord fdl -> pat_record env fdl v 
+  | Pvariant _
+  | Precord _ -> env
   | Pas ((_, x), p) -> 
       let env = add x v env in
       pat env p [v]
-
-and pat_variant env x p v = try 
-  match eval env.values v with
-  | Sum m -> 
-      pat env p (List.map (fun x -> Value x) (IMap.find (snd x) m))
-  | _ -> env
-with Not_found -> env
-
-and pat_record env fdl v = try 
-  match eval env.values v with
-  | Rec m -> List.fold_left (pat_field m v) env fdl
-  | _ -> env
-with Not_found -> env
-
-and pat_field m v env (_, pf) = pat_field_ m v env pf
-and pat_field_ m v env = function
-  | PFany -> env
-  | PFid (_, x) -> add x v env
-  | PField (x, p) -> 
-      (try 
-	let vals = IMap.find (snd x) m in
-	let vals = List.map (fun x -> Value x) vals in
-	pat env p vals 
-      with Not_found -> env)
 
 and tuple env (_, tpl) = 
   List.fold_right tuple_pos tpl (env, [])
@@ -407,10 +383,7 @@ and expr_ env undef (p, ty) = function
       then (def_public env (IMap.find (snd x) env.privates) ; undef)
       else [Id x]
   | Evalue v -> env, [Value (value v)]
-  | Evariant (x, e) -> 
-      let env, e = tuple env e in
-      let e = List.map (eval env.values) e in
-      env, [Value (Sum (IMap.add (snd x) e IMap.empty))]
+  | Evariant _ -> env, undef
   | Ebinop (bop, e1, e2) ->
     let env, e1 = expr env e1 in
     let env, e2 = expr env e2 in
@@ -421,27 +394,9 @@ and expr_ env undef (p, ty) = function
       let env, e = expr env e in
       let e = List.hd e in
       env, [unop uop e]
-  | Erecord fdl ->
-      let env, m = List.fold_left field (env, IMap.empty) fdl in
-      env, [Value (Rec m)]
-  | Ewith (e, fdl) -> 
-      let env, e = expr env e in
-      let e = List.hd e in
-      let m = 
-	match eval env.values e with
-	| Rec m -> m
-	| _ -> IMap.empty
-      in
-      let env, m = List.fold_left field (env, m) fdl in
-      env, [Value (Rec m)]
-  | Efield (e, fd) -> 
-      let env, e = expr env e in
-      let e = List.hd e in
-      env, (match eval env.values e with
-      | Rec m -> 
-	  let vals = IMap.find (snd fd) m in
-	  List.map (fun x -> Value x) vals
-      | _ -> undef)
+  | Erecord _ 
+  | Ewith _
+  | Efield _ -> env, undef
   | Ematch (e, al) -> 
       let env, e = tuple env e in
       let env, al = lfold (action e) env al in
@@ -614,17 +569,32 @@ and check_bound env p t e =
       then 
 	if n' >= Int64.zero
 	then ()
-	else Error.bound_neg p
-      else Error.bound_up p (PSet.choose t)
+	else add_low env p 
+      else add_up env p (PSet.choose t)
   | Array (t, n), Int (b, good, bad) -> 
       if not b 
-      then (Error.bound_low p) ;
+      then add_low env p ;
       let bad = PSet.diff t good in
       if PSet.is_empty bad
       then ()
-      else (Error.bound_up p (PSet.choose bad)) ;
-  | _ -> Error.bound_low p
+      else add_up env p (PSet.choose bad)
+  | _ -> add_low env p ; add_up env p p
 
+and get_bound env p =
+  try PMap.find p !(env.checks) 
+  with Not_found -> false, false
+
+and add_low env p = 
+  let low, up = get_bound env p in
+  if env.show 
+  then Error.bound_low p ;
+  env.checks := PMap.add p (true, up) !(env.checks)
+
+and add_up env p t = 
+  let low, up = get_bound env p in
+  if env.show 
+  then Error.bound_up p t ;
+  env.checks := PMap.add p (low, true) !(env.checks)
 
 and check_prim = function
   | (_, [_, Tapply ((_, x), t)]) when x = Naming.tobs -> check_prim t
