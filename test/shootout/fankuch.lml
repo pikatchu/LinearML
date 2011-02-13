@@ -1,14 +1,14 @@
 
 module Fankuch = struct
 
-  module IA = UnsafeIntArray
+  module IA = Array
 
   val land: int * int #-> int = "land"
   val lsl: int * int #-> int = "lsl"
   val debug: 'a obs #-> unit = "debug"
 
 (** Flip the front [n] pancakes of [a]. *)
-  val private flip: int * IA.t * int * int -> IA.t
+  val private flip: int * int array * int * int -> int array
   let flip n a i iend= 
     if i > iend
     then a
@@ -22,7 +22,7 @@ module Fankuch = struct
     end
 
 (** Count the number of flips so that pancake 0 is at index 0. *)
-  val private count: int * IA.t -> int * IA.t
+  val private count: int * int array -> int * int array
   let count c ary =
     let z = IA.get !ary 0 in
     if z = 0 then c, ary
@@ -33,14 +33,14 @@ module Fankuch = struct
     end 
 
 (** Rotate the first [n] pancakes of [a]. *)
-  val private rotate: int * IA.t -> IA.t
+  val private rotate: int * int array -> int array
   let rotate n a =
     let t = IA.get !a 0 in
     let m = n - 1 in
     let a = rotate_loop a 1 m in
     IA.set a m t
 
-  val private rotate_loop: IA.t * int * int -> IA.t
+  val private rotate_loop: int array * int * int -> int array
   let rotate_loop a i m =
     if i > m
     then a
@@ -54,16 +54,25 @@ module Fankuch = struct
       m: int ;
       n: int ;
       num: int ;
-      perm: IA.t ;
-      copy: IA.t ;
+      perm: int array ;
+      copy: int array ;
       ht: int ;
     }
+
+  val private acopy: int array obs * int array * int -> int array
+  let acopy t1 t2 i =
+    if i < 0
+    then t2
+    else begin
+      t2.(i) <- t1.(i) ;
+      acopy t1 t2 (i-1)
+    end
        
   val private do_iter: env -> env
   let do_iter env =
     if env.ht = 1 then begin
       let { env ; ~copy } = env in
-      let copy = IA.copy env.perm copy env.n in 
+      let copy = acopy env.perm copy (Array.length env.perm - 1) in 
       let c, copy = count 0 copy in
       let csum = env.csum + c * (1 - (lsl (land env.num 1) 1)) in
       let m = if c > env.m then c else env.m in
@@ -82,7 +91,7 @@ module Fankuch = struct
       let perm = rotate env.ht perm in
       do_iter_loop { env with ~perm } (i+1)
 
-  val private init_perm: IA.t * int -> IA.t
+  val private init_perm: int array * int -> int array
   let init_perm t n = 
     if n < 0
     then t

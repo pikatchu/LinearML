@@ -1,9 +1,10 @@
 
 OCAMLBIN =
-OCAMLLIB ?= /home/pika/godi/lib
+OCAMLLIB ?= /usr/lib/ocaml/llvm-2.8
+STDLIB_PATH = /home/pika/LinearML/stdlib/
 
-OCAMLC   = ocamlc.opt -dtypes -warn-error A
-OCAMLOPT = ocamlopt.opt
+OCAMLC   = ocamlc -dtypes -warn-error A
+OCAMLOPT = ocamlopt
 OCAMLDEP = ocamldep
 OCAMLLEX = ocamllex
 OCAMLYACC = ocamlyacc
@@ -13,22 +14,25 @@ LLVM_LIBS = \
 	llvm.cma \
 	llvm_analysis.cma \
 	llvm_bitwriter.cma \
-	llvm_bitreader.cma \
 	llvm_scalar_opts.cma \
+	llvm_executionengine.cma \
 	llvm_target.cma
 
-#	llvm_executionengine.cma
+#	llvm_bitreader.cma 
 
 LIBS = unix.cma $(LLVM_LIBS)
 LIBSOPT = $(LIBS:.cma=.cmxa)
 INCLUDE = -I $(OCAMLLIB)
 CLIBS = $(addprefix $(OCAMLLIB)/, $(LLVM_LIBS:.cma=.a))
+LIML_STDLIB = -ccopt -Lstdlib -ccopt -lliml
 
-default: limlc
+default: liml
 
-.PHONY: limlc
+.PHONY: liml
 
 OBJECTS_ML = \
+	genGlobals.ml\
+	global.ml\
 	pos.ml\
 	ident.ml\
 	utils.ml\
@@ -52,8 +56,6 @@ OBJECTS_ML = \
 	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
-	istRecords.ml\
-	istOptim.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\
@@ -76,16 +78,21 @@ OBJECTS_ML = \
 # 	ast.ml\
 # 	astOfCst.ml\
 # 	statesOfAst.ml
+#	istRecords.ml\
+	istOptim.ml\
+
 
 OBJECTS_CMO = $(OBJECTS_ML:.ml=.cmo)	
 OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)	
 
-limlc: $(OBJECTS_CMX)
+liml: $(OBJECTS_CMX)
 	echo $(LIBS)
-	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) -o $@
+	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
+		$(LIML_STDLIB) -o $@		
 
-limlc.bc: $(OBJECTS_CMO)
-	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) -o $@
+liml.bc: $(OBJECTS_CMO)
+	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
+		$(LIML_STDLIB) -o $@ 
 
 ##############################################################################
 
@@ -106,14 +113,18 @@ limlc.bc: $(OBJECTS_CMO)
 
 ###############################################################################
 
+genGlobals.ml:
+	echo "let root = \"$STDLIB_PATH\"" > genGlobals.ml
+
 .depend: $(OBJECTS_ML)
 	$(OCAMLDEP) -native -slash $(INCLUDE) $(OBJECTS_ML) > .depend
 
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
-	rm -f limlc limlc.bc *.annot .depend
+	rm -f limlc limlc.bc liml liml.bc *.annot .depend
 	rm -f stdlib/*.o stdlib/*.s stdlib/*.bc stdlib/*~ test/*.o test/*.s 
 	rm -f test/*.bc test/*~
+	rm -f genGlobals.ml
 
 -include .depend
 -include Makefile.config

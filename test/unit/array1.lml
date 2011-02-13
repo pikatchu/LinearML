@@ -1,14 +1,4 @@
 
-module Array = struct
-  type 'a t
-  val make: (int -> 'a) obs * int -> 'a t = internal
-  val set: 'a t * int * 'a -> 'a t = internal
-  val get: 'a t obs * int -> 'a = internal
-  val swap: 'a t * int * 'a -> 'a t * 'a = internal
-  val length: 'a t obs -> int = internal
-  val release: ('a -> unit) * 'a t -> unit = internal
-end
-
 module TestBasic = struct
 
   val private test1: int array obs * int -> int
@@ -64,5 +54,15 @@ module Test = struct
   let swap t x = 
     swap_loop t x 0 (Array.length !t - 1)
 
+  val init: int #-> int
+  let init x = x
+
+  val free_int: int #-> unit
+  let free_int _ = ()
+
+  val main: unit -> unit
+  let main() = 
+    let t = Array.make !init 10 in
+    Array.release free_int t
 end
 

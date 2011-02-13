@@ -1,21 +1,10 @@
-
 module Array = struct
-
   type 'a t
-
-  val make: int #-> _ t = "array_make"
-  val swap__: 'a t obs * int * 'a option #-> 'a option = "array_swap"
-  val release: 'a t * ('a #-> unit) #-> unit = "array_free"
-
-  val fold_left: ('a * 'b option #-> 'a) * 'a * 'b t #-> 'a = "array_fold_left"
-
-  val swap: 'a t * int * 'a option -> 'a t * 'a option
-  let swap t n x = 
-    let res = swap__ !t n x in
-    t, res
-
-  val get: 'a t obs * int #-> 'a option obs = "array_get"
-
-  val length: 'a t obs #-> int = "array_length"
+  val make: (int #-> 'a) obs * int #-> 'a t = "liml_array_make"
+  val set: 'a t * int * 'a -> 'a t = internal
+  val get: 'a t obs * int -> 'a = internal
+  val swap: 'a t * int * 'a -> 'a t * 'a = internal
+  val length: 'a t obs #-> int = "liml_array_length"
+  val release: ('a #-> unit) * 'a t #-> unit = "liml_array_release"
 end
 

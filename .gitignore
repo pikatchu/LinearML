@@ -3,6 +3,7 @@
 *.cmxa
 *.a
 *.o
+*.so*
 *.cmo
 *.annot
 .*.swp
@@ -13,9 +14,11 @@ lexer.ml
 Makefile.config
 /limlc
 /limlc.bc
+/liml
 *~
 \#*
 parser.output
 TODO
 *.s
 *.bc
+genGlobals.ml

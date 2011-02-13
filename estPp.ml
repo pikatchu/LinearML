@@ -148,7 +148,6 @@ and expr = function
   | Eset (x, y, z) -> o "set " ; id (snd x) ; id (snd y) ; id (snd z)
   | Eswap (x, y, z) -> o "swap " ; id (snd x) ; id (snd y) ; id (snd z)
 
-
 and field (x, l) = id x ; o " = " ; idl l
 and action (p, e) = 
   pat p ; o " -> " ; expr e ; nl()

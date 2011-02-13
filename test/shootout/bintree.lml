@@ -1,7 +1,9 @@
 
 module BinaryTree = struct
 
-  val lsl: int * int #-> int = "lsl"
+  val lsl: int * int -> int
+  let lsl x y =
+    if y <= 0 then x else 2*lsl x (y-1)
 
   type tree = Empty | Node of tree * int * tree
 
@@ -26,11 +28,11 @@ module BinaryTree = struct
       pc: int ;
     }
 
-  val private loop2_start: loop2_params #-> IntBox.t
+  val private loop2_start: loop2_params #-> int
   let loop2_start params = 
     let { params ; pd = d ; pi = i ; piend = iend ; pc = c } = params in
     free params ;
-    IntBox.make (loop2 d i iend c)
+    loop2 d i iend c
 
   val private loop2: int * int * int * int -> int
   let loop2 d i iend c = 
@@ -44,7 +46,7 @@ module BinaryTree = struct
   type loop1_result = {
       d: int ;
       niter: int ;
-      c: IntBox.t Future.t ;
+      c: int ;
     }
 
   val private loop1: int * int * int * int * int * int * loop1_result List.t 
@@ -56,11 +58,7 @@ module BinaryTree = struct
       let dv = d + (i * 2) in
       let niter = lsl 1 (max_depth - dv + min_depth) in
       let loop2_params = { pd = d ; pi = 1 ; piend = niter ; pc = 0 } in
-      let c = 
-	if i < threads
-	then Future.make_value (loop2_start loop2_params) 
-	else Future.make loop2_start loop2_params 
-      in
+      let c = loop2_start loop2_params in
       let result = { d = dv ; ~niter ; ~c } in
       let acc = List.Cons result acc in
       loop1 min_depth max_depth d threads (i+1) iend acc
@@ -78,8 +76,6 @@ module BinaryTree = struct
     | List.Empty -> ()
     | List.Cons res rl ->
 	let { res ; ~d ; ~niter ; ~c } = res in
-	let c = Future.wait c in
-	let c = IntBox.unbox c in
         Print.int (2 * niter) ;
 	Print.string "\t trees of depth " ;
 	Print.int d ; 
@@ -89,11 +85,10 @@ module BinaryTree = struct
 	free res ;
 	print_results rl
 
-
   val main: unit #-> unit 
   let main() =
     let min_depth = 4 in
-    let max_depth = 20 in
+    let max_depth = 21 in
     let stretch_depth = max_depth + 1 in
     let c = check (make 0 stretch_depth) in
     Print.string "stretch tree of depth " ;

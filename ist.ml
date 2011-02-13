@@ -75,6 +75,9 @@ and expr_ =
   | Eapply of Ast.fun_kind * type_expr * id * tuple
   | Eseq of expr * tuple
   | Efree of type_expr * id
+  | Eset of expr * expr * expr
+  | Eget of expr * expr
+  | Eswap of expr * expr * expr
 
 and value =
   | Eunit

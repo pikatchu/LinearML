@@ -54,12 +54,6 @@ module List = struct
     | Empty -> acc
     | Cons x rl -> fold_right f rl (f x acc)
 
-  val of_intlist: IntList.t -> IntBox.t t
-  let of_intlist l = 
-    match l with
-    | IntList.Empty -> Empty
-    | IntList.Cons x rl -> Cons (IntBox.make x) (of_intlist rl)
-
   val release: ('a -> unit) * 'a t -> unit
   let release f l = 
     match l with
@@ -67,42 +61,3 @@ module List = struct
     | Cons x rl -> f x ; release f rl
 end
 
-module IntList = struct
-
-  type t = 
-    | Empty
-    | Cons of int * t
-
-  val rev_append: t * t -> t
-  let rev_append acc l = 
-    match l with
-    | Empty -> acc
-    | Cons x rl -> rev_append (Cons x acc) rl
-
-  val rev: t -> t
-  let rev l = rev_append Empty l
-
-  val append: t * t -> t
-  let append l1 l2 = 
-    match l1 with
-    | Empty -> l2
-    | Cons x rl -> Cons x (append rl l2)
-
-  val map_int: (int -> int) * t -> t
-  let map_int f l = 
-    match l with
-    | Empty -> Empty
-    | Cons x rl -> Cons (f x) (map_int f rl)
-
-  val release: t -> unit
-  let release l = 
-    match l with
-    | Empty -> ()
-    | Cons _ rl -> release rl
-
-  val to_list: t -> IntBox.t List.t
-  let to_list l = 
-    match l with
-    | Empty -> List.Empty
-    | Cons x rl -> List.Cons (IntBox.make x) (to_list rl)
-end

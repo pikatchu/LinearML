@@ -451,35 +451,19 @@ let fun_no_decl p =
 
 let bound_neg p = 
   pos p ;
-  err "Negative index" ;
-  exit 2
+  err "Negative index" 
 
 let bound_up p t = 
   pos p ;
   err "Couldn't prove that the index is lesser than the length of " ;
   pos t ;
-  err "this array" ;
-  exit 2
+  err "this array" 
 
 let bound_low p = 
   pos p ;
-  err "Couldn't prove that the index is positive" ;
-  exit 2
-
-let set_without_get p = 
-  pos p ;
-  err "Set before get" ;
-  exit 2
-
-let array_ids p = 
-  pos p ;
-  err "You must use identifiers when accessing elements of
-    an arrays of non-primitive values" ;
-  exit 2
-
+  err "Couldn't prove that the index is positive" 
 
 let expected_prim_array p = 
   pos p ;
   err "Expected an array of primivite values" ;
   exit 2
-  

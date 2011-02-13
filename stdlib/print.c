@@ -8,7 +8,7 @@ void print_newline(){
   printf("\n") ;
 }
 
-void print_float(double x){
+void print_float(float x){
   printf("%f", x) ;
 }
 

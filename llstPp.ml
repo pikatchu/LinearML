@@ -157,6 +157,11 @@ and expr = function
   | Eset (x, y, z) -> o "set " ; id (snd x) ; id (snd y) ; id (snd z)
   | Eswap (x, y, z) -> o "swap " ; id (snd x) ; id (snd y) ; id (snd z)
 
+and bounds l u =
+  o "[" ; o (string_of_bool l) ;
+  o "," ; o (string_of_bool u) ;
+  o "] "
+
 and field (x, l) = o (soi x) ; o " = " ; idl l
 and action (x, e) = 
   ty_id x ; o " -> " ; expr e ; nl()

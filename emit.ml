@@ -2,6 +2,7 @@ open Utils
 open Llvm
 open Llvm_target
 open Llvm_scalar_opts
+open Llvm_executionengine
 open Ast
 open Llst
 
@@ -307,15 +308,15 @@ type env = {
   }
 
 let dump_module md_file md pm =
-  ignore (PassManager.run_module md pm) ;
-(*    Llvm.dump_module md ;     *)
-  (match Llvm_analysis.verify_module md with
+  ignore (PassManager.run_module md pm) 
+;     Llvm.dump_module md 
+(*  (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
   Llvm_analysis.assert_valid_module md ;
   if Llvm_bitwriter.write_bitcode_file md md_file
   then () 
-  else failwith ("Error: module generation failed"^md_file)
+  else failwith ("Error: module generation failed"^md_file) *)
 
 
 let optims pm = 
@@ -350,7 +351,7 @@ let optims pm =
   add_ind_var_simplification pm ;
   add_instruction_combination pm 
 
-let rec program mdl = 
+let rec program root mdl = 
   let ctx = global_context() in
   let mds, t = Type.program ctx mdl in
   let origs = List.fold_left (
@@ -361,14 +362,34 @@ let rec program mdl =
 	| Dtype (x, Tptr y) -> IMap.add x y acc
 	| _ -> acc
      ) acc md.md_decls) IMap.empty mdl in
-  List.rev_map (module_ mds ctx t origs) mdl 
+  ignore (initialize_native_target ()) ;
+  let jit = 
+    match mdl with
+    | [] -> exit 0
+    | [x] -> 
+	let first = module_ mds ctx t origs x in
+	let jit = ExecutionEngine.create first in
+	jit
+  | x :: rl -> 
+      let first = module_ mds ctx t origs x in
+      let jit = ExecutionEngine.create first in
+      let mdl = List.rev_map (module_ mds ctx t origs) rl in
+      List.iter (fun x -> ExecutionEngine.add_module x jit) mdl ;
+      jit
+  in
+  match ExecutionEngine.find_function (root^"_main") jit with
+  | None -> Printf.fprintf stderr "Main not found!\n" ; exit 3
+  | Some f -> 
+      let _ = ExecutionEngine.run_function f [||] jit in
+      ()
+  
 
 and module_ mds ctx t orig_types md = 
   let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
   let (md, tys, fs, dl) = IMap.find md_id t in
 (*   Globals.module_ ctx md strings ;*)
   let pm = PassManager.create () in
-(*  optims pm ;    *)
+  optims pm ;    
   let builder = builder ctx in
   let prims, internals = Pervasives.make ctx md in
   let env = { 
@@ -384,7 +405,8 @@ and module_ mds ctx t orig_types md =
     orig_types = orig_types ;
   } in
   List.iter (def env) dl ;
-  dump_module (Ident.to_string md_id^".bc") md pm
+  dump_module (Ident.to_string md_id^".bc") md pm ;
+  md
 
 and def env df = 
   function_ env df
@@ -526,12 +548,17 @@ and instruction bb env acc (idl, e) =
 and find_function env acc fty f =
   let is_prim = IMap.mem f env.prims in
   try if is_prim then IMap.find f env.prims else IMap.find f acc 
-  with Not_found ->
-    let name = Ident.full f in 
-    try SMap.find name env.internals
+  with Not_found -> 
+    let f_name = Ident.full f in
+    try
+      let md_id = Ident.origin_id f in
+      let md, _ = IMap.find md_id env.mds in
+      (match lookup_function f_name md with
+      | None -> Printf.fprintf stderr "function %s not found\n" f_name ; exit 3
+      | Some f -> f)
     with Not_found ->
       let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
-      let fdec = declare_function name ftype env.cmd in
+      let fdec = declare_function f_name ftype env.cmd in
       let cconv = match fty with
       | Tfun (fk, _, _) -> make_cconv fk 
       | _ -> assert false in
