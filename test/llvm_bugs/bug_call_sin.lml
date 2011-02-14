@@ -1,0 +1,17 @@
+module T = struct
+
+  val sin: float #-> float = "sin"
+  val print: float #-> unit = "print_float"
+
+  val id: float #-> float 
+  let id x = 
+    let res = sin x in
+    print res ;
+    res
+
+  val main: unit #-> unit
+  let main () =
+    let f = 1.0 in
+    print (id f)
+
+end
