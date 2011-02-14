@@ -1,10 +1,14 @@
 module Array = struct
   type 'a t
-  val make: (int #-> 'a) obs * int #-> 'a t = "liml_array_make"
+  val make: int * (int #-> 'a) obs #-> 'a t = "liml_array_make"
+  val fmake: int * float #-> float t = "liml_array_fmake"
+  val imake: int * int #-> int t = "liml_array_imake"
   val set: 'a t * int * 'a -> 'a t = internal
   val get: 'a t obs * int -> 'a = internal
   val swap: 'a t * int * 'a -> 'a t * 'a = internal
   val length: 'a t obs #-> int = "liml_array_length"
   val release: ('a #-> unit) * 'a t #-> unit = "liml_array_release"
+  val irelease: int t #-> unit = "liml_array_ifrelease"
+  val frelease: float t #-> unit = "liml_array_ifrelease"
 end
 

@@ -104,7 +104,7 @@ and if_up i x v1 v2 =
   ty, Ist.Eif (b, v1, v2)
 
 and length t = 
-  let link = Ast.Lfun in
+  let link = Ast.Cfun in
   let fty = Ist.Tfun (link, fst t, [Ist.Tprim Tint]) in
   [Ist.Tprim Tint], Ist.Eapply (link, fty, Naming.alength, [t])
 

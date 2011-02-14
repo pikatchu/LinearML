@@ -7,11 +7,21 @@ module Test = struct
   val g: 'a -> 'a
   let g x = x
 
+  val d: float -> float * float * float * float * float
+  let d x = x, x, x, x, x
+
+  val h: ('a -> 'a * 'a * 'a * 'a * 'a) * 'a -> 'a * 'a * 'a * 'a * 'a
+  let h f x = f x
+
   val main: unit ->  unit
   let main() =
     let _ = f 1 in
     let _ = f 1.0 in
     let x = f g in 
     let _ = f "hello" in
+    let x, _, _, _, y = h d 23.0 in
+    let x, _, _, _, y = d 23.0 in
+    Print.float x ;
+    Print.float y ;
     ()
 end

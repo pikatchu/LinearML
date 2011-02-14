@@ -85,7 +85,7 @@ OBJECTS_ML = \
 OBJECTS_CMO = $(OBJECTS_ML:.ml=.cmo)	
 OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)	
 
-liml: $(OBJECTS_CMX)
+liml: $(OBJECTS_CMX) stdlib/libliml.so
 	echo $(LIBS)
 	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
 		$(LIML_STDLIB) -o $@		
@@ -114,7 +114,11 @@ liml.bc: $(OBJECTS_CMO)
 ###############################################################################
 
 genGlobals.ml:
-	echo "let root = \"$STDLIB_PATH\"" > genGlobals.ml
+	echo "let root = \"$(STDLIB_PATH)\"" > genGlobals.ml
+
+stdlib/libliml.so:
+	@echo "Compiling the standard library"
+	cd stdlib && make
 
 .depend: $(OBJECTS_ML)
 	$(OCAMLDEP) -native -slash $(INCLUDE) $(OBJECTS_ML) > .depend
@@ -125,6 +129,7 @@ clean:
 	rm -f stdlib/*.o stdlib/*.s stdlib/*.bc stdlib/*~ test/*.o test/*.s 
 	rm -f test/*.bc test/*~
 	rm -f genGlobals.ml
+	cd stdlib && make clean
 
 -include .depend
 -include Makefile.config

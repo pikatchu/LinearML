@@ -6,10 +6,11 @@ open Llvm_executionengine
 open Ast
 open Llst
 
+let ccfast = Llvm.CallConv.fast 
+
 let make_cconv = function
   | Ast.Cfun -> Llvm.CallConv.c 
-  | Ast.Lfun -> Llvm.CallConv.fast
-
+  | Ast.Lfun -> ccfast
 
 module MakeNames = struct
 
@@ -179,6 +180,7 @@ end
 
 module Pervasives = struct
 
+(*
   let unsafe_farray_get md ctx interns = 
     let builder = builder ctx in
     let name = "unsafe_farray_get" in
@@ -189,7 +191,7 @@ module Pervasives = struct
     let args = [| pointer_type (i8_type ctx) ; int |] in
     let ftype = function_type float args in
     let fdec = declare_function name ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = ccfast in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
     add_function_attr fdec Attribute.Alwaysinline ;
@@ -213,7 +215,7 @@ module Pervasives = struct
     let args = [| void_star ; int ; float |] in
     let ftype = function_type void_star args in
     let fdec = declare_function name ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = ccfast in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
     add_function_attr fdec Attribute.Alwaysinline ;
@@ -235,7 +237,7 @@ module Pervasives = struct
     let args = [| pointer_type (i8_type ctx) ; int |] in
     let ftype = function_type int args in
     let fdec = declare_function name ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = ccfast in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
     add_function_attr fdec Attribute.Alwaysinline ;
@@ -258,7 +260,7 @@ module Pervasives = struct
     let args = [| void_star ; int ; int |] in
     let ftype = function_type void_star args in 
     let fdec = declare_function name ftype md in
-    let cconv = Llvm.CallConv.fast in
+    let cconv = ccfast in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
     add_function_attr fdec Attribute.Alwaysinline ;
@@ -270,6 +272,7 @@ module Pervasives = struct
     let _ = build_store params.(2) t builder in
     let _ = build_ret params.(0) builder in 
     SMap.add name fdec interns
+*)
 
   let make ctx md = 
     let string = pointer_type (i8_type ctx) in
@@ -285,12 +288,12 @@ module Pervasives = struct
     let prims = IMap.add Naming.malloc malloc prims in
     let prims = IMap.add Naming.ifree free prims in
 
-    let interns = unsafe_farray_get md ctx SMap.empty in
+ (*   let interns = unsafe_farray_get md ctx SMap.empty in
     let interns = unsafe_farray_set md ctx interns in
     let interns = unsafe_iarray_get md ctx interns in
     let interns = unsafe_iarray_set md ctx interns in
-
-    prims, interns
+*)
+    prims, SMap.empty (* interns *)
 
 end
 
@@ -309,7 +312,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) 
-;     Llvm.dump_module md 
+(* ;     Llvm.dump_module md   *)
 (*  (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -499,7 +502,7 @@ and instructions bb env acc ret l =
 	  let f = find_function env acc (fst f) (snd f) in
 	  let v = build_call f t "" env.builder in
 	  set_tail_call true v ;
-	  set_instruction_call_conv Llvm.CallConv.fast v ;
+	  set_instruction_call_conv ccfast v ;
 	  if vl2 = []
 	  then ignore (build_ret_void env.builder)
 	  else ignore (build_ret v env.builder) ;

@@ -381,7 +381,9 @@ and expr_ env undef (p, ty) = function
   | Eid x -> 
       env, if IMap.mem (snd x) env.privates
       then (def_public env (IMap.find (snd x) env.privates) ; undef)
-      else [Id x]
+      else (match eval env.values (Id x) with
+      | Array _ as x -> [Value x]
+      | _ -> [Id x])
   | Evalue v -> env, [Value (value v)]
   | Evariant _ -> env, undef
   | Ebinop (bop, e1, e2) ->
@@ -426,8 +428,9 @@ and expr_ env undef (p, ty) = function
       let e = List.hd e in
       let env = { env with values = if_is_true env.values e } in
       env, undef
-  | Eapply (_, _, (_, f), (_, [init ; esize])) when f = Naming.amake ->
-      let env, _ = tuple_pos init (env, []) in
+  | Eapply (_, _, (_, f), (_, (esize :: _) as e)) when 
+      f = Naming.amake || f = Naming.imake || f = Naming.fmake ->
+      let env, _ = tuple env e in
       let env, size = tuple_pos esize (env, []) in
       let size = const_size env (List.hd size) in
       let ps = PSet.singleton p in
