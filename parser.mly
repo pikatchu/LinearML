@@ -41,6 +41,31 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
   | [] -> x, ty
   | _ -> x, (fst x, Tabs (idl, ty))) l)
 
+let rec make_list p = function
+  | [] ->   
+      let x1 = p, "List" in
+      let x2 = p, "Empty" in
+      p, Eecstr (x1, x2)
+  | x :: rl ->
+      let rl = make_list p rl in
+      let p = Pos.btw (fst x) p in
+      let x1 = p, "List" in
+      let x2 = p, "Cons" in
+      p, Eapply ((p, Eecstr (x1, x2)), [x ; rl])
+
+let rec make_clist p = function
+  | [] ->   
+      let x1 = p, "List" in
+      let x2 = p, "Empty" in
+      p, Pecstr (x1, x2)
+  | x :: rl ->
+      let rl = make_clist p rl in
+      let p = Pos.btw (fst x) p in
+      let x1 = p, "List" in
+      let x2 = p, "Cons" in
+      p, Pevariant (x1, x2, (p, Ptuple [x ; rl]))
+
+
 %}
 
 %token <Pos.t> ABSTRACT
@@ -55,6 +80,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %token <Pos.t> BEGIN
 %token <Pos.t * string> CHAR
 %token <Pos.t> COLEQ
+%token <Pos.t> COLCOL
 %token <Pos.t> COLON
 %token <Pos.t> COMMA
 %token <Pos.t * string> CSTR
@@ -127,7 +153,7 @@ let dtype l = (List.map (fun ((x, idl), ty) ->
 %right COMMA
 %left BARBAR AMPAMP
 %left EQ DIFF LT LTE GT GTE
-%right COLONCOLON
+%right COLCOL
 %left PLUS MINUS 
 %left STAR SLASH
 %nonassoc NOT
@@ -256,21 +282,25 @@ simpl_pat:
 | ID { fst $1, Pid $1 }
 | CSTR { fst $1, Pcstr $1 } 
 | LP RP { Pos.btw $1 $2, Punit }
+| LB pat_seq RB { Pos.btw $1 $3, snd (make_clist $3 $2) }
+| simpl_pat COLCOL simpl_pat { 
+  let x1 = $2, "List" in
+  let x2 = $2, "Cons" in
+  let p = btw $1 $3 in
+  p, Pevariant (x1, x2, (p, Ptuple [$1; $3]))
+}
 | LP pat RP { $2 }
 | UNDERSCORE { $1, Pany }
-/* | TRUE { $1, Pbool true }
-| FALSE { $1, Pbool false }
-| CHAR { fst $1, Pchar $1 }
-| FLOAT { fst $1, Pfloat $1 }
-| STRING { fst $1, Pstring $1 }
-| INT { fst $1, Pint $1 }
-*/
 | LCB pat_field_l RCB { Pos.btw $1 $3, Precord $2 }
 
 simpl_pat_l:
 | simpl_pat { [$1] }
 | simpl_pat simpl_pat_l { $1 :: $2 }
 
+pat_seq:
+| { [] }
+| pat { [$1] }
+| pat SC pat_seq { $1 :: $3 }
 
 pat_:
 | simpl_pat { $1 }
@@ -337,6 +367,7 @@ simpl_expr:
 | LP expr RP { Pos.btw $1 $3, snd $2 }
 | BEGIN expr END { $2 }
 | EM ID { Pos.btw $1 (fst $2), Eobs $2 }
+| LB expr_l RB { Pos.btw $1 $3, snd (make_list $3 $2) }
 
 dot_cstr:
 | { `Null }
@@ -352,6 +383,11 @@ simpl_expr_l:
 | { [] }
 | simpl_expr simpl_expr_l { $1 :: $2 }
 
+expr_l:
+| { [] }
+| simpl_expr { [$1] }
+| simpl_expr SC expr_l { $1 :: $3 }
+  
 expr:
 | IF expr THEN expr ELSE expr %prec if_ { 
     Pos.btw $1 (fst $6), Eif ($2, $4, $6) 
@@ -380,6 +416,11 @@ expr:
 | expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
 | expr BARBAR expr { btw $1 $3, Ebinop (Eor, $1, $3) }
 | expr AMPAMP expr { btw $1 $3, Ebinop (Eand, $1, $3) }
+| expr COLCOL expr { 
+  let x1 = $2, "List" in
+  let x2 = $2, "Cons" in
+  btw $1 $3, Eapply (($2, Eecstr (x1, x2)), [$1; $3])
+}
 | ID DOT ID ASSIGN expr SC expr { 
   let fdl = [Eflocl ($3, $5)] in
   let t = fst $1, Eid $1 in

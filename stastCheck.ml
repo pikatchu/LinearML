@@ -101,6 +101,9 @@ module Print = struct
 
   and variant idl o (x, ty) = 
     let id = Ident.to_string x in
+    if id = "List.Empty"
+    then o "[]"
+    else 
     match ty with
     | None -> o id
     | Some ATany ->
@@ -109,9 +112,13 @@ module Print = struct
 	for i = 1 to n do
 	  l := ATany :: !l 
 	done ;
-	o "(" ; o id ; o " " ; print_list o type_ " " !l ; o ")"
+	if id = "List.Cons" 
+	then (o "(" ; print_list o type_ " :: " !l ; o ")")
+	else o "(" ; o id ; o " " ; print_list o type_ " " !l ; o ")"
     | Some (ATprod tyl) -> 
-	o "(" ; o id ; o " " ; print_list o type_ " " tyl ; o ")"
+	if id = "List.Cons"
+	then (o "(" ; print_list o type_ " :: " tyl ; o ")")
+	else (o "(" ; o id ; o " " ; print_list o type_ " " tyl ; o ")")
     | Some ty ->
 	o "(" ; o id ; o " " ; type_ o ty ; o ")"
 
