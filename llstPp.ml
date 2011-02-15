@@ -96,6 +96,10 @@ and def df =
   nl() ; nl() ;
   
 and idl l = o "(" ; print_list o (fun _ (_, x) -> id x) ", " l ; o ")"
+and ty_idl l = 
+  o "(" ; 
+  print_list o (fun _ (ty, x) -> type_expr ty ; o " " ; id x) ", " l; 
+  o ")"
 
 and block bl = 
   nl() ;
@@ -110,7 +114,7 @@ and block bl =
   | Return (tail, l) -> 
       (o "return[" ; 
        o (if tail then "true] " else "false] ") ;
-       List.iter (fun (_, x) -> id x ; o " ") l)  ;
+       ty_idl l)
   | Jump x -> o "jump " ; id x
   | If (x, l1, l2) ->
       o "Iif " ; tid x ; o " then jump " ; label l1 ; 

@@ -109,7 +109,7 @@ let opt2 f x y =
 
 let soi = string_of_int 
 
-let lone = function [x] -> x | _ -> assert false
+let lone = function [x] -> x | _ -> raise Exit
 
 module L = struct
   

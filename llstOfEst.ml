@@ -6,9 +6,6 @@ open Est
 (* This is because an algebric data type can be represented as an *)
 (* enum, as just a record or as a discriminated union. *)
 (* Variants with arguments don't necessarely need a tag *)
-(* Variant "Some" with only one argument which is a pointer are unboxed 
-   if the argument is not a pointer, it would be dangerous to unbox it 
-*)
 (* Variants without arguments can be represented as a null pointer *)
 
 module Pointer: sig
@@ -276,27 +273,36 @@ and make_variant t tag (_, tyl) (types, acc) =
 
 and type_expr_list l = List.map type_expr l
 and type_expr = function
-  | Tany -> Llst.Tany
+  | Tany -> Llst.Tprim Llst.Tint
   | Tprim ty -> Llst.Tprim ty 
-  | Tvar _ -> Llst.Tany
+  | Tvar _ -> Llst.Tprim Llst.Tint
   | Tid x -> Llst.Tid x
   | Tapply (x, [ty]) when x = Naming.tobs -> type_expr ty
   | Tapply (x, _) -> Llst.Tid x
   | Tfun (k, tyl1, tyl2) -> 
-      let tyl1 = type_expr_list tyl1 in
-      let tyl2 = type_expr_list tyl2 in
+      let tyl1 = ftype_expr_list tyl1 in
+      let tyl2 = ftype_expr_list tyl2 in
       Llst.Tfun (k, tyl1, tyl2)
+
+and ftype_expr = function
+  | Tprim Tunit -> Llst.Tprim Tunit
+  | Tany | Tprim _
+  | Tvar _ | Tid _
+  | Tapply _ | Tfun _ -> Llst.Tprim Llst.Tint
+
+and ftype_expr_list l = List.map ftype_expr l
 
 and def t df = 
   let headers = ExtractArgs.def t type_expr df in
   let body = List.fold_right (block t) df.df_body [] in
   let body = List.map (add_header headers) body in
+  let args = List.map (fun (ty, x) -> ftype_expr ty, x) df.df_args in
   { 
     Llst.df_id = df.df_id ;
     Llst.df_kind = df.df_kind ;
-    Llst.df_args = ty_idl df.df_args ;
+    Llst.df_args = args ;
     Llst.df_body = body ;
-    Llst.df_ret = type_expr_list (List.map fst df.df_return) ;
+    Llst.df_ret = ftype_expr_list (List.map fst df.df_return) ;
   }
     
 and ty_id (ty, x) = type_expr ty, x
@@ -317,7 +323,11 @@ and block t bl acc =
 
 and ret bls t = function
   | Lreturn _ -> assert false
-  | Return (b, l) -> [], bls, Llst.Return (b, ty_idl l)
+  | Return (b, l) -> 
+      let xl = List.map (fun (ty, x) -> ftype_expr ty, Ident.tmp()) l in
+      let vl = ty_idl l in
+      let tail = add_casts xl vl [] in
+      tail, bls, Llst.Return (b, xl)
   | Jump lbl -> [], bls, Llst.Jump lbl
   | If (x, lbl1, lbl2) -> [], bls, Llst.If (ty_id x, lbl1, lbl2)
   | Match ([ty, x], al) ->
@@ -434,30 +444,22 @@ and equation t is_last ret (idl, e) acc =
 	let acc = ([tyv], v) :: acc in
 	let acc = add_casts xl vl acc in
 	acc
-  | Eapply (fk, (ty, x), vl) -> 
+  | Eapply (fk, (ty, x), vl) ->
+      let argl = List.map (fun (ty, x) -> ftype_expr ty, Ident.tmp()) vl in 
       let argl' = ty_idl vl in
-      let argl = match ty with
-      | Tfun (_, tyl, _) -> 
-	  let tyl = type_expr_list tyl in
-	  List.map (fun ty -> ty, Ident.tmp()) tyl 
-      | _ -> assert false in
+      let rty = get_rty ty in
       let acc = 
-	match get_rty t x with
-	| None -> 
-	    let fid = type_expr ty, x in
-	    (idl, Llst.Eapply (fk, false, fid, argl)) :: acc
-	| Some rty ->
-	    let acc, xl = 
-	      match ret with
-	      | Llst.Return (true, _) -> acc, idl
-	      | _ ->
-		  let xl = List.map (fun ty -> ty, Ident.tmp()) rty in
-		  let acc = add_casts idl xl acc in
-		  acc, xl
-	    in
-	    let fid = type_expr ty, x in
-	    let acc = (xl, Llst.Eapply (fk, false, fid, argl)) :: acc in
-	    acc
+	let acc, xl = 
+	  match ret with
+	  | Llst.Return (true, _) -> acc, idl
+	  | _ -> 
+	      let xl = List.map (fun ty -> ty, Ident.tmp()) (ftype_expr_list rty) in
+	      let acc = add_casts idl xl acc in
+	      acc, xl
+	in
+	let fid = type_expr ty, x in
+	let acc = (xl, Llst.Eapply (fk, false, fid, argl)) :: acc in
+	acc
       in
       let acc = add_casts argl argl' acc in
       acc
@@ -477,15 +479,16 @@ and tuple n vl =
   | [] -> []
   | x :: rl -> (n, x) :: tuple (n+1) rl
 
-and get_rty t x = 
-  try match IMap.find x t.types with 
-  | Llst.Tfun (_, _, x) -> Some x 
+and get_rty = function
+  | Tfun (_, _, x) -> x 
   | _ -> assert false
-  with Not_found -> None
 
 and add_casts idl1 idl2 acc = 
   List.fold_right2 (
-  fun x y acc -> ([x], Llst.Eid y) :: acc
+  fun x y acc -> 
+    match fst y with
+    | Llst.Tprim Llst.Tunit as u -> ([u, snd x], Llst.Eid y) :: acc
+    | _ -> ([x], Llst.Eid y) :: acc
  ) idl1 idl2 acc
 
 and expr t idl = function

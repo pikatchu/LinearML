@@ -407,14 +407,22 @@ and expr_ t tyl = function
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
       t, ridl
   | Eapply (fk, ty, x, e) -> 
+      let t, x = expr t ([ty], Ist.Eid x) in
       let t, idl1 = tuple t e in
       let idl2 = make_idl tyl in
-      let t = equation t idl2 (Est.Eapply (fk, (ty, x), idl1)) in
+      let t = equation t idl2 (Est.Eapply (fk, x, idl1)) in
       t, idl2
   | Eseq (e1, e2) -> 
       let t, _ = expr t e1 in
       let t, idl = tuple t e2 in
       t, idl
+  | Eswap (e1, e2, e3) ->
+      let t, e1 = expr t e1 in
+      let t, e2 = expr t e2 in
+      let t, e3 = expr t e3 in
+      let idl2 = make_idl tyl in
+      let t = equation t idl2 (Est.Eswap (e1, e2, e3)) in
+      t, idl2
   | e -> simpl_expr t tyl e
 
 and simpl_expr t tyl e = 
@@ -455,13 +463,8 @@ and simpl_expr_ t ty = function
       let t, e1 = expr t e1 in
       let t, e2 = expr t e2 in
       t, Est.Eget (e1, e2)
-  | Eswap (e1, e2, e3) ->
-      let t, e1 = expr t e1 in
-      let t, e2 = expr t e2 in
-      let t, e3 = expr t e3 in
-      t, Est.Eswap (e1, e2, e3)
   | (Eseq (_, _)|Eapply (_, _, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)
-  | Efield (_, _)|Eid _) -> assert false
+  | Efield (_, _)|Eid _) | Eswap _ -> assert false
 
 and field t (x, e) = 
   let t, idl = tuple t e in

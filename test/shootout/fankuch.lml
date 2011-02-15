@@ -1,8 +1,6 @@
 
 module Fankuch = struct
 
-  module IA = Array
-
   val land: int * int #-> int = "land"
   val lsl: int * int #-> int = "lsl"
   val debug: 'a obs #-> unit = "debug"
@@ -13,18 +11,17 @@ module Fankuch = struct
     if i > iend
     then a
     else begin
-      let t = IA.get !a i in
+      let tmp = a.(i) in
       let k = n - i in
-      let ak = (IA.get !a k) in
-      a := IA.set a i ak ;
-      a := IA.set a k t ; 
+      a.(i) <- a.(k) ;
+      a.(k) <- tmp ;
       flip n a (i+1) iend
     end
 
 (** Count the number of flips so that pancake 0 is at index 0. *)
   val private count: int * int array -> int * int array
   let count c ary =
-    let z = IA.get !ary 0 in
+    let z = ary.(0) in
     if z = 0 then c, ary
     else begin
       let ary = flip z ary 0 (z/2) in
@@ -35,19 +32,20 @@ module Fankuch = struct
 (** Rotate the first [n] pancakes of [a]. *)
   val private rotate: int * int array -> int array
   let rotate n a =
-    let t = IA.get !a 0 in
+    let t = a.(0) in
     let m = n - 1 in
     let a = rotate_loop a 1 m in
-    IA.set a m t
+    a.(m) <- t ;
+    a
 
   val private rotate_loop: int array * int * int -> int array
   let rotate_loop a i m =
     if i > m
     then a
-    else 
-      let ai = IA.get !a i in
-      let a = IA.set a (i - 1) ai in
+    else begin
+      a.(i-1) <- a.(i) ;
       rotate_loop a (i+1) m
+    end
 
   type env = {
       csum: int ;
@@ -95,14 +93,17 @@ module Fankuch = struct
   let init_perm t n = 
     if n < 0
     then t
-    else init_perm (IA.set t n n) (n-1)
+    else begin
+      t.(n) <- n ;
+      init_perm t (n-1)
+    end
 
 (** Call [f] on each permutation of [n] numbers in order. *)
   val private iter_perms: int -> env
   let iter_perms n =
-    let perm = IA.make n 0 in
+    let perm = Array.imake n 0 in
     let perm = init_perm perm (n-1) in
-    let copy = IA.make n 0 in
+    let copy = Array.imake n 0 in
     let csum = 0 in 
     let m = 0 in
     let env = {
@@ -116,7 +117,7 @@ module Fankuch = struct
     } in
     do_iter env
 
-  val main: unit #-> unit
+  val main: unit -> unit
   let main () =
     let n = 10 in
     let env = iter_perms n in
@@ -126,11 +127,11 @@ module Fankuch = struct
     Print.int env.n ;
     Print.string ") = " ;
     Print.int env.m ;
+    Print.newline() ;
     let { env ; ~perm ; ~copy } = env in
-    IA.release perm ;
-    IA.release copy ;
-    free env ;
-    Print.newline() 
+    Array.irelease perm ;
+    Array.irelease copy ;
+    free env 
     
 
 end

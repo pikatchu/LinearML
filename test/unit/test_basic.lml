@@ -15,15 +15,24 @@ module Test = struct
   val nothing: int #-> unit
   let nothing _ = ()
 
+  val add1: int -> int
+  let add1 x = x+1
+
+  val app: ('a -> 'a) * 'a -> 'a 
+  let app f x = f x
+
   val main: unit -> unit
   let main() = 
-    let t = Array.make !init 10 in
+    let t = Array.make 10 !init in
     t.(0) <- 23 ;
     let x = t.(0) in
     Print.int (Array.length !t) ;
     Print.newline() ;
     Array.release nothing t ;
     Print.int x ;
+    Print.newline() ;
+    x := 2 ;
+    Print.int (app add1 x) ;
     Print.newline()
 
 end

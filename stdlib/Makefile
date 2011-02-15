@@ -1,6 +1,7 @@
 
 CC = gcc
 CC_OPT = -O3 -fPIC
+CC_ARCH = -DARCH_32
 
 default: libliml.so.1
 
@@ -8,7 +9,9 @@ default: libliml.so.1
 
 SOURCES =\
 	array.c\
-	print.c
+	print.c\
+	math.c\
+	debug.c
 
 OBJECTS = $(SOURCES:.c=.o)	
 
@@ -21,7 +24,7 @@ libliml.so.1: $(OBJECTS)
 ##############################################################################
 
 %.o : %.c
-	$(CC) $(CC_OPT) $(CC_FLAGS) -c $<
+	$(CC) $(CC_OPT) $(CC_ARCH) -c $<
 
 
 ###############################################################################

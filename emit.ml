@@ -312,7 +312,7 @@ type env = {
 
 let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) 
-(* ;     Llvm.dump_module md   *)
+(*  ;     Llvm.dump_module md     *)
 (*  (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -323,13 +323,14 @@ let dump_module md_file md pm =
 
 
 let optims pm = 
+(* Got rid of instruction combination it bugs on shootout/bintree *)
   add_constant_propagation pm ;
   add_sccp pm ;
   add_dead_store_elimination pm ;
   add_aggressive_dce pm ;
   add_scalar_repl_aggregation pm ;
   add_ind_var_simplification pm ;
-  add_instruction_combination pm ;
+(*  add_instruction_combination pm ;  *)
   add_licm pm ;
   add_loop_unswitch pm ;
   add_loop_unroll pm ;
@@ -345,14 +346,14 @@ let optims pm =
   add_tail_call_elimination pm ;
   add_lib_call_simplification pm ;
   add_ind_var_simplification pm ;
-  add_instruction_combination pm  ;
+(*  add_instruction_combination pm  ; *)
   add_constant_propagation pm ;
   add_sccp pm ;
   add_dead_store_elimination pm ;
   add_aggressive_dce pm ;
   add_scalar_repl_aggregation pm ;
-  add_ind_var_simplification pm ;
-  add_instruction_combination pm 
+  add_ind_var_simplification pm 
+(* ; add_instruction_combination pm  *)
 
 let rec program root mdl = 
   let ctx = global_context() in
@@ -453,13 +454,7 @@ and block env acc bl =
 
 and return env acc = function
   | Return (_, l) -> 
-      let l = List.map (
-	fun (ty, x) ->
-	  let ty = match ty with Tprim _ as x -> x | _ -> Tany in
-	  let ty = Type.type_ env.mds env.types env.ctx ty in  
-	  let v = IMap.find x acc in
-	  build_bitcast v ty "" env.builder
-       ) l in
+      let l = List.map (fun (_, x) -> IMap.find x acc) l in
       (match Array.of_list l with
       | [||] -> ignore (build_ret_void env.builder)
       | [|x|] -> ignore (build_ret x env.builder)
@@ -591,6 +586,35 @@ and extract_values env acc xl v =
     IMap.add x nv acc
  ) acc xl
 
+and cast env xs ty1 ty2 y = 
+  match ty1, ty2 with
+  | Tprim Tstring, Tprim Tint -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      let v = build_inttoptr y ty "" env.builder in
+      let v = build_bitcast v ty xs env.builder in
+      v
+  | Tprim Tint, Tprim Tstring -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      let v = build_ptrtoint y ty "" env.builder in
+      let v = build_bitcast v ty xs env.builder in
+      v
+  | Tprim _, Tprim _ -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      build_sext_or_bitcast y ty xs env.builder
+  | Tprim Tint, _ -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      let v = build_ptrtoint y ty "" env.builder in
+      v
+  | _, Tprim Tint ->
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      let v = build_inttoptr y ty "" env.builder in
+      v
+  | _, _ -> 
+      let ty = Type.type_ env.mds env.types env.ctx ty1 in
+      let v = build_bitcast y ty xs env.builder in
+      v
+
+
 and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
   match e with
@@ -598,40 +622,8 @@ and expr bb env acc (ty, x) e =
   | Efree _ -> assert false
   | Eid (yty, y) -> 
       let y = try IMap.find y acc with Not_found -> find_function env acc ty y in
-      (match ty, yty with 
-      | Tprim _, Tprim _ -> IMap.add x y acc
-      | Tprim Tstring, _ -> 
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let v = build_bitcast y ty xs env.builder in
-	  IMap.add x v acc
-      | Tprim Tfloat, _ -> 
-	  let int = Type.type_prim env.ctx Llst.Tint in
-	  let v = build_ptrtoint y int "" env.builder in
-	  let float = Type.type_prim env.ctx Llst.Tfloat in
-	  let v = build_bitcast v float xs env.builder in
-	  IMap.add x v acc
-      | _, Tprim Tstring -> 
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let v = build_bitcast y ty xs env.builder in
-	  IMap.add x v acc
-      | _, Tprim Tfloat ->
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let int = Type.type_prim env.ctx Llst.Tint in
-	  let v = build_bitcast y int xs env.builder in
-	  let v = build_inttoptr v ty "" env.builder in
-	  IMap.add x v acc
-      | Tprim _, _ -> 
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let v = build_ptrtoint y ty "" env.builder in
-	  IMap.add x v acc
-      | _, Tprim _ ->
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let v = build_inttoptr y ty "" env.builder in
-	  IMap.add x v acc
-      | _, _ ->
-	  let ty = Type.type_ env.mds env.types env.ctx ty in
-	  let v = build_bitcast y ty xs env.builder in
-	  IMap.add x v acc)
+      let v = cast env xs ty yty y in
+      IMap.add x v acc
   | Evalue v ->
       let ty = Type.type_ env.mds env.types env.ctx ty in
       let v = const env ty v in

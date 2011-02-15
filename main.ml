@@ -15,6 +15,7 @@ let parse acc fn =
 let _ = 
   let module_l = ref [] in
   let dump_llst = ref false in
+  let dump_est = ref false in
   let bounds = ref false in
   let no_stdlib = ref false in
   let main = ref "" in
@@ -22,6 +23,7 @@ let _ =
     ["-main", Arg.String (fun s -> main := s), "specifies the root module";
      "-bounds", Arg.Unit (fun () -> bounds := true), "show unchecked bounds";
      "-llst", Arg.Unit (fun () -> dump_llst := true), "internal";
+     "-est", Arg.Unit (fun () -> dump_est := true), "internal";
      "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), "excludes standard library";
    ]
     (fun x -> module_l := x :: !module_l)
@@ -41,6 +43,8 @@ let _ =
   flush stderr ;
   let ist = IstOfStast.program benv stast in
   let est = EstOfIst.program ist in
+  if !dump_est then
+    EstPp.program est ;
   let est = EstCompile.program est in
   let est = EstNormalizePatterns.program est in 
   let llst = LlstOfEst.program est in

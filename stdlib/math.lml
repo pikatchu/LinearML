@@ -1,4 +1,5 @@
 
 module Math = struct
-  val sqrt: float #-> float = "sqrt"
+  val sqrt: float #-> float = "liml_sqrt"
+  val sin: float #-> float = "liml_sin"
 end

@@ -70,6 +70,8 @@ module BinaryTree = struct
     let threads = 2 in
     loop1 min_depth max_depth d threads 0 last List.Empty
 
+  val debug: 'a obs #-> unit = "liml_debug"
+
   val private print_results: loop1_result List.t -> unit
   let print_results l = 
     match l with
@@ -85,10 +87,10 @@ module BinaryTree = struct
 	free res ;
 	print_results rl
 
-  val main: unit #-> unit 
+  val main: unit -> unit 
   let main() =
     let min_depth = 4 in
-    let max_depth = 21 in
+    let max_depth = 20 in
     let stretch_depth = max_depth + 1 in
     let c = check (make 0 stretch_depth) in
     Print.string "stretch tree of depth " ;

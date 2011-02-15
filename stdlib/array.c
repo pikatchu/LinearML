@@ -1,29 +1,33 @@
+#define DARCH_32 
+#include"liml.h"
 #include<malloc.h>
 
-int* liml_array_make(int(*f)(int), int size){
+lvalue liml_array_make(lint size__, lvalue f__){
+  int size = (int) size__ ;
+  int(*f)(int) = (int (*)(int)) f__ ;
   int i ;
   int* res = malloc(sizeof(int) * (size + 1)) ;
   *res = size ;
-
   res++ ;
   for(i = 0 ; i < size ; i++){
     res[i] = f(i) ;
   }
-  return res ;
+  return (lvalue)res ;
 }
 
-int* liml_array_fmake(int size, float f){
+lvalue liml_array_fmake(lint size, lfloat f){
   int i ;
   int* res = malloc(sizeof(int) * (size + 1)) ;
   *res = size ;
   res++ ;
+
   for(i = 0 ; i < size ; i++){
     res[i] = f ;
   }
-  return res ;
+  return (lvalue)res ;
 }
 
-int* liml_array_imake(int size, int n){
+lvalue liml_array_imake(lint size, lint n){
   int i ;
   int* res = malloc(sizeof(int) * (size + 1)) ;
   *res = size ;
@@ -32,15 +36,17 @@ int* liml_array_imake(int size, int n){
     res[i] = n ;
   }
 
-  return res ;
+  return (lvalue)res ;
 }
 
-int liml_array_length(int* t){ 
-
-  return *(t-1) ; 
+lint liml_array_length(lvalue t__){
+  int* t = (int*) t__ ;
+  return (lint)*(t-1) ; 
 }
 
-void liml_array_release(void(*f)(int), int* t){
+void liml_array_release(lvalue f__, lvalue t__){
+  int* t = (int*) t__ ;
+  void(*f)(int) = (void(*)(int)) f__ ;
   int i ;
   int size = *(t-1) ;
 
@@ -50,7 +56,8 @@ void liml_array_release(void(*f)(int), int* t){
   return;
 }
 
-void liml_array_ifrelease(int* t){
+void liml_array_ifrelease(lvalue t__){
+  int* t = (void*) t__;
   free(t-1) ;
   return;
 }
