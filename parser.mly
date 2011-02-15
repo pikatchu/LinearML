@@ -297,6 +297,14 @@ simpl_pat_l:
 | simpl_pat { [$1] }
 | simpl_pat simpl_pat_l { $1 :: $2 }
 
+simpl_tpat:
+| UNDERSCORE { None }
+| LP ID COLON type_expr RP { Some ($2, $4) }
+
+simpl_tpat_l:
+| simpl_tpat { [$1] }
+| simpl_tpat simpl_tpat_l { $1 :: $2 }
+
 pat_seq:
 | { [] }
 | pat { [$1] }
@@ -402,7 +410,8 @@ expr:
   Pos.btw $1 (pat_end l), Ematch ($2, l) 
   }
 
-| FUN simpl_pat_l ARROW expr { Pos.btw $1 (fst $4), Efun ($2, $4) }
+| FUN simpl_tpat_l ARROW expr { Pos.btw $1 (fst $4), Efun (Ast.Lfun, $2, $4) }
+| FUN simpl_tpat_l SARROW expr { Pos.btw $1 (fst $4), Efun (Ast.Cfun, $2, $4) }
 | MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euop (Euminus, $2) }
 | expr EQ expr { btw $1 $3, Ebinop (Eeq, $1, $3) }
 | expr DIFF expr { btw $1 $3, Ebinop (Ediff, $1, $3) }

@@ -230,7 +230,7 @@ module CheckRestrict = struct
 	List.iter action pel
     | Elet (p, e1, e2) -> pat p ; expr e1 ; expr e2
     | Eif (e1, e2, e3) -> expr e1 ; expr e2 ; expr e3
-    | Efun (pl, e) -> List.iter pat pl ; expr e
+    | Efun (_, _, e) -> expr e
     | Eapply (e, el) -> expr e ; List.iter expr el 
     | Ewith (e, fdl) -> expr e ; List.iter field fdl 
     | Eseq (e1, e2) -> expr e1 ; expr e2

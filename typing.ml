@@ -239,6 +239,8 @@ module Type = struct
     match ty1, ty2 with
     | Tany, _  -> subst
     | Tprim ty1, Tprim ty2 when ty1 = ty2 -> subst
+    | Tapply (y, (_, [ty1])), Tprim _ when snd y = Naming.tobs -> 
+	inst env subst ty1 (pl2, ty2)
     | Tvar x, Tapply (y, _)
     | Tapply (y, _), Tvar x when snd y = Naming.tobs -> inst_error pl1 ty1 pl2 ty2
     | Tvar (_, x), Tvar (_, y) when x = y -> subst
@@ -260,8 +262,8 @@ module Type = struct
       if ISet.mem x fv
       then Error.recursive_type p
       else 
-	let ty = unify_el env ty1 (p, ty2) in
-	IMap.add x ty subst
+	let subst = inst env subst ty1 (p, ty2) in
+	subst
     with Not_found -> IMap.add x (p, ty2) subst
 
   and replace path subst env (p, ty) = 

@@ -74,12 +74,12 @@ and expr_ =
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 
-  | Efun of pat list * expr 
   | Eapply of expr * expr list
   | Ewith of expr * (id * expr) list
   | Eseq of expr * expr
   | Eobs of id
   | Efree of id
+  | Efun of Ast.fun_kind * (id * type_expr) option list * expr 
 
 and value = 
   | Eunit

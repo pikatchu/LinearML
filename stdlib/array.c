@@ -2,32 +2,41 @@
 #include"liml.h"
 #include<malloc.h>
 
-lvalue liml_array_make(lint size__, lvalue f__){
+typedef struct{
+  lvalue fst ;
+  lvalue snd ;
+} couple ;
+
+lvalue magic(){
+  return 0 ;
+}
+
+lvalue liml_array_make(lvalue size__, lvalue call__, lvalue f, lvalue acc){
   int size = (int) size__ ;
-  int(*f)(int) = (int (*)(int)) f__ ;
+  couple(*call)(lvalue, lvalue, lvalue) = 
+    (couple (*)(lvalue, lvalue, lvalue)) call__ ;
+  couple res ;
   int i ;
-  int* res = malloc(sizeof(int) * (size + 1)) ;
-  *res = size ;
-  res++ ;
+  int* t = malloc(sizeof(int) * (size + 1)) ;
+  *t = size ;
+  t++ ;
+
+  printf("here %p %p %p %p\n", size, call, f, acc) ; exit(0) ;
+  
   for(i = 0 ; i < size ; i++){
-    res[i] = f(i) ;
+    couple c = call(f, acc, i) ;
+    printf("here\n") ;
+    acc = c.fst ;
+    t[i] = c.snd ;
   }
-  return (lvalue)res ;
+
+  res.fst = acc ;
+  res.snd = (lvalue)t ;
+
+  return 0 ;
 }
 
-lvalue liml_array_fmake(lint size, lfloat f){
-  int i ;
-  int* res = malloc(sizeof(int) * (size + 1)) ;
-  *res = size ;
-  res++ ;
-
-  for(i = 0 ; i < size ; i++){
-    res[i] = f ;
-  }
-  return (lvalue)res ;
-}
-
-lvalue liml_array_imake(lint size, lint n){
+lvalue liml_array_ifmake(lvalue size, lvalue n){
   int i ;
   int* res = malloc(sizeof(int) * (size + 1)) ;
   *res = size ;
@@ -39,9 +48,9 @@ lvalue liml_array_imake(lint size, lint n){
   return (lvalue)res ;
 }
 
-lint liml_array_length(lvalue t__){
-  int* t = (int*) t__ ;
-  return (lint)*(t-1) ; 
+lvalue liml_array_length(lvalue t__){
+  lvalue* t = (lvalue*) t__ ;
+  return (lvalue)*(t-1) ; 
 }
 
 void liml_array_release(lvalue f__, lvalue t__){

@@ -92,7 +92,7 @@ and expr_ =
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 
-  | Efun of pat list * expr 
+  | Efun of fun_kind * (id * type_expr) option list * expr 
   | Eapply of expr * expr list
   | Ewith of expr * field list
   | Eseq of expr * expr

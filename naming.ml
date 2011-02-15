@@ -566,6 +566,14 @@ and pat_field_ genv env = function
       let env, p = pat genv env p in
       env, Nast.PField (Env.field env id, p)
 
+and tpat genv env = function
+  | None -> env, None
+  | Some (x, ty) ->
+      let ll = Ast.Private in
+      let env, ty = type_expr genv ll env ty in
+      let env, x = Env.new_value env x in
+      env, Some (x, ty)
+
 and expr genv env (p, e) = p, expr_ genv env p e
 and expr_ genv env p e = 
   let k = expr genv env in
@@ -590,10 +598,10 @@ and expr_ genv env p e =
       let e2 = expr genv env e2 in
       Nast.Elet (p, k e1, e2)
   | Eif (e1, e2, e3) -> Nast.Eif (k e1, k e2, k e3) 
-  | Efun (pl, e) -> 
-      let env, pl = lfold (pat genv) env pl in
+  | Efun (fk, pl, e) -> 
+      let env, pl = lfold (tpat genv) env pl in
       let e = expr genv env e in
-      Nast.Efun (pl, e)
+      Nast.Efun (fk, pl, e)
   | Eapply ((_, Eid (_, "free")), e) ->
       (match e with
       | [_, Eid y] -> Nast.Efree (Env.value env y)

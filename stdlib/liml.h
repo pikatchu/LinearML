@@ -2,9 +2,7 @@
 
 #ifdef DARCH_32
 
-typedef void   *lvalue ;
-#define lint   int
-#define lfloat lvalue
+typedef int   lvalue ;
 
 #define V2F(x)   (*((float*)&(x)))
 #define F2V(x)   ((void*)(*((int*)&(x))))
