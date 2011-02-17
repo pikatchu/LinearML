@@ -299,7 +299,7 @@ and type_expr_ = function
   | Tany -> Neast.Tany
   | Tabstract -> assert false
   | Tprim t -> Neast.Tprim t
-  | Tvar x -> Neast.Tvar x
+  | Tvar (p, x) -> Neast.Tvar (p, x)
   | Tid x -> Neast.Tid x 
   | Tapply ((_, Tpath (md, x)), tyl) -> 
       let p, tyl = Pos.list tyl in

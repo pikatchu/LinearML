@@ -9,10 +9,10 @@ end
 
 module Test = struct
 
-  val init: int #-> int
+  val init: int -> int
   let init x = x
 
-  val nothing: int #-> unit
+  val nothing: int -> unit
   let nothing _ = ()
 
   val add1: int -> int
@@ -23,7 +23,7 @@ module Test = struct
 
   val main: unit -> unit
   let main() = 
-    let t = Array.make 10 !init in
+    let t = Array.init 10 init in
     t.(0) <- 23 ;
     let x = t.(0) in
     Print.int (Array.length !t) ;

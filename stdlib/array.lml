@@ -1,49 +1,47 @@
 module Array = struct
   type 'a t
-  val init_: int * ('a * 'acc * int #-> 'acc * 'b) * 'a * 'acc #-> 'b t = "liml_array_make"
-  val fmake_: int * float #-> float t = "liml_array_ifmake"
-  val imake_: int * int #-> int t = "liml_array_ifmake"
+
+  val init_: int * ('a * int #-> 'b) * 'a #-> 'b t = "liml_array_make"
+  val private fmake_: int * float #-> float t = "liml_array_ifmake"
+  val private imake_: int * int #-> int t = "liml_array_ifmake"
   val set: 'a t * int * 'a -> 'a t = internal
   val get: 'a t obs * int -> 'a = internal
   val swap: 'a t * int * 'a -> 'a t * 'a = internal
 
   val private length_: 'a t obs #-> int = "liml_array_length"
-  val private release_: ('a #-> unit) * 'a t #-> unit = "liml_array_release"
+  val private release_: ('a * 'b #-> unit) * 'a * 'b t #-> unit = "liml_array_release"
   val private irelease_: int t #-> unit = "liml_array_ifrelease"
   val private frelease_: float t #-> unit = "liml_array_ifrelease"
 
-  val debug: 'a obs #-> unit = "debug"
-  val magic: unit #-> _ = "magic"
+  val call_int: ('b -> 'a) * 'b #-> 'a
+  let call_int f i = f i
 
-  val call: ('acc * int -> 'acc * 'b) * 'acc * int #-> 'acc * 'b
-  let call f acc x =
-    f acc x
+  val call_unit: ('a -> unit) * 'a #-> unit
+  let call_unit f i = f i
 
-  val init: int * ('acc * int -> 'acc * 'a) * 'acc -> 'acc * 'a t
-  let init n f acc =
-    debug n ; debug !call ; debug !f ; debug !acc ;
-    magic(), init_ n call f acc
+  val init: int * (int -> 'a) -> 'a t
+  let init n f = init_ n call_int f
+
+  val fmake: int * float -> float t
+  let fmake size f = fmake_ size f
+
+  val imake: int * int -> int t
+  let imake size f = imake_ size f
 
   val length: 'a t obs -> int
   let length t = length_ t
+
+  val release: ('a -> unit) * 'a t -> unit
+  let release f t = 
+    release_ call_unit f t
 
   val irelease: int t -> unit 
   let irelease t = irelease_ t 
 
   val frelease: float t -> unit
   let frelease t = frelease_ t
-
+    
+  val debug: 'a obs #-> unit = "debug"
 end
 
-module Test = struct
-
-  val f: int * int -> int * int
-  let f acc x = acc, x
-
-  val main: unit #-> unit
-  let main() = 
-    let _, t = Array.init 10 f 0 in
-    Print.int t.(0) ;
-    Array.irelease t
-end
 

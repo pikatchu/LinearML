@@ -1,7 +1,6 @@
 open Utils
 open Tast
 
-type t = type_expr IMap.t
 
 module ObsCheck = struct
   open Stast
@@ -28,9 +27,15 @@ end
 
 module Env = struct
 
-  let rec program mdl = 
-    let t = ISet.empty in
-    List.fold_left module_ t mdl
+  type t = {
+      types: type_expr IMap.t ;
+      records: ISet.t ;
+    }
+
+  let rec program types mdl = 
+    let recs = ISet.empty in
+    let recs = List.fold_left module_ recs mdl in
+    { types = types ; records = recs }
 
   and module_ t md = 
     List.fold_left decl t md.md_decls
@@ -40,8 +45,8 @@ module Env = struct
     | _ -> t
 end
 
-let rec program mdl = 
-  let t = Env.program mdl in
+let rec program types mdl = 
+  let t = Env.program types mdl in
   List.map (module_ t) mdl 
 
 and module_ t md = {
@@ -72,7 +77,10 @@ and type_expr t (p, ty) = p, type_expr_ t ty
 and type_expr_ t = function
     | Neast.Tany -> Stast.Tany
     | Neast.Tprim ty -> Stast.Tprim ty
-    | Neast.Tvar x -> Stast.Tvar x
+    | Neast.Targ x -> Stast.Tvar x
+    | Neast.Tvar ((_, x) as v) -> 
+	(try snd (type_expr t (IMap.find x t.Env.types))
+	with Not_found -> Stast.Tvar v)
     | Neast.Tid x -> Stast.Tid x
     | Neast.Tapply (x, tyl) -> 
 	let tyl = type_expr_list t tyl in
@@ -151,11 +159,12 @@ and expr_ t ty = function
       Stast.Eseq (expr t e1, e2)
   | Eobs x -> Stast.Eobs x
   | Efree (ty, x) ->
+      let ty = type_expr t ty in
       (match snd ty with
-      | Neast.Tapply ((_, x), _)
-      | Neast.Tid (_, x) when ISet.mem x t -> ()
-      | _ -> Error.cannot_free (fst ty) (Typing.Print.type_expr ty)) ;
-      Stast.Efree (type_expr t ty, x)
+      | Stast.Tapply ((_, x), _)
+      | Stast.Tid (_, x) when ISet.mem x t.Env.records -> ()
+      | _ -> raise Exit (* TODO Error.cannot_free (fst ty) (Typing.Print.type_expr ty) *)) ;
+      Stast.Efree (ty, x)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

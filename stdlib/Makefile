@@ -1,6 +1,6 @@
 
-CC = gcc
-CC_OPT = -O3 -fPIC
+CC = llvm-gcc
+CC_OPT = -O3 -fPIC -fpcc-struct-return
 CC_ARCH = -DARCH_32
 
 default: libliml.so.1

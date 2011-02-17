@@ -91,12 +91,8 @@ module Type = struct
 
   and refine t t' = function
     | Dtype (x, _) -> 
-(*
 	let ty = IMap.find x t' in
- 	refine_type (IMap.find x t) ty ; 
-*)
-	(* Normally no need to refine anymore *)
-	()
+	refine_type (IMap.find x t) ty
     | _ -> ()
 
   and function_ md_name mds t md ctx lkinds df = 
@@ -122,8 +118,11 @@ module Type = struct
     | Some ty -> ty
 
   and type_fun mds t ctx ty1 ty2 =
+    let ty1, ty2 = 
+      if List.length ty2 > Global.max_reg_return
+      then Tptr (Tstruct ty2) :: ty1, [Tprim Tunit]
+      else ty1, ty2 in
     let ty1 = type_args mds t ctx ty1 in
-    let ty2 = List.map (function Tprim _ as x -> x | _ -> Tany) ty2 in 
     let rty = type_list mds t ctx ty2 in
     let fty = function_type rty ty1 in
     fty 
@@ -308,11 +307,14 @@ type env = {
     internals: llvalue SMap.t ;
     bls: llbasicblock IMap.t ;
     orig_types: Llst.type_expr IMap.t ;
+    ret: llvalue option ref ;
   }
 
-let dump_module md_file md pm =
-  ignore (PassManager.run_module md pm) 
-(*  ;     Llvm.dump_module md     *)
+let dump_module dump_as md_file md pm =
+  ignore (PassManager.run_module md pm) ;
+  if dump_as then
+    Llvm.dump_module md     
+  else ()
 (*  (match Llvm_analysis.verify_module md with
   | None -> ()
   | Some r -> failwith r) ;
@@ -323,39 +325,40 @@ let dump_module md_file md pm =
 
 
 let optims pm = 
-(* Got rid of instruction combination it bugs on shootout/bintree *)
-  add_constant_propagation pm ;
-  add_sccp pm ;
-  add_dead_store_elimination pm ;
-  add_aggressive_dce pm ;
-  add_scalar_repl_aggregation pm ;
-  add_ind_var_simplification pm ;
-(*  add_instruction_combination pm ;  *)
-  add_licm pm ;
-  add_loop_unswitch pm ;
-  add_loop_unroll pm ;
-  add_loop_rotation pm ;
-  add_loop_index_split pm ;
-  add_memory_to_register_promotion pm ; 
-  add_reassociation pm ;
-  add_jump_threading pm ;
-  add_cfg_simplification pm ;
-  add_gvn pm ;
-  add_memcpy_opt pm ;
-  add_loop_deletion pm ;
-  add_tail_call_elimination pm ;
-  add_lib_call_simplification pm ;
-  add_ind_var_simplification pm ;
-(*  add_instruction_combination pm  ; *)
-  add_constant_propagation pm ;
-  add_sccp pm ;
-  add_dead_store_elimination pm ;
-  add_aggressive_dce pm ;
-  add_scalar_repl_aggregation pm ;
-  add_ind_var_simplification pm 
-(* ; add_instruction_combination pm  *)
+  ()
+    ;  add_constant_propagation pm
+    ;  add_sccp pm
+    ;  add_dead_store_elimination pm
+    ;  add_aggressive_dce pm
+    ;  add_scalar_repl_aggregation pm
+    ;  add_ind_var_simplification pm
+(*    ;  add_instruction_combination pm  
+    ;  add_licm pm
+    ;  add_loop_unswitch pm
+    ;  add_loop_unroll pm
+    ;  add_loop_rotation pm
+    ;  add_loop_index_split pm
+    ;  add_memory_to_register_promotion pm 
+    ;  add_reassociation pm
+    ;  add_jump_threading pm
+    ;  add_cfg_simplification pm
+    ;  add_gvn pm
+    ;  add_memcpy_opt pm
+    ;  add_loop_deletion pm
+    ;  add_tail_call_elimination pm
+    ;  add_lib_call_simplification pm
+    ;  add_ind_var_simplification pm
+    ;  add_instruction_combination pm  
+    ;  add_constant_propagation pm
+    ;  add_sccp pm
+    ;  add_dead_store_elimination pm
+    ;  add_aggressive_dce pm
+    ;  add_scalar_repl_aggregation pm
+    ;  add_ind_var_simplification pm  
+    ; add_instruction_combination pm 
+*)
 
-let rec program root mdl = 
+let rec program root no_opt dump_as mdl = 
   let ctx = global_context() in
   let mds, t = Type.program ctx mdl in
   let origs = List.fold_left (
@@ -371,13 +374,13 @@ let rec program root mdl =
     match mdl with
     | [] -> exit 0
     | [x] -> 
-	let first = module_ mds ctx t origs x in
+	let first = module_ no_opt dump_as mds ctx t origs x in
 	let jit = ExecutionEngine.create first in
 	jit
   | x :: rl -> 
-      let first = module_ mds ctx t origs x in
+      let first = module_ no_opt dump_as mds ctx t origs x in
       let jit = ExecutionEngine.create first in
-      let mdl = List.rev_map (module_ mds ctx t origs) rl in
+      let mdl = List.rev_map (module_ no_opt dump_as mds ctx t origs) rl in
       List.iter (fun x -> ExecutionEngine.add_module x jit) mdl ;
       jit
   in
@@ -387,13 +390,13 @@ let rec program root mdl =
       let _ = ExecutionEngine.run_function f [||] jit in
       ()
   
-
-and module_ mds ctx t orig_types md = 
+and module_ no_opt dump_as mds ctx t orig_types md = 
   let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
   let (md, tys, fs, dl) = IMap.find md_id t in
-(*   Globals.module_ ctx md strings ;*)
   let pm = PassManager.create () in
-  optims pm ;    
+  if no_opt
+  then ()
+  else optims pm ;    
   let builder = builder ctx in
   let prims, internals = Pervasives.make ctx md in
   let env = { 
@@ -407,9 +410,10 @@ and module_ mds ctx t orig_types md =
     internals = internals ;
     bls = IMap.empty ;
     orig_types = orig_types ;
+    ret = ref None ;
   } in
   List.iter (def env) dl ;
-  dump_module (Ident.to_string md_id^".bc") md pm ;
+  dump_module dump_as (Ident.to_string md_id^".bc") md pm ;
   md
 
 and def env df = 
@@ -419,6 +423,12 @@ and function_ env df =
   let proto = IMap.find df.df_id env.fmap in
   let params = params proto in
   let params = Array.to_list params in
+  let ret, params = 
+    match params with
+    | ret :: params when List.length df.df_ret > Global.max_reg_return ->
+      Some ret, params 
+    | _ -> None, params in
+  env.ret := ret ;
   let ins = List.fold_left2 param env.fmap df.df_args params in 
   ignore (body env proto ins df.df_body) ;
   ()
@@ -458,7 +468,10 @@ and return env acc = function
       (match Array.of_list l with
       | [||] -> ignore (build_ret_void env.builder)
       | [|x|] -> ignore (build_ret x env.builder)
-      | t -> ignore (build_aggregate_ret t env.builder))
+      | t -> 
+	  (match !(env.ret) with
+	  | None -> ignore (build_aggregate_ret t env.builder)
+	  | Some rt -> ret_struct env rt t))
   | Jump lbl -> 
       let target = IMap.find lbl env.bls in
       ignore (build_br target env.builder) 
@@ -480,12 +493,19 @@ and return env acc = function
 	ignore (add_case sw v lbl)
      ) cases
 
+and ret_struct env st t =
+  Array.iteri (
+  fun i x ->
+      let ptr = build_struct_gep st i "" env.builder in 
+      let _ = build_store x ptr env.builder in
+      ()
+ ) t ;
+  ignore (build_ret_void env.builder)
+
 and build_args acc l = 
   match l with
-  | [Tprim Tunit, _] -> [||]
-  | _ ->
-      let l = List.map (fun (_, v) -> IMap.find v acc) l in
-      Array.of_list l
+  | [Tprim Tunit, _] -> []
+  | _ -> List.map (fun (_, v) -> IMap.find v acc) l
 
 and instructions bb env acc ret l = 
   match l with
@@ -495,7 +515,7 @@ and instructions bb env acc ret l =
       | Return (tail, vl2) when tail && fk = Ast.Lfun -> 
 	  let t = build_args acc l in
 	  let f = find_function env acc (fst f) (snd f) in
-	  let v = build_call f t "" env.builder in
+	  let v = build_call f (Array.of_list t) "" env.builder in
 	  set_tail_call true v ;
 	  set_instruction_call_conv ccfast v ;
 	  if vl2 = []
@@ -564,56 +584,56 @@ and find_function env acc fty f =
       set_function_call_conv cconv fdec ;
       fdec
 
-and apply env acc xl fk (fty, f) l = 
+and apply env acc xl fk (fty, f) argl = 
   let f = find_function env acc fty f in
-  let t = build_args acc l in
-  let v = build_call f t "" env.builder in
+  let argl = build_args acc argl in
+  let ret, argl = 
+    match fty with
+    | Tfun (_, _, tyl) when List.length tyl > Global.max_reg_return ->
+	let int = Type.type_prim env.ctx Llst.Tint in
+	let tty = List.map (fun _ -> int) tyl in
+	let ty = struct_type env.ctx (Array.of_list tty) in
+	let st = build_alloca ty "" env.builder in
+	Some st, st :: argl 
+    | _ -> None, argl in
+  let v = build_call f (Array.of_list argl) "" env.builder in
   let cconv = make_cconv fk in
   set_instruction_call_conv cconv v ;
   match xl with
   | [] -> acc
   | [_, x] -> IMap.add x v acc
-  | _ -> extract_values env acc xl v
+  | _ -> 
+      match ret with
+      | None -> extract_values env acc xl v
+      | Some v -> extract_struct env acc xl v
+
+and extract_struct env acc xl st =
+  let n = ref 0 in
+  List.fold_left (
+  fun acc (ty, x) ->
+    let ptr = build_struct_gep st !n "" env.builder in 
+    let nv = build_load ptr (Ident.to_string x) env.builder in
+    incr n ;
+    IMap.add x nv acc
+ ) acc xl
 
 and extract_values env acc xl v =
   let n = ref 0 in
   List.fold_left (
   fun acc (ty, x) -> 
-    let ty = Type.type_ env.mds env.types env.ctx ty in      
     let nv = build_extractvalue v !n (Ident.to_string x) env.builder in
-    let nv = build_bitcast nv ty "" env.builder in
     incr n ;
     IMap.add x nv acc
  ) acc xl
 
 and cast env xs ty1 ty2 y = 
-  match ty1, ty2 with
-  | Tprim Tstring, Tprim Tint -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      let v = build_inttoptr y ty "" env.builder in
-      let v = build_bitcast v ty xs env.builder in
-      v
-  | Tprim Tint, Tprim Tstring -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      let v = build_ptrtoint y ty "" env.builder in
-      let v = build_bitcast v ty xs env.builder in
-      v
-  | Tprim _, Tprim _ -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      build_sext_or_bitcast y ty xs env.builder
-  | Tprim Tint, _ -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      let v = build_ptrtoint y ty "" env.builder in
-      v
-  | _, Tprim Tint ->
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      let v = build_inttoptr y ty "" env.builder in
-      v
-  | _, _ -> 
-      let ty = Type.type_ env.mds env.types env.ctx ty1 in
-      let v = build_bitcast y ty xs env.builder in
-      v
-
+  let ty1 = Type.type_ env.mds env.types env.ctx ty1 in
+  let ty2 = Type.type_ env.mds env.types env.ctx ty2 in
+  match classify_type ty1, classify_type ty2 with
+  | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast y ty1 xs env.builder
+  | TypeKind.Pointer, _ -> build_inttoptr y ty1 "" env.builder
+  | _, TypeKind.Pointer -> build_ptrtoint y ty1 "" env.builder
+  | _, _ -> build_bitcast y ty1 xs env.builder
 
 and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
@@ -818,3 +838,4 @@ and const env ty = function
     set_linkage Linkage.Private g ;
     g
   | Echar c -> failwith "TODO constant char"
+

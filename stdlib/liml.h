@@ -5,7 +5,7 @@
 typedef int   lvalue ;
 
 #define V2F(x)   (*((float*)&(x)))
-#define F2V(x)   ((void*)(*((int*)&(x))))
+#define F2V(x)   ((lvalue)(*((int*)&(x))))
 
 #endif
 

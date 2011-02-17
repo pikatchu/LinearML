@@ -39,7 +39,7 @@ let vassert     = prim_value "assert"
 let eunit       = prim_value "()"
 
 let alength     = prim_array "length"
-let amake       = prim_array "make"
+let amake       = prim_array "init"
 let imake       = prim_array "imake"
 let fmake       = prim_array "fmake"
 let aget        = prim_array "get"

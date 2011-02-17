@@ -113,10 +113,16 @@ and equation bls ret acc eq =
       let rl1 = match b1.bl_ret with Lreturn l -> l | _ -> assert false in
       let rl2 = match b2.bl_ret with Lreturn l -> l | _ -> assert false in
       (match ret, rl with
-      | Return (_, retl), [] when is_tail retl idl -> (* this is a tail call *)
+      | Return (_, retl), [] when is_tail retl idl && false (* TODO Fix this *)-> (* this is a tail call *)
 	  let b2 = { b2 with bl_ret = Return (true, rl2) } in
 	  let acc = block bls acc b2 in
 	  let b1 = { b1 with bl_ret = Return (true, rl1) } in
+	  let acc = block bls acc b1 in
+	  acc, If (c, l1, l2), []
+      | Return (_, retl), [] when is_tail retl idl ->
+	  let b2 = { b2 with bl_ret = Return (false, rl2) } in
+	  let acc = block bls acc b2 in
+	  let b1 = { b1 with bl_ret = Return (false, rl1) } in
 	  let acc = block bls acc b1 in
 	  acc, If (c, l1, l2), []
       | _ ->
@@ -178,7 +184,7 @@ and equation bls ret acc eq =
 	    fun acc b ->
 	      let ret = 
 		match b.bl_ret with 
-		| Lreturn idl -> Return (true, idl) 
+		| Lreturn idl -> Return (false, idl)  (* TODO fix this *)
 		| _ -> assert false in
 	      let b = { b with bl_ret = ret } in
 	      block bls acc b

@@ -12,7 +12,6 @@ let push() = n := !n + 2
 let pop() = n := !n - 2
   
 let id x = o (Ident.debug x)
-let ty_id (p, x) = o (Ident.debug x)
 let label x = o (Ident.debug x) 
 let pstring x = o x
 
@@ -137,6 +136,8 @@ and equation (idl, e) =
   expr e ;
   nl()
 
+and ty_id (ty, x) = o "(" ; o (Ident.debug x) ; o ":" ; type_expr ty ; o ") " 
+
 and expr = function
   | Enull -> o "null"
   | Eis_null x -> o "null? " ; ty_id x
@@ -186,7 +187,7 @@ and value = function
 
 and binop = function 
   | Ast.Eeq -> o "eq"
-  | Ast.Ediff -> o "diff"
+  | Ast.Ediff -> o "diff" 
   | Ast.Elt -> o "lt"
   | Ast.Elte -> o "lte"
   | Ast.Egt -> o "gt"

@@ -3,37 +3,33 @@
 #include<malloc.h>
 
 typedef struct{
-  lvalue fst ;
-  lvalue snd ;
-} couple ;
+  lvalue l1 ;
+  lvalue l2 ;
+} cpl ;
 
-lvalue magic(){
-  return 0 ;
+cpl toto(int n){
+  cpl res ;
+  printf("%d\n", n) ;
+
+  res.l1 = n ; 
+  res.l2 = n ;
+  return res ;
 }
 
-lvalue liml_array_make(lvalue size__, lvalue call__, lvalue f, lvalue acc){
+lvalue liml_array_make(lvalue size__, lvalue call__, lvalue f){
   int size = (int) size__ ;
-  couple(*call)(lvalue, lvalue, lvalue) = 
-    (couple (*)(lvalue, lvalue, lvalue)) call__ ;
-  couple res ;
+  lvalue (*call)(lvalue, lvalue) = 
+    (lvalue (*)(lvalue, lvalue)) call__ ;
   int i ;
   int* t = malloc(sizeof(int) * (size + 1)) ;
   *t = size ;
   t++ ;
-
-  printf("here %p %p %p %p\n", size, call, f, acc) ; exit(0) ;
   
   for(i = 0 ; i < size ; i++){
-    couple c = call(f, acc, i) ;
-    printf("here\n") ;
-    acc = c.fst ;
-    t[i] = c.snd ;
+    t[i] = call(f, i) ; 
   }
 
-  res.fst = acc ;
-  res.snd = (lvalue)t ;
-
-  return 0 ;
+  return (lvalue)t ;
 }
 
 lvalue liml_array_ifmake(lvalue size, lvalue n){
@@ -53,15 +49,16 @@ lvalue liml_array_length(lvalue t__){
   return (lvalue)*(t-1) ; 
 }
 
-void liml_array_release(lvalue f__, lvalue t__){
+void liml_array_release(lvalue call__, lvalue f, lvalue t__){
   int* t = (int*) t__ ;
-  void(*f)(int) = (void(*)(int)) f__ ;
+  void(*call)(lvalue, lvalue) = (void(*)(lvalue,lvalue)) call__ ;
   int i ;
   int size = *(t-1) ;
 
   for(i = 0 ; i < size ; i++){
-    f(t[i]) ;
+    call(f, t[i]) ;
   }
+  free(t-1) ;
   return;
 }
 

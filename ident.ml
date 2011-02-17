@@ -24,7 +24,11 @@ let fresh x =
   trace := IMap.add res name !trace ;
   res
 
-let tmp () = make "__tmp"
+let tmp () = 
+  incr counter ;
+  let res = !counter in
+  trace := IMap.add res ("__tmp"^string_of_int res) !trace ;
+  res
 
 let compare x y = x - y
 

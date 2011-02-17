@@ -1,5 +1,7 @@
 open Utils
 
+let fresh x = Ident.make (Ident.to_string x)
+
 type id = Nast.id
 type pstring = Nast.pstring
 
@@ -27,7 +29,8 @@ and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
   | Tprim of type_prim
-  | Tvar of id 
+  | Targ of id
+  | Tvar of id
   | Tid of id
   | Tapply of id * type_expr_list
   | Tfun of Ast.fun_kind * type_expr_list * type_expr_list
@@ -83,20 +86,85 @@ and tuple = Pos.t * expr list
 
 and value = Nast.value
 
+module MakeArgs = struct
 
-module FreeVars = struct
 
-  let rec type_expr t (_, ty) = type_expr_ t ty
-
-  and type_expr_ t = function
+  let rec type_expr (p, ty) = p, type_expr_ ty
+  and type_expr_ = function
     | Tany
+    | Tprim _
+    | Tid _
+    | Targ _ as x -> x
+    | Tvar x -> Targ x
+    | Tapply (x, tyl) -> Tapply (x, type_expr_list tyl)
+    | Tfun (k, tyl1, tyl2) -> 
+	Tfun (k, type_expr_list tyl1, type_expr_list tyl2)
+
+  and type_expr_list (p, tyl) = p, List.map type_expr tyl
+
+end
+
+module TVars = struct
+
+  let rec type_expr env t (_, ty) = type_expr_ env t ty
+
+  and type_expr_ env t = function
+    | Tany
+    | Targ _
     | Tprim _ 
     | Tid _ -> t
-    | Tvar (_, x) -> ISet.add x t
-    | Tapply (_, (_, tyl)) -> 
-	List.fold_left type_expr t tyl
-    | Tfun (_, (_, tyl1), (_, tyl2)) -> 
-	let t = List.fold_left type_expr t tyl1 in
-	List.fold_left type_expr t tyl2
+    | Tvar (_, x) -> 
+	(try type_expr env t (IMap.find x env)
+	with Not_found -> ISet.add x t)
+    | Tapply (_, tyl) -> 
+	type_expr_list env t tyl
+    | Tfun (_, tyl1, tyl2) -> 
+	let t = type_expr_list env t tyl1 in
+	let t = type_expr_list env t tyl2 in
+	t
+
+  and type_expr_list env t (_, tyl) = 
+    List.fold_left (type_expr env) t tyl
+
+end
+
+
+module Instantiate = struct
+
+  let rec type_expr env t (p, ty) = 
+    p, type_expr_ env t ty
+
+  and type_expr_ env t = function
+    | Tany
+    | Tprim _ 
+    | Targ _
+    | Tid _ as x -> x
+    | Tvar (p, x) -> 
+	(try snd (type_expr env t (IMap.find x env))
+	with Not_found -> 
+	  Tvar (p, IMap.find x t)
+	)
+    | Tapply (x, tyl) -> Tapply (x, type_expr_list env t tyl)
+    | Tfun (k, tyl1, tyl2) -> 
+	let tyl1 = type_expr_list env t tyl1 in
+	let tyl2 = type_expr_list env t tyl2 in
+	Tfun (k, tyl1, tyl2)
+
+  and type_expr_list env t (p, tyl) = 
+    p, List.map (type_expr env t) tyl
+
+  let make_name x acc =
+    let name = fresh x in
+    IMap.add x name acc
+
+  let type_expr env ty = 
+    let tvars = TVars.type_expr env ISet.empty ty in
+    let instv = ISet.fold make_name tvars IMap.empty in
+    type_expr env instv ty
+
+  let type_expr_list env tyl = 
+    let tvars = TVars.type_expr_list env ISet.empty tyl in
+    let instv = ISet.fold make_name tvars IMap.empty in
+    type_expr_list env instv tyl
 
 end

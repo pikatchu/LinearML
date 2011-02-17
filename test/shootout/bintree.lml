@@ -90,7 +90,7 @@ module BinaryTree = struct
   val main: unit -> unit 
   let main() =
     let min_depth = 4 in
-    let max_depth = 20 in
+    let max_depth = 10 in
     let stretch_depth = max_depth + 1 in
     let c = check (make 0 stretch_depth) in
     Print.string "stretch tree of depth " ;

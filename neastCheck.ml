@@ -71,7 +71,7 @@ end = struct
   and type_expr_list env (_, tyl) = List.iter (type_expr env) tyl
   and type_expr env (pos, ty) = type_expr_ env ty
   and type_expr_ env = function
-    | Tany
+    | Tany  | Targ _
     | Tprim _   | Tvar _  -> ()
     | Tid (p, x) -> 
 	let pdef, arity = get x env in
@@ -211,6 +211,7 @@ module CheckExternal = struct
     | Tprim Tbool -> Error.invalid_extern_type p p
     | Tprim _ -> ()
     | Tvar _
+    | Targ _
     | Tid _ -> ()
     | Tapply (_, tyl) -> type_expr_list tyl
     | Tfun (Ast.Lfun, _, _) -> raise (Error p) 

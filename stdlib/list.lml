@@ -13,7 +13,7 @@ module List = struct
   val rev: 'a t -> 'a t
   let rev l = rev_append [] l
 
-  val append: 'a t * 'a t -> 'a t
+  val append: 'b t * 'b t -> 'b t
   let append l1 l2 = 
     match l1 with
     | [] -> l2

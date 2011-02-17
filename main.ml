@@ -16,15 +16,19 @@ let _ =
   let module_l = ref [] in
   let dump_llst = ref false in
   let dump_est = ref false in
+  let dump_as = ref false in
   let bounds = ref false in
   let no_stdlib = ref false in
+  let no_opt = ref false in
   let main = ref "" in
   Arg.parse 
     ["-main", Arg.String (fun s -> main := s), "specifies the root module";
      "-bounds", Arg.Unit (fun () -> bounds := true), "show unchecked bounds";
      "-llst", Arg.Unit (fun () -> dump_llst := true), "internal";
      "-est", Arg.Unit (fun () -> dump_est := true), "internal";
+     "-bc", Arg.Unit (fun () -> dump_as := true), "internal" ;
      "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), "excludes standard library";
+     "-no-opt", Arg.Unit (fun () -> no_opt := true), "disables optimizations" ;
    ]
     (fun x -> module_l := x :: !module_l)
     (Printf.sprintf "%s files" Sys.argv.(0)) ;
@@ -34,8 +38,8 @@ let _ =
   NastCheck.program nast ;
   let neast = NastExpand.program nast in
   NeastCheck.program neast ;
-  let tast = Typing.program neast in
-  let stast = StastOfTast.program tast in
+  let types, tast = Typing.program neast in
+  let stast = StastOfTast.program types tast in
   StastCheck.program stast ;
   RecordCheck.program stast ;
   LinearCheck.program stast ;
@@ -55,5 +59,5 @@ let _ =
   if !dump_llst then
     LlstPp.program llst ;       
 (*    let llst = LlstPullRet.program llst in     *)
-  ignore (Emit.program !main llst) 
+  ignore (Emit.program !main !no_opt !dump_as llst) 
 

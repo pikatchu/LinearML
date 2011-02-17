@@ -61,6 +61,7 @@ module VEnv = struct
       values: int IMap.t ;
       types: Llst.type_expr IMap.t ;
       is_rec: ISet.t ;
+      args: Llst.type_expr IMap.t ;
     }
 
   let empty = {
@@ -70,6 +71,7 @@ module VEnv = struct
     values = IMap.empty;
     types = IMap.empty ;
     is_rec = ISet.empty ;
+    args = IMap.empty ;
   }
 
   let add b x _ acc = 
@@ -273,9 +275,9 @@ and make_variant t tag (_, tyl) (types, acc) =
 
 and type_expr_list l = List.map type_expr l
 and type_expr = function
-  | Tany -> Llst.Tprim Llst.Tint
+  | Tany -> Llst.Tany
   | Tprim ty -> Llst.Tprim ty 
-  | Tvar _ -> Llst.Tprim Llst.Tint
+  | Tvar _ -> Llst.Tany
   | Tid x -> Llst.Tid x
   | Tapply (x, [ty]) when x = Naming.tobs -> type_expr ty
   | Tapply (x, _) -> Llst.Tid x
@@ -293,10 +295,14 @@ and ftype_expr = function
 and ftype_expr_list l = List.map ftype_expr l
 
 and def t df = 
+  let args = List.map (fun (ty, x) -> ftype_expr ty, x) df.df_args in
+  let targs = List.fold_left (
+    fun acc (ty, x) -> IMap.add x ty acc
+   ) IMap.empty args in
+  let t = { t with args = targs } in
   let headers = ExtractArgs.def t type_expr df in
   let body = List.fold_right (block t) df.df_body [] in
   let body = List.map (add_header headers) body in
-  let args = List.map (fun (ty, x) -> ftype_expr ty, x) df.df_args in
   { 
     Llst.df_id = df.df_id ;
     Llst.df_kind = df.df_kind ;
@@ -451,7 +457,8 @@ and equation t is_last ret (idl, e) acc =
       let acc = 
 	let acc, xl = 
 	  match ret with
-	  | Llst.Return (true, _) -> acc, idl
+	  | Llst.Return (true, _) ->
+	      acc, idl
 	  | _ -> 
 	      let xl = List.map (fun ty -> ty, Ident.tmp()) (ftype_expr_list rty) in
 	      let acc = add_casts idl xl acc in
@@ -493,7 +500,9 @@ and add_casts idl1 idl2 acc =
 
 and expr t idl = function
   | Enull -> Llst.Enull 
-  | Eid (xty, x) -> Llst.Eid (type_expr xty, x)
+  | Eid (xty, x) -> 
+      let ty = try IMap.find x t.args with Not_found -> type_expr xty in
+      Llst.Eid (ty, x)
   | Evalue x -> Llst.Evalue (value x)
   | Euop (uop, x) -> Llst.Euop (uop, ty_id x) 
   | Ebinop (bop, x1, x2) -> Llst.Ebinop (bop, ty_id x1, ty_id x2)
