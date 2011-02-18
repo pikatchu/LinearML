@@ -140,6 +140,8 @@ module RecordCheck = struct
       expr t e1 ; 
       tuple t e2 ; 
       tuple t e3
+  | Epartial (e1, e2) 
+  | Ecall (e1, e2) -> expr t e1 ; tuple t e2
   | Eapply (_, e) -> tuple t e
   | Ewith (e, fdl) -> 
       List.iter (field t) fdl ;

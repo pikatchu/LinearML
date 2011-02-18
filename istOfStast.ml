@@ -88,6 +88,7 @@ and expr_ bds p = function
   | Eseq (e1, e2) -> Ist.Eseq (expr bds e1, (tuple bds e2))
   | Eobs x -> Ist.Eid (id x)
   | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)
+  | Epartial (f, e) -> Ist.Epartial (expr bds f, tuple bds e)
 
 and field bds (x, e) = id x, (tuple bds e)
 and action bds (p, e) = pat p, (tuple bds e)

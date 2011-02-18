@@ -29,13 +29,13 @@ module Print = struct
     | Tany -> o "_"
     | Tprim ty -> type_prim o ty
     | Tvar x -> 	
-	(try type_expr env o (find (snd x) env)
+	(try type_expr env o (IMap.find (snd x) env)
 	with Not_found ->
 	  id o x)
     | Targ x -> 	
-	(try type_expr env o (find (snd x) env)
+	(try type_expr env o (IMap.find (snd x) env)
 	with Not_found ->
-	 o "`" ; id o x)
+	  id o x)
     | Tid x -> id o x
     | Tapply (x, tyl) -> 
 	type_expr_list env o tyl ;
@@ -139,6 +139,12 @@ module LocalUtils = struct
 
   let has_any ty = has_any false ty
 
+(* assumes the type is a function *)
+  let get_fkind = function
+    | _, Tapply (_, (_, [_, Tfun (k, _, _)])) -> k
+    | _, Tfun (k, _, _) -> k 
+    | _ -> assert false
+
 end
 open LocalUtils
 
@@ -164,8 +170,8 @@ module Type = struct
       let err = Error.Unify {
 	Error.pos1 = p1 ;
 	Error.pos2 = p2 ;
-	Error.print1 = Print.type_expr_list env l1 ;
-	Error.print2 = Print.type_expr_list env l2 ; 
+	Error.print1 = Print.type_expr_list !env l1 ;
+	Error.print2 = Print.type_expr_list !env l2 ; 
       } in
       raise (Error.Type (err :: err_l)) 
 
@@ -180,8 +186,8 @@ module Type = struct
       let err = Error.Unify {
 	Error.pos1 = fst ty1 ;
 	Error.pos2 = fst ty2 ;
-	Error.print1 = Print.type_expr env ty1 ;
-	Error.print2 = Print.type_expr env ty2 ;
+	Error.print1 = Print.type_expr !env ty1 ;
+	Error.print2 = Print.type_expr !env ty2 ;
       } in
       raise (Error.Type [err]) 
 
@@ -197,7 +203,7 @@ module Type = struct
     | _, Tany -> ty1
     | Tvar _, Tapply (y, _)
     | Tapply (y, _), Tvar _ when snd y = Naming.tobs -> 
-	unify_error env pty1 pty2
+	unify_error !env pty1 pty2
     | Tvar (_, x1), Tvar (_, x2) -> 
 	(try snd (unify_el env (find x1 env) pty2)
 	with Not_found -> 
@@ -225,7 +231,7 @@ module Type = struct
 	let tyl2 = unify_list_ env tyl2 tyl4 in
 	Tfun (k1, tyl1, tyl2)
     | Tid (_, x), Tid (_, y) when x = y -> ty2
-    | _ -> unify_error env pty1 pty2 
+    | _ -> unify_error !env pty1 pty2 
 
   let call env tyl1 tyl2 rty = 
     let _ = unify_list env tyl1 tyl2 in
@@ -423,7 +429,8 @@ and pat_variant is_obs env x args pty =
     else tyl 
   in let env, ((tyl, _) as args) = pat env args obs_tyl in
   let tyl = fst tyl, List.map get_true_type (snd tyl) in
-  let rty = apply env (fst pty) x tyl in
+  let fty = fst x, snd (find (snd x) env) in
+  let rty = apply env (fst pty) fty tyl in
   let rty = match rty with 
   | _, [_, x] -> fst pty, x
   | _ -> assert false in
@@ -443,11 +450,18 @@ and tuple_pos env (p, e) =
 and tuple_ env p = function
   | Eapply (x, el) ->
       let ((tyl, _) as el) = tuple env el in
-      let rty = apply env p x tyl in
+      let fty = fst x, snd (find (snd x) env) in
+      let rty = apply env p fty tyl in
       let fty = unobserve (find (snd x) env) in
-      let fk = match fty with _, Tfun (k, _, _) -> k | _ -> assert false in
+      let fk = get_fkind fty in
       let res = rty, Tast.Eapply (fk, fty, x, el) in
       res 
+  | Epartial (f, args) ->
+      let ((tyl, _) as args) = tuple env args in
+      let (fty, _) as f = expr env f in
+      let fty = unobserve fty in
+      let rty = partial env p fty tyl in
+      rty, Tast.Epartial (f, args)
   | Eif (e1, el1, el2) -> 
       let e1 = expr env e1 in
       check_bool e1 ;
@@ -555,6 +569,8 @@ and expr_ env (p, e) =
       let ty = p, (snd ty) in
       ((p, Tprim Tunit), Tast.Efree (ty, id))
   | Eapply (_, _)
+  | Epartial (_, _)
+  | Ecall (_, _)
   | Eif (_, _, _)
   | Elet (_, _, _)
   | Ematch (_, _)
@@ -569,7 +585,8 @@ and action env tyl (p, e) =
 and variant env (x, el) = 
   let p = Pos.btw (fst x) (fst el) in
   let ((tyl, _) as el) = tuple env el in
-  let rty = apply env p x tyl in
+  let fty = fst x, snd (find (snd x) env) in
+  let rty = apply env p fty tyl in
   match rty with 
   | _, [rty] -> (rty, (x, el))
   | _ -> assert false
@@ -613,8 +630,8 @@ and value = function
   | Nast.Echar _ -> Tchar
   | Nast.Estring _ -> Tstring
 
-and apply env p (fp, x) tyl =
-  let fty = Instantiate.type_expr !env (find x env) in
+and apply env p ((fp, _) as fty) tyl =
+  let fty = Instantiate.type_expr !env fty in
   match unobserve fty with
   | (_, Tfun (_, tyl1, tyl2)) ->
       let ty = Type.call env tyl1 tyl tyl2 in
@@ -622,3 +639,28 @@ and apply env p (fp, x) tyl =
       ty
   | p2, ty -> Error.expected_function fp (* TODO *)
 
+and partial env p fty argl = 
+  let fty = Instantiate.type_expr !env fty in
+  let tyl1, tyl2 = 
+    match fty with
+    | (fp, Tfun (fk, (_, tyl1), tyl2)) ->
+	make_partial env fk p tyl1 (snd argl) [] tyl2
+    | p2, ty -> Error.expected_function (fst fty) in
+  let ty = Type.call env tyl1 argl tyl2 in
+  let ty = p, List.map (fun (_, x) -> p, x) (snd ty) in
+  ty
+
+and make_partial env fk p tyl1 argl ret_abs tyl2 =
+  match tyl1, argl with
+  | [], [] -> Error.partial_is_total p
+  | (x1 :: _) as tyl1, [] -> 
+      let p1 = Pos.btw (fst x1) (fst (llast tyl1)) in
+      let return = p, Tfun (fk, (p1, tyl1), tyl2) in
+      let ret_abs = List.rev ret_abs in
+      let p_abs = Pos.btw (fst (List.hd ret_abs)) (fst (llast ret_abs)) in
+      (p_abs, ret_abs), (p, [return])
+  | [], _ -> Error.partial_too_many_args p
+  | x1 :: tyl1, x2 :: argl -> 
+      let _ = Type.unify_el env x1 x2 in
+      let ret_abs = x1 :: ret_abs in
+      make_partial env fk p tyl1 argl ret_abs tyl2

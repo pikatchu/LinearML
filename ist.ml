@@ -78,6 +78,7 @@ and expr_ =
   | Eset of expr * expr * expr
   | Eget of expr * expr
   | Eswap of expr * expr * expr
+  | Epartial of expr * tuple
 
 and value =
   | Eunit
@@ -86,5 +87,3 @@ and value =
   | Efloat of pstring
   | Echar of pstring
   | Estring of pstring
-
-

@@ -79,6 +79,7 @@ and expr_ =
   | Eseq of expr * expr
   | Eobs of id
   | Efree of id
+  | Epartial of expr list
   | Efun of Ast.fun_kind * (id * type_expr) option list * expr 
 
 and value = 

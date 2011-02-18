@@ -159,12 +159,16 @@ and expr_ t ty = function
       Stast.Eseq (expr t e1, e2)
   | Eobs x -> Stast.Eobs x
   | Efree (ty, x) ->
-      let ty = type_expr t ty in
-      (match snd ty with
+      let ty' = type_expr t ty in
+      (match snd ty' with
       | Stast.Tapply ((_, x), _)
       | Stast.Tid (_, x) when ISet.mem x t.Env.records -> ()
-      | _ -> raise Exit (* TODO Error.cannot_free (fst ty) (Typing.Print.type_expr ty) *)) ;
-      Stast.Efree (ty, x)
+      | _ -> Error.cannot_free (fst ty) (Typing.Print.type_expr t.Env.types ty)) ;
+      Stast.Efree (ty', x)
+  | Epartial (f, e) -> 
+      let f = expr t f in
+      let e = tuple t e in
+      Stast.Epartial (f, e)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

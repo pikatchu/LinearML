@@ -402,7 +402,7 @@ expr:
   }
 
 | LET pat EQ expr IN expr %prec let_ { 
-  Pos.btw $1 (fst $6), Elet ($2, $4, $6) 
+  (fst $6), Elet ($2, $4, $6) 
 }
 
 | MATCH expr WITH pat_action_l %prec match_ { 
@@ -434,25 +434,25 @@ expr:
   let fdl = [Eflocl ($3, $5)] in
   let t = fst $1, Eid $1 in
   let e = btw $1 $5, Ewith (t, fdl) in
-  btw $1 $7, Elet ((fst $1, Pid $1), e, $7)
+  fst $7, Elet ((fst $1, Pid $1), e, $7)
 }
 | ID DOT CSTR DOT ID ASSIGN expr SC expr { 
   let fdl = [Efextr ($3, $5, $7)] in
   let t = fst $1, Eid $1 in
   let e = btw $1 $7, Ewith (t, fdl) in
-  btw $1 $9, Elet ((fst $1, Pid $1), e, $9)
+  fst $9, Elet ((fst $1, Pid $1), e, $9)
 }
 | ID DOT LP expr RP ASSIGN expr SC expr {
   let f = $2, Eextern (($2, "Array"), ($2, "set")) in
   let arg1 = fst $1, Eid $1 in
   let args = [arg1 ; $4 ; $7] in
   let eset = Pos.btw (fst $1) $5, Eapply (f, args) in
-  btw $1 $9, Elet ((fst $1, Pid $1), eset, $9)
+  fst $9, Elet ((fst $1, Pid $1), eset, $9)
 }
 | NOT expr { Pos.btw $1 (fst $2), Euop (Enot, $2) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
-| ID COLEQ expr SC expr { btw $1 $5, Elet ((fst $1, Pid $1), $3, $5) }
+| ID COLEQ expr SC expr { fst $5, Elet ((fst $1, Pid $1), $3, $5) }
 | simpl_expr simpl_expr_l { 
   match $2 with 
   | [] -> $1 

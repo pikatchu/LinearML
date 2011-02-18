@@ -81,6 +81,8 @@ and expr_ =
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of id
+  | Epartial of expr * tuple
+  | Ecall of expr * tuple
 
 and tuple = Pos.t * expr list
 

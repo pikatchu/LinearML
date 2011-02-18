@@ -232,6 +232,7 @@ module CheckRestrict = struct
     | Eif (e1, e2, e3) -> expr e1 ; expr e2 ; expr e3
     | Efun (_, _, e) -> expr e
     | Eapply (e, el) -> expr e ; List.iter expr el 
+    | Epartial el -> List.iter expr el 
     | Ewith (e, fdl) -> expr e ; List.iter field fdl 
     | Eseq (e1, e2) -> expr e1 ; expr e2
     | Eobs _ 

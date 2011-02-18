@@ -419,6 +419,14 @@ and expr_ p = function
       let p, el = Pos.list el in
       let el = List.fold_right expr el [] in
       apply (simpl_expr e) (p, el)
+  | Epartial el -> 
+      let f = simpl_expr (List.hd el) in
+      let el = List.tl el in
+      if List.length el = 0
+      then Error.not_enough_args p ;
+      let p, el = Pos.list el in
+      let el = List.fold_right expr el [] in
+      Neast.Epartial (f, (p, el))
   | Ematch (e, pel) -> 
       let e = tuple e in
       let pel = List.map (fun (p, e) -> pat p, tuple e) pel in

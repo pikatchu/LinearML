@@ -235,6 +235,10 @@ let expected_function p =
   err ("Expected Function") ;
   exit 8
 
+let expected_closure p = 
+  pos p ;
+  err ("Expected a closure") ;
+  exit 2
 
 let recursive_type p =
   pos p ;
@@ -346,7 +350,17 @@ let obs_not_value p =
 
 let free_not_value p = 
   pos p ;
-  err "Bad usage of free" ;
+  err "free is not a value" ;
+  exit 2
+
+let call_not_value p = 
+  pos p ;
+  err "call is not a value" ;
+  exit 2
+
+let partial_not_value p = 
+  pos p ;
+  err "partial is not a value" ;
   exit 2
 
 let obs_not_allowed p = 
@@ -466,4 +480,24 @@ let bound_low p =
 let expected_prim_array p = 
   pos p ;
   err "Expected an array of primivite values" ;
+  exit 2
+
+let partial_is_total p = 
+  pos p ;
+  err "This application is total (<> partial)" ;
+  exit 2
+
+let partial_too_many_args p = 
+  pos p ;
+  err "Too many arguments for partial application";
+  exit 2
+
+let partial_missing_return p = 
+  pos p ;
+  err "missing return values" ;
+  exit 2
+
+let not_enough_args p = 
+  pos p ;
+  err "Not enough arguments";
   exit 2

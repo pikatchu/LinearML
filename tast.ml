@@ -49,6 +49,7 @@ and expr_ =
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
   | Eapply of Ast.fun_kind * type_expr * id * tuple
+  | Epartial of expr * tuple
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of type_expr * id

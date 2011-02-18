@@ -230,6 +230,9 @@ and expr_ t = function
       | Used p' -> Error.already_used p p'
       | _ -> t)
   | Efree (_, (p, x)) -> pvar t p x
+  | Epartial (f, e) ->
+      let t = expr t f in
+      tuple t e
   | Eapply (_, _, f, e) -> tuple t e 
   | Eseq (e1, e2) -> 
       let t = expr t e1 in

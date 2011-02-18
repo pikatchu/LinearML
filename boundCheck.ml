@@ -464,6 +464,10 @@ and expr_ env undef (p, ty) = function
 	  check_bound env p x e ; 
 	  [Value (eval env.values x) ; Value Undef]
       | _ -> undef)
+  | Epartial (f, el) -> 
+      let env, _ = tuple env el in
+      let env, _ = expr env f in
+      env, undef
   | Eapply (_, _, x, e) ->
       let env, e = tuple env e in
       env, if IMap.mem (snd x) env.privates

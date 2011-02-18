@@ -79,6 +79,7 @@ and expr_ =
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of type_expr * id
+  | Epartial of expr * tuple
 
 and value = Nast.value =
   | Eunit

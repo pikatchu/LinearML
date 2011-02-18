@@ -111,6 +111,11 @@ let soi = string_of_int
 
 let lone = function [x] -> x | _ -> raise Exit
 
+let rec llast = function
+  | [] -> assert false
+  | [x] -> x
+  | _ :: rl -> llast rl
+
 module L = struct
   
   let rec foldl f env acc l = 

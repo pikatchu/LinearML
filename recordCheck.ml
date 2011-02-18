@@ -226,9 +226,12 @@ and expr_ t pos ty = function
   | Eobs (_, x)
   | Eid (_, x) -> 
       (try IMap.find x t with Not_found -> type_expr_list (pos, ty))
-  | Evalue _ 
-  | Ebinop _
-  | Euop _ -> [P]
+  | Evalue _ -> [P]
+  | Ebinop (_, e1, e2) ->
+      let _ = expr t e1 in
+      let _ = expr t e2 in
+      [P]
+  | Euop (_, e) -> let _ = expr t e in [P]
   | Evariant _ -> List.map type_expr ty
   | Ematch (e, al) -> 
       let pl = List.map (fun (_, ((p, _), _)) -> p) al in
@@ -240,7 +243,8 @@ and expr_ t pos ty = function
       let ty1 = tuple t e1 in
       let t = pat t p ty1 in
       tuple t e2
-  | Eif (_, e1, e2) -> 
+  | Eif (c, e1, e2) ->
+      let _ = expr t c in
       let e1 = fst (fst e1), tuple t e1 in
       let e2 = fst (fst e2), tuple t e2 in
       snd (Unify.unify_types e1 e2)
@@ -248,6 +252,10 @@ and expr_ t pos ty = function
       (try free t (fst x) (IMap.find (snd x) t)
       with Not_found -> ()) ;
       [P]
+  | Epartial (f, e) ->
+      let _ = expr t f in
+      let _ = tuple t e in
+      List.map type_expr ty
   | Eapply (_, _, _, e) -> 
       check_type pos (tuple t e) ;
       List.map type_expr ty 

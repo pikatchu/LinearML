@@ -37,6 +37,7 @@ let malloc      = prim_value "malloc"
 let ifree       = prim_value "free"
 let vassert     = prim_value "assert"
 let eunit       = prim_value "()"
+let call        = prim_value "call"
 
 let alength     = prim_array "length"
 let amake       = prim_array "init"
@@ -585,6 +586,8 @@ and expr_ genv env p e =
   | Echar x -> Nast.Evalue (Nast.Echar x)
   | Estring x -> Nast.Evalue (Nast.Estring x)
   | Eid (p, "free") -> Error.free_not_value p
+  | Eid (p, "partial") -> Error.partial_not_value p
+  | Eid (p, "call") -> Error.call_not_value p
   | Eid x -> Nast.Eid (Env.value env x)
   | Ebinop (bop, e1, e2) -> Nast.Ebinop (bop, k e1, k e2)
   | Euop (uop, e) -> Nast.Euop (uop, k e)
@@ -607,6 +610,8 @@ and expr_ genv env p e =
       | [_, Eid y] -> Nast.Efree (Env.value env y)
       | (p, _) :: _ -> Error.free_expects_id p
       | _ -> assert false)
+  | Eapply ((_, Eid (_, "partial")), el) ->
+      Nast.Epartial (List.map k el)
   | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
   | Erecord fdl -> Nast.Erecord (List.map (field genv env) fdl)
   | Efield (e, v) -> Nast.Efield (k e, Env.field env v)
