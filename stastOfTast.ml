@@ -5,24 +5,34 @@ open Tast
 module ObsCheck = struct
   open Stast
 
-  let rec type_expr p (_, ty) = type_expr_ p ty
-  and type_expr_ p = function
+  let rec type_expr weak p (_, ty) = type_expr_ weak p ty
+  and type_expr_ weak p = function
   | Tany 
   | Tprim _
   | Tvar _
   | Tid _ -> ()
+  | Tapply ((_, x), (_, [_, Tfun _])) when x = Naming.tobs && weak -> ()
   | Tapply ((_, x), _) when x = Naming.tobs -> 
       Error.obs_not_allowed p
-  | Tapply (_, tyl) -> type_expr_list p tyl
-  | Tfun (_, _, tyl) -> type_expr_list p tyl
+  | Tapply (_, tyl) -> type_expr_list weak p tyl
+  | Tfun (_, _, tyl) -> type_expr_list weak p tyl
 
-  and type_expr_list p (_, tyl) = 
-    List.iter (type_expr p) tyl
+  and type_expr_list weak p (_, tyl) = 
+    List.iter (type_expr weak p) tyl
 
-  let tuple ((p, _) as tyl,_) = type_expr_list p tyl
-  let expr ((p, _) as ty, _) = type_expr p ty
-  let type_expr_list ((p, _) as tyl) = type_expr_list p tyl 
+  let tuple ((p, _) as tyl, _) = type_expr_list false p tyl
+  let wtuple ((p, _) as tyl, _) = type_expr_list true p tyl
+  let expr ((p, _) as ty, _) = type_expr false p ty
+  let type_expr_list ((p, _) as tyl) = type_expr_list false p tyl 
   
+  let rec only_obs_list tyl = List.iter only_obs (snd tyl)
+  and only_obs (p, ty) =
+    match ty with
+    | Tany 
+    | Tprim _ -> ()
+    | Tapply ((_, x), _) when x = Naming.tobs -> ()
+    | _ -> Error.partial_not_obs p
+
 end
 
 module Env = struct
@@ -140,7 +150,7 @@ and expr_ t ty = function
   | Elet (p, e1, e2) -> 
       let e1 = tuple t e1 in
       let e2 = tuple t e2 in
-      ObsCheck.tuple e1 ;
+      ObsCheck.wtuple e1 ; 
       ObsCheck.tuple e2 ;
       Stast.Elet (pat t p, e1, e2)
   | Eif (e1, e2, e3) -> 
@@ -168,7 +178,12 @@ and expr_ t ty = function
   | Epartial (f, e) -> 
       let f = expr t f in
       let e = tuple t e in
+      ObsCheck.only_obs_list (fst e) ;
       Stast.Epartial (f, e)
+  | Efun (k, idl, e) -> 
+      let idl = List.map (pat_el t) idl in
+      let e = tuple t e in
+      Stast.Efun (k, idl, e)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in

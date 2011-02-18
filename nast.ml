@@ -80,7 +80,7 @@ and expr_ =
   | Eobs of id
   | Efree of id
   | Epartial of expr list
-  | Efun of Ast.fun_kind * (id * type_expr) option list * expr 
+  | Efun of Ast.fun_kind * (pat * type_expr) list * expr 
 
 and value = 
   | Eunit

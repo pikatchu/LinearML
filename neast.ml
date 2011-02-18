@@ -83,6 +83,7 @@ and expr_ =
   | Efree of id
   | Epartial of expr * tuple
   | Ecall of expr * tuple
+  | Efun of Ast.fun_kind * (pat_el * type_expr) list * tuple
 
 and tuple = Pos.t * expr list
 

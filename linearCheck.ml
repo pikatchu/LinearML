@@ -237,6 +237,22 @@ and expr_ t = function
   | Eseq (e1, e2) -> 
       let t = expr t e1 in
       tuple t e2
+  | Efun (_, p, e) ->
+      let t = List.fold_left pat_el t p in
+      let sub = tuple t e in
+      IMap.iter (
+      fun x ty -> 
+	match ty with
+	| Used p -> 
+	    (try match IMap.find x t with
+	    | Used _ -> ()
+	    | Fresh (p, _) -> 
+		Error.esc_scope p (fst (fst e))
+	    | _ -> ()
+	    with Not_found -> ())
+	| _ -> ()
+     ) sub ;
+      t	
 
 and fields t = function
   | Efield ((_, Eid (p, x)), _) ->

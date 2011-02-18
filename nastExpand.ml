@@ -414,7 +414,10 @@ and expr_ p = function
       let e2 = tuple e2 in
       let e3 = tuple e3 in
       Neast.Eif (e1, e2, e3)
-  | Efun _ -> assert false
+  | Efun (k, il, el) -> 
+      let il = List.map (fun (x, ty) -> pat_pos x, type_expr ty) il in
+      let el = tuple el in
+      Neast.Efun (k, il, el)
   | Eapply (e, el) -> 
       let p, el = Pos.list el in
       let el = List.fold_right expr el [] in

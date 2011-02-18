@@ -298,8 +298,9 @@ simpl_pat_l:
 | simpl_pat simpl_pat_l { $1 :: $2 }
 
 simpl_tpat:
-| UNDERSCORE { None }
-| LP ID COLON type_expr RP { Some ($2, $4) }
+| UNDERSCORE { ($1, Pany), ($1, Tany) }
+| LP RP { let p = Pos.btw $1 $2 in (p, Pany), (p, Tid (p, "unit")) }
+| LP ID COLON type_expr RP { (fst $2, Pid $2), $4 }
 
 simpl_tpat_l:
 | simpl_tpat { [$1] }

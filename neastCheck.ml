@@ -152,6 +152,7 @@ module RecordCheck = struct
   | Eobs _ -> ()
   | Evalue _ -> ()
   | Eid _ -> ()
+  | Efun (_, _, e) -> tuple t e
 
   and field t (_, e) = tuple t e
   and action t (_, e) = tuple t e

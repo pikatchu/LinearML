@@ -373,6 +373,18 @@ let forgot_free p =
   err "This variable must be used or freed" ;
   exit 2
 
+let esc_scope p1 p2 =
+  pos p2 ;
+  err "You can only capture observed values within a closure" ;
+  pos p1 ;
+  err "This value is not observed" ;
+  exit 2
+
+let partial_not_obs p =
+  pos p ;
+  err "Partial can only be used with observed value" ;
+  exit 2
+
 let forgot_free_branch p1 p2 = 
   pos p1 ;
   err "You forgot to free this variable" ;

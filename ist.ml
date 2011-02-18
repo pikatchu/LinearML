@@ -79,6 +79,7 @@ and expr_ =
   | Eget of expr * expr
   | Eswap of expr * expr * expr
   | Epartial of expr * tuple
+  | Efun of Ast.fun_kind * pat_el list * tuple
 
 and value =
   | Eunit

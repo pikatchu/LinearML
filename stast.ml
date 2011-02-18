@@ -80,6 +80,7 @@ and expr_ =
   | Eobs of id
   | Efree of type_expr * id
   | Epartial of expr * tuple
+  | Efun of Ast.fun_kind * pat_el list * tuple
 
 and value = Nast.value =
   | Eunit

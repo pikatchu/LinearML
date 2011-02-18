@@ -192,8 +192,7 @@ module Type = struct
       raise (Error.Type [err]) 
 
   and unify_el_ env ((p1, _) as ty1) ((p2, _) as ty2) = 
-    match snd ty1, snd ty2 with
-    | _ -> p2, unify_el_prim env ty1 ty2
+    p2, unify_el_prim env ty1 ty2
 
   and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
@@ -201,6 +200,10 @@ module Type = struct
     | Targ (_, x), Targ (_, y) when x = y -> ty2
     | Tany, _ -> ty2
     | _, Tany -> ty1
+    | Tprim _, Tapply (y, (_, [ty2])) when snd y = Naming.tobs -> 
+	snd (unify_el env pty1 ty2)
+    | Tapply (y, (_, [ty1])), Tprim _ when snd y = Naming.tobs -> 
+	snd (unify_el env ty1 pty2)
     | Tvar _, Tapply (y, _)
     | Tapply (y, _), Tvar _ when snd y = Naming.tobs -> 
 	unify_error !env pty1 pty2
@@ -568,6 +571,16 @@ and expr_ env (p, e) =
       let ty = find x env in
       let ty = p, (snd ty) in
       ((p, Tprim Tunit), Tast.Efree (ty, id))
+  | Efun (k, idl, e) ->
+      let idl = List.map (fun (x, ty) -> snd (pat_el env x ty)) idl in
+      let args = List.map fst idl in
+      let (rty, _) as e = tuple env e in
+      let first = fst (List.hd args) in
+      let last = fst (llast args) in
+      let args = Pos.btw first last, args in
+      let fty = p, Tfun (k, args, rty) in
+      let fty = p, Tapply ((p, Naming.tobs), (p, [fty])) in
+      fty, Tast.Efun (k, idl, e)
   | Eapply (_, _)
   | Epartial (_, _)
   | Ecall (_, _)
@@ -648,7 +661,7 @@ and partial env p fty argl =
     | p2, ty -> Error.expected_function (fst fty) in
   let ty = Type.call env tyl1 argl tyl2 in
   let ty = p, List.map (fun (_, x) -> p, x) (snd ty) in
-  ty
+  p, [p, Tapply ((p, Naming.tobs), ty)]
 
 and make_partial env fk p tyl1 argl ret_abs tyl2 =
   match tyl1, argl with
