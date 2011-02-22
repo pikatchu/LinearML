@@ -6,7 +6,8 @@ module IMap = Map.Make (struct
   let compare = (-) 
 end)
 
-let counter = ref 0
+let foo = 0
+let counter = ref 1
 let trace = ref IMap.empty  
 let origin = ref IMap.empty
 let origin_id = ref IMap.empty

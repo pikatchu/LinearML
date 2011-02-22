@@ -480,7 +480,7 @@ and tfield genv ll env (id, ty) =
 and def_name env = function
   | Dlet ((p, _) as x, pl, e) -> 
       (match Env.try_value env x with
-      | None -> Error.type_missing p
+      | None -> Error.type_missing p 
       | Some id -> Env.add_value env x id)
   | _ -> env
 
@@ -567,6 +567,14 @@ and pat_field_ genv env = function
       let env, p = pat genv env p in
       env, Nast.PField (Env.field env id, p)
 
+and tpat_list genv env idl =
+  let env = Env.fresh_tvars env in
+  let tyl = List.map snd idl in
+  let tvarl = List.map FreeVars.type_expr tyl in
+  let tvarl = List.flatten tvarl in
+  let env, tvarl = lfold Env.new_tvar env tvarl in
+  lfold (tpat genv) env idl
+
 and tpat genv env (x, ty) =
   let env, x = pat genv env x in
   let ll = Ast.Private in
@@ -599,15 +607,10 @@ and expr_ genv env p e =
       let e2 = expr genv env e2 in
       Nast.Elet (p, k e1, e2)
   | Eif (e1, e2, e3) -> Nast.Eif (k e1, k e2, k e3) 
-  | Efun (fk, idl, e) -> 
-      let env = Env.fresh_tvars env in
-      let tyl = List.map snd idl in
-      let tvarl = List.map FreeVars.type_expr tyl in
-      let tvarl = List.flatten tvarl in
-      let env, tvarl = lfold Env.new_tvar env tvarl in
-      let env, idl = lfold (tpat genv) env idl in
+  | Efun (fk, obs, idl, e) -> 
+      let env, idl = tpat_list genv env idl in
       let e = expr genv env e in
-      Nast.Efun (fk, idl, e)
+      Nast.Efun (fk, obs, idl, e)
   | Eapply ((_, Eid (_, "free")), e) ->
       (match e with
       | [_, Eid y] -> Nast.Efree (Env.value env y)

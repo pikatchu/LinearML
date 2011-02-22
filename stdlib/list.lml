@@ -25,7 +25,7 @@ module List = struct
     | [] -> []
     | x :: rl -> append x (flatten rl)
 
-  val map: ('a -> 'b) * 'a t -> 'b t
+  val map: ('a -> 'b) obs * 'a t -> 'b t
   let map f l = 
     match l with
     | [] -> []

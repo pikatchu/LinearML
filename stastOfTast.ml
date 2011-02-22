@@ -2,39 +2,6 @@ open Utils
 open Tast
 
 
-module ObsCheck = struct
-  open Stast
-
-  let rec type_expr weak p (_, ty) = type_expr_ weak p ty
-  and type_expr_ weak p = function
-  | Tany 
-  | Tprim _
-  | Tvar _
-  | Tid _ -> ()
-  | Tapply ((_, x), (_, [_, Tfun _])) when x = Naming.tobs && weak -> ()
-  | Tapply ((_, x), _) when x = Naming.tobs -> 
-      Error.obs_not_allowed p
-  | Tapply (_, tyl) -> type_expr_list weak p tyl
-  | Tfun (_, _, tyl) -> type_expr_list weak p tyl
-
-  and type_expr_list weak p (_, tyl) = 
-    List.iter (type_expr weak p) tyl
-
-  let tuple ((p, _) as tyl, _) = type_expr_list false p tyl
-  let wtuple ((p, _) as tyl, _) = type_expr_list true p tyl
-  let expr ((p, _) as ty, _) = type_expr false p ty
-  let type_expr_list ((p, _) as tyl) = type_expr_list false p tyl 
-  
-  let rec only_obs_list tyl = List.iter only_obs (snd tyl)
-  and only_obs (p, ty) =
-    match ty with
-    | Tany 
-    | Tprim _ -> ()
-    | Tapply ((_, x), _) when x = Naming.tobs -> ()
-    | _ -> Error.partial_not_obs p
-
-end
-
 module Env = struct
 
   type t = {
@@ -80,7 +47,6 @@ and tdef t td = {
 
 and id_type t (x, tyl) = 
   let tyl = type_expr_list t tyl in
-  ObsCheck.type_expr_list tyl ;
   x, tyl
 
 and type_expr t (p, ty) = p, type_expr_ t ty
@@ -102,7 +68,6 @@ and type_expr_list t (p, tyl) = p, List.map (type_expr t) tyl
 
 and def t (k, x, p, e) = 
   let e = tuple t e in
-  ObsCheck.tuple e ;
   k, x, pat t p, e
 
 and pat t (tyl, ptl) = type_expr_list t tyl, List.map (pat_tuple t) ptl
@@ -135,7 +100,6 @@ and expr_ t ty = function
   | Evalue v -> Stast.Evalue v
   | Evariant (id, e) -> 
       let e = tuple t e in
-      ObsCheck.tuple e ;
       Stast.Evariant (id, e)
   | Ebinop (bop, e1, e2) -> 
       Stast.Ebinop (bop, expr t e1, expr t e2)
@@ -143,21 +107,16 @@ and expr_ t ty = function
   | Erecord (itl) -> Stast.Erecord (List.map (id_tuple t) itl)
   | Ewith (e, itl) -> 
       let e = expr t e in
-      ObsCheck.expr e ;
       Stast.Ewith (e, List.map (id_tuple t) itl)
   | Efield (e, x) -> Stast.Efield (expr t e, x)
   | Ematch (e, pal) -> Stast.Ematch (tuple t e, List.map (action t) pal)
   | Elet (p, e1, e2) -> 
       let e1 = tuple t e1 in
       let e2 = tuple t e2 in
-      ObsCheck.wtuple e1 ; 
-      ObsCheck.tuple e2 ;
       Stast.Elet (pat t p, e1, e2)
   | Eif (e1, e2, e3) -> 
       let e2 = tuple t e2 in
       let e3 = tuple t e3 in
-      ObsCheck.tuple e2 ;
-      ObsCheck.tuple e3 ;
       Stast.Eif (expr t e1, e2, e3)
   | Eapply (fk, fty, x, e) ->
       let fty = type_expr t fty in
@@ -165,7 +124,6 @@ and expr_ t ty = function
       Stast.Eapply (fk, fty, x, e)
   | Eseq (e1, e2) -> 
       let e2 = tuple t e2 in
-      ObsCheck.tuple e2 ;
       Stast.Eseq (expr t e1, e2)
   | Eobs x -> Stast.Eobs x
   | Efree (ty, x) ->
@@ -178,19 +136,16 @@ and expr_ t ty = function
   | Epartial (f, e) -> 
       let f = expr t f in
       let e = tuple t e in
-      ObsCheck.only_obs_list (fst e) ;
       Stast.Epartial (f, e)
-  | Efun (k, idl, e) -> 
+  | Efun (k, obs, idl, e) -> 
       let idl = List.map (pat_el t) idl in
       let e = tuple t e in
-      Stast.Efun (k, idl, e)
+      Stast.Efun (k, obs, idl, e)
 
 and id_tuple t (x, e) = 
   let e = tuple t e in
-  ObsCheck.tuple e ;
   x, e
 
 and action t (p, a) = 
   let e = tuple t a in
-  ObsCheck.tuple e ;
   pat t p, e

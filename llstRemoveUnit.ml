@@ -142,6 +142,7 @@ and equation t (xl, e) acc =
   let e = expr t e in
   if xl = []
   then match e with
+  | Epartial _
   | Eapply _ | Efree _ -> (xl, e) :: acc
   | _ -> acc
   else (xl, e) :: acc
@@ -166,6 +167,7 @@ and expr t = function
   | Eget (x, y) -> Eget (ty_id t x, ty_id t y)
   | Eset (x, y, z) -> Eset (ty_id t x, ty_id t y, ty_id t z)
   | Eswap (x, y, z) -> Eswap (ty_id t x, ty_id t y, ty_id t z)
+  | Epartial (f, xl) -> Epartial (f, ty_idl t xl)
 
 and field t (n, x) acc = 
   let x = ty_id t x in

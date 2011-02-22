@@ -55,6 +55,7 @@ module Usage = struct
 	acc
     | Euop (_, x) -> ty_id acc x 
     | Efield (x, _) -> ty_id acc x 
+    | Epartial (_, l)
     | Eapply (_, _, _, l) -> ty_idl acc l
     | Etuple (v, l) -> 
 	let acc = match v with None -> acc | Some v -> ty_id acc v in

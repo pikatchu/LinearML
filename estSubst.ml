@@ -53,6 +53,7 @@ and expr t = function
   | Eget (a, i) -> Eget (ty_id t a, ty_id t i)
   | Eset (a, i, v) -> Eset (ty_id t a, ty_id t i, ty_id t v)
   | Eswap (a, i, v) -> Eswap (ty_id t a, ty_id t i, ty_id t v)
+  | Epartial (f, e) -> Epartial (ty_id t f, ty_idl t e)
 
 and fields t l = List.map (field t) l
 and field t (fd, e) = fd, ty_idl t e

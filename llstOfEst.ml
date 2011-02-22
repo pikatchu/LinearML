@@ -522,6 +522,7 @@ and expr t idl = function
   | Eget (a, i) -> Llst.Eget (ty_id a, ty_id i)
   | Eset (a, i, v) -> Llst.Eset (ty_id a, ty_id i, ty_id v)
   | Eswap (a, i, v) -> Llst.Eswap (ty_id a, ty_id i, ty_id v)
+  | Epartial (f, el) -> Llst.Epartial (ty_id f, ty_idl el)
 
 and fields t fdl = 
   let tag x = IMap.find x t.values in

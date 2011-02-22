@@ -1,281 +1,581 @@
 open Utils
 open Stast
 
-module FreeVars = struct
-  let rec pat t (_, ptl) = List.fold_left pat_tuple t ptl 
-  and pat_tuple t (_, pel) = List.fold_left pat_el t pel 
-  and pat_el t (_, p) = pat_ t p 
-  and pat_ t = function
-    | Pany -> t
-    | Pid (p, x) -> IMap.add x p t 
-    | Pvalue _ -> t
-    | Pvariant (_, p) -> pat t p 
-    | Precord pfl -> List.fold_left pat_field t pfl 
-    | Pas ((pos, x), p) -> 
-	let t = IMap.add x pos t in 
-	pat t p
 
-  and pat_field t (_, pf) =
-    match pf with
-    | PFany -> t
-    | PFid (p, x) -> IMap.add x p t 
-    | PField (_, p) -> pat t p 
-end
+module Type = struct
 
-module OnlyUnderscores = struct
+  type t =
+    | Safe
+    | Fresh
+    | Var          of Pos.t * Ident.t
+    | Used         of Pos.t
+    | As           of Ident.t * status
+    | As_root      of Ident.t
+    | As_child     of Ident.t
+    | Obs          of ISet.t
 
-  let rec pat t (_, ptl) = List.fold_left pat_tuple t ptl 
-  and pat_tuple t (_, pel) = List.fold_left pat_el t pel 
-  and pat_el t (_, p) = pat_ t p 
-  and pat_ t = function
-    | Pany -> t
-    | Pid _ -> false
-    | Pvalue _ -> t
-    | Pvariant (_, p) -> pat t p 
-    | Precord pfl -> List.fold_left pat_field t pfl 
-    | Pas _ -> false
+  and kind = Child | Root
+  and status = Pos.t option * Pos.t IMap.t * int
 
-  and pat_field t (_, pf) =
-    match pf with
-    | PFany -> t
-    | PFid (p, x) -> false
-    | PField (_, p) -> pat t p 
+  let print = function
+    | Safe -> o "Safe"
+    | Fresh -> o "Fresh"
+    | Var(_, x) -> o "Var " ; o (Ident.debug x)
+    | Used _ -> o "Used"
+    | As _ -> o "As"
+    | As_root _ -> o "As_root"
+    | As_child _ -> o "As_child"
+    | Obs s -> o "Obs " ; ISet.iter (fun x -> o (Ident.to_string x)  ; o " ") s 
+  
+  let rec fresh_ty (p, ty) = fresh_ty_ p ty
+  and fresh_ty_ p = function
+    | Tprim _ -> Safe
+    | Tapply ((_, x), _) when x = Naming.tobs -> Safe
+    | _ -> Fresh
+	  
+  and fresh tyl = List.map fresh_ty tyl
 
-  let pat p = pat true p
-end
+  let rec unify ty1 ty2 = List.map2 unify_ ty1 ty2
+  and unify_ ty1 ty2 = 
+    match ty1, ty2 with
+    | Obs x1, Obs x2 -> Obs (ISet.union x1 x2)
+    | ty, _ -> ty
 
-type ty = 
-  | Prim
-  | Obs of Pos.t
-  | Fresh of Pos.t * Pos.t IMap.t
-  | Used of Pos.t
+  let unify_list l =
+    let hd, tl = hdtl l in
+    List.fold_left unify hd tl
 
-let debug = function
-  | Prim -> o "Prim"
-  | Obs _ -> o "Obs"
-  | Fresh _ -> o "Fresh"
-  | Used _ -> o "Used"
-
-let get x t = try IMap.find x t with Not_found -> Prim
-
-let is_obs = function
-  | _, Tapply ((_, x), _) when x = Naming.tobs -> true
-  | _ -> false
-
-let check_used_ids t p ids = 
-  IMap.iter (
-  fun x p ->
-    match get x t with
-    | Prim | Obs _
-    | Used _ -> ()
-    | _ -> Error.forgot_free p
- ) ids
-
-let union t t' = IMap.fold IMap.add t' t
-
-let rec unify_map t m1 m2 = 
-  unify_map_ t (unify_map_ t m1 m2) m1
-
-and unify_map_ t (p1, m1) (p2, m2) =
-  p1, IMap.fold (fun x t2 acc -> try
-    let t1 = IMap.find x m1 in
-    IMap.add x (unify t (p1, t1) (p2, t2)) acc
+  let pany_table = Hashtbl.create 23 
+  let make_pany p = 
+    try Hashtbl.find pany_table p
     with Not_found -> 
-      match t2 with
-      | Prim
-      | Obs _
-      | Used _ -> acc
-      | Fresh (p, ids) when IMap.is_empty ids -> Error.forgot_free p
-      | Fresh (p, ids) -> 
-	  check_used_ids t p ids ; acc) m2 m1
+      let id = (p, Ident.tmp()) in
+      Hashtbl.add pany_table p id ;
+      id
+	  
+end
 
-and unify t (p1, ty1) (p2, ty2) = 
-  match ty1, ty2 with
-  | Prim, Prim -> Prim
-  | Obs p, Obs _ -> Obs p
-  | Fresh (p, ids1), Fresh (_, ids2) -> 
-      let ids = IMap.fold IMap.add ids1 ids2 in
-      Fresh (p, ids)
-  | Used p, Used _ -> Used p
-  | Used _, Fresh (p, ids) -> 
-      if IMap.is_empty ids
-      then Error.forgot_free_branch p p2
-      else Used p
-  | Fresh (p, ids), Used _ -> 
-      if IMap.is_empty ids
-      then Error.forgot_free_branch p p1
-      else Used p
-  | Used p, Obs p2 -> Error.pos p ; Error.pos p2 ; assert false
-  | ty1, ty2 -> debug ty1 ; debug ty2 ; failwith "TODO ERROR unify"
+module PatVars = struct
 
-let check_observable ty = 
-  if is_obs ty
-  then ()
-  else Error.underscore_obs (fst ty)
+  type t = Pos.t IMap.t
 
-let check_alive t = 
-  IMap.iter (
-  fun x ty ->
+  let rec pat (_, p) acc = 
+    List.fold_right pat_tuple p acc
+
+  and pat_tuple (_, pel) acc = 
+    List.fold_right pat_el pel acc
+
+  and pat_el (ty, p) acc = pat_ (fst ty) p acc
+  and pat_ pos p acc = 
+    match p with
+    | Pany -> pat_ pos (Pid (Type.make_pany pos)) acc
+    | Pid (p, x) -> IMap.add x p acc
+    | Pvalue _ -> acc
+    | Pvariant (_, p) -> pat p acc
+    | Precord pfl -> List.fold_right (pat_field pos) pfl acc
+    | Pas ((p, x), _) -> IMap.add x p acc
+
+  and pat_field pos (_, pf) acc = pat_field_ pos pf acc
+  and pat_field_ pos pf acc = 
+    match pf with
+    | PFany -> pat_field_ pos (PFid (Type.make_pany pos)) acc
+    | PFid (p, x) -> IMap.add x p acc
+    | PField (_, p) -> pat p acc
+
+end
+
+
+module Env: sig
+
+  type t
+
+  val empty: t
+  val print: t -> unit
+  val get: Ident.t -> t -> Type.t
+  val bind: id -> Type.t -> t -> t
+  val use: id -> t -> t * Type.t list
+  val obs: id -> Type.t -> t -> t * Type.t list
+  val partial: t -> Type.t list -> t * Type.t list
+  val closure: t -> ISet.t -> t * Type.t list
+  val push: t -> t
+  val merge: t -> (Pos.t * t) list -> t
+  val pop: t -> unit
+
+end = struct
+  open Type
+
+  type t = Type.t IMap.t list
+
+
+  let print t = 
+    IMap.iter (
+    fun x ty -> 
+      Ident.print x; Type.print ty ; o "\n" ;
+   ) (List.hd t)
+
+      
+  let empty = [IMap.empty]
+
+  let add x ty = function
+    | env :: rl ->
+	IMap.add x ty env :: rl
+    | _ -> assert false 
+
+  let rec get x = function
+    | [] -> Safe
+    | env :: rl ->
+	(try IMap.find x env with Not_found -> get x rl)
+
+  let rec mem x = function
+    | [] -> false
+    | env :: rl ->
+	IMap.mem x env || mem x rl
+
+  let bind (p, x) ty t = 
     match ty with
-    | Fresh (p, _) -> Error.unused_variable p
+    | Fresh
+    | Used _ -> add x (Var (p, x)) t
+    | ty -> add x ty t
+
+  let rec obs (p, x) ty t = 
+    match ty with
+    | Used p' -> Error.already_used p p'
+    | Var (p, y) -> 
+	t, [Obs (ISet.singleton y)]
+    | Obs y -> 
+	t, [Obs (ISet.add x y)]
+    | As (ptr, (left, right, _)) ->
+	(match left with
+	| None -> ()
+	| Some p' -> Error.already_used p p') ;
+	IMap.iter (fun _ p' -> Error.already_used p p') right ;
+	obs (p, x) (get ptr t) t
+    | As_root ptr -> obs (p, x) (get ptr t) t
+    | As_child ptr -> obs (p, x) (get ptr t) t
+    | x -> t, [x]
+
+  let rec use (p, x) t = 
+    let ty = get x t in
+    match ty with
+    | Safe
+    | Fresh -> t, [ty] 
+    | Var (_, x) -> 
+	let t = add x (Used p) t in
+	t, [Used p]
+    | Used p' -> Error.already_used p p'
+    | As_root ptr -> use_root p x ptr t
+    | As_child ptr -> use_child p x ptr t
+    | As _ -> assert false
+    | Obs vset -> 
+	ISet.iter (fun x -> use_obs p x t (get x t)) vset ;
+	t, [ty]
+
+  and use_root p x ptr t =
+    match get ptr t with
+    | As (up, (left, right, size)) -> 
+	IMap.iter (fun x p' -> Error.already_used p p') right ;	  
+	(match left with
+	| None -> ()
+	| Some p' -> Error.already_used p p') ;
+	let left = Some p in
+	let t = add ptr (As (up, (left, right, size))) t in
+	use (p, up) t
+    | _ -> assert false
+
+  and use_child p x ptr t =
+    match get ptr t with
+    | As (up, (left, right, size)) ->
+	(match left with
+	| None -> ()
+	| Some p' -> Error.already_used p p') ;
+	(try 
+	  let p' = IMap.find x right in
+	  Error.already_used p p' 
+	with Not_found ->
+	  let right = IMap.add x p right in
+	  let size = size - 1 in
+	  let ty = As (up, (left, right, size)) in
+	  let t = add ptr ty t in
+	  if size = 0
+	  then use (p, up) t
+	  else t, [ty]
+	)
+    | Used p' -> Error.already_used p p'
+    | _ -> use (p, x) t
+
+  and use_obs p x t v = 
+    match v with
+    | Used p' -> Error.already_used p p'
+    | As (root, (left, right, _)) ->
+	(match left with
+	| None -> ()
+	| Some p' -> Error.already_used p p') ;
+	IMap.iter (fun _ p' -> Error.already_used p p') right ;
+	()
+    | As_root ptr
+    | As_child ptr -> use_obs p x t (get ptr t)
     | _ -> ()
- ) t
+    
 
-module IsPrim = struct
+  let push t = IMap.empty :: t
+	
+  let check_left (_, sub1) (bp, sub2) = 
+    IMap.iter (
+    fun x p -> 
+      if IMap.mem x sub2 
+      then ()
+      else (Error.forgot_branch p bp)
+   ) sub1
 
-  let rec tuple (_, tpl) = List.iter tuple_pos tpl
-  and tuple_pos (_, x) = expr_ x 
-  and expr (_, x) = expr_ x
-  and expr_ = function
-  | Evalue _
-  | Evariant (_, (_, [])) -> ()
-  | _ -> raise Exit
+  let check sub1 sub2 = 
+    check_left sub1 sub2 ;
+    check_left sub2 sub1 ;
+    sub1
 
-  let tuple tpl = try tuple tpl ; true with Exit -> false
+  let just_used t (bp, sub) = 
+    bp, IMap.fold (
+    fun x ty acc ->
+      match ty with
+      | Used xp when mem x t -> 
+	  IMap.add x xp acc
+      | _ -> acc
+   ) sub IMap.empty
+
+  let check_unused (_, env) =
+    IMap.iter (
+    fun x ty ->
+      match ty with
+      | Var (p, _) -> Error.unused_variable p
+      | _ -> ()
+   ) env
+
+  let merge t subl = 
+    let subl = List.map (fun (p, t) -> p, List.hd t) subl in
+    List.iter check_unused subl ;
+    let subl = List.map (just_used t) subl in
+    let hd, tl = hdtl subl in
+    let subl = List.fold_left check hd tl in 
+    IMap.fold (fun x p -> add x (Used p)) (snd subl) t
+
+  let pop t = 
+    check_unused (Pos.none, List.hd t)
+
+  let closure t vset = 
+    let env, t = hdtl t in
+    t, [Obs vset]
+
+  let partial t vl = 
+    t, [Obs (
+    List.fold_left (
+    fun acc v ->
+      match v with
+      | Obs s -> ISet.union acc s 
+      | _ -> acc
+   ) ISet.empty vl 
+   )]
+
+end
+
+module FreeObsVars = struct
+
+  let rec id obs env t (p, x) = 
+    match Env.get x env with
+    | Type.As_root x -> id obs env t (p, x)
+    | Type.As_child x -> id obs env t (p, x)
+    | Type.As (x, _) -> id obs env t (p, x)
+    | Type.Var _ when obs -> Error.esc_scope p
+    | Type.Obs s -> ISet.add x (ISet.union s t)
+    | _ -> t
+
+  let obs_id obs env t (p, x) =
+    let t = id false env t (p, x) in
+    ISet.add x t
+  
+  let rec pat obs t (_, ptl) = 
+    List.fold_left (pat_tuple obs) t ptl
+
+  and pat_tuple obs t (_, pel) = 
+    List.fold_left (pat_el obs) t pel
+
+  and pat_el obs t (_, p) = pat_ obs t p
+
+  and pat_ obs t = function
+    | Pany		-> t
+    | Pid (_, x)	-> ISet.remove x t 
+    | Pvalue _		-> t
+    | Pvariant (_, p)	-> pat obs t p 
+    | Precord pfl	-> List.fold_left (pat_field obs) t pfl
+    | Pas ((_, x), p)	-> ISet.remove x (pat obs t p)
+
+  and pat_field obs t (_, pf) = pat_field_ obs t pf
+
+  and pat_field_ obs t = function
+    | PFany		-> t
+    | PFid (_, x)	-> ISet.remove x t
+    | PField (_, p)	-> pat obs t p
+
+  and tuple obs env t (_, tpl) = 
+    List.fold_left (tuple_pos obs env) t tpl
+    
+  and tuple_pos obs env t (_, e) = expr_ obs env t e
+  and expr obs env t (_, e) = expr_ obs env t e
+  and expr_ obs env t = function
+    | Eid x -> id obs env t x
+    | Evalue _ -> t
+    | Evariant (_, e) -> tuple obs env t e
+    | Ebinop (_, e1, e2) -> 
+	let t = expr obs env t e1 in
+	let t = expr obs env t e2 in
+	t
+    | Euop (_, e) -> expr obs env t e
+    | Erecord fdl -> List.fold_left (field obs env) t fdl 
+    | Ewith (e, fdl) -> 
+	let t = List.fold_left (field obs env) t fdl in
+	expr obs env t e
+    | Efield (e, _) -> expr obs env t e
+    | Ematch (e, al) -> 
+	let t = List.fold_left (action obs env) t al in
+	tuple obs env t e
+    | Elet (p, e1, e2) ->
+	let t = tuple obs env t e1 in
+	let t = pat obs t p in
+	let t = tuple obs env t e2 in
+	t
+    | Eif (c, e1, e2) ->
+	let t = tuple obs env t e1 in
+	let t = tuple obs env t e2 in
+	expr obs env t c
+    | Eapply (_, _, x, e) -> 
+	let t = id obs env t x in
+	let t = tuple obs env t e in
+	t
+    | Eseq (e1, e2) -> 
+	let t = expr obs env t e1 in
+	let t = tuple obs env t e2 in
+	t
+    | Eobs x -> obs_id obs env t x
+    | Efree _ -> t
+    | Epartial (f, e) -> 
+	let t = expr obs env t f in
+	let t = tuple obs env t e in
+	t
+    | Efun (_, _, pel, e) ->
+	let t = tuple obs env t e in
+	let t = List.fold_left (pat_el obs) t pel in
+	t
+
+  and field obs env t (_, e) = tuple obs env t e
+
+  and action obs env t (p, e) =
+    let t = tuple obs env t e in
+    let t = pat obs t p in
+    t
 
 end
 
 let rec program mdl = 
-  List.iter (module_ IMap.empty) mdl
+  List.iter module_ mdl
 
-and module_ t md = 
-  List.iter (def t) md.md_defs
+and module_ md = 
+  List.iter def md.md_defs
+  
+and def (_, _, ((tyl, _) as p), e) = 
+  let vl = Type.fresh (snd tyl) in
+  let t = pat Env.empty p vl in
+  let t, _ = tuple t e in
+  Env.pop t ;
+  Hashtbl.clear Type.pany_table
 
-and def t (_, _, p, e) = 
-  let t = pat t p in
-  let t = tuple t e in
-  check_alive t
+and pat t (_, pl) vl = 
+  List.fold_left (pat_tuple vl) t pl
 
-and pat t (_, ptl) = List.fold_left pat_tuple t ptl 
-and pat_tuple t (_, pel) = List.fold_left pat_el t pel
-and pat_el t (ty, p) = pat_ t ty p
-and pat_ t ty = function
-  | Pany -> 
-      (match ty with
-      | _, Tprim _ -> t
-      | _ -> check_observable ty ; t)
-  | Pid (p, x) when is_obs ty -> IMap.add x (Obs p) t
-  | Pid (p, x) -> 
-      (match snd ty with
-      | Tid _ | Tapply _ | Tvar _ -> IMap.add x (Fresh (p, IMap.empty)) t
-      | _ -> IMap.add x Prim t)
+and pat_tuple vl t (_, pel) = 
+  List.fold_left2 pat_el t pel vl 
+
+and pat_el t (ty, p) v = 
+  pat_ t ty p v
+
+and pat_ t ty p v = 
+  match p with
+  | Pany -> Env.bind (Type.make_pany (fst ty)) v t
+  | Pid id -> Env.bind id v t
   | Pvalue _ -> t
-  | Pvariant (_, p) -> pat t p
-  | Precord pfl -> List.fold_left (pat_field ty) t pfl 
-  | Pas ((pos, x), p) when is_obs ty -> 
-      let t = IMap.add x (Obs pos) t in
-      pat t p
-  | Pas ((pos, x), p) -> 
-      if OnlyUnderscores.pat p 
-      then 
-	let t = IMap.add x (Fresh (pos, IMap.empty)) t in
-	t
-      else
-	let fv = FreeVars.pat IMap.empty p in
-	let t = IMap.add x (Fresh (pos, fv)) t in
-	pat t p
+  | Pvariant (_, p) -> pat t p (make_value v p)
+  | Precord pfl -> List.fold_left (pat_field (fst ty) v) t pfl
+  | Pas (x, p) ->
+      (match v with
+      | Type.Safe | Type.Obs _ ->
+	  pat t p (make_value v p)
+      | _ ->
+	  let up = Ident.fresh (snd x) in
+	  let t = Env.bind (fst x, up) v t in
+ 	  let vars = PatVars.pat p IMap.empty in 
+	  let size = IMap.fold (fun _ _ acc -> 1+acc) vars 0 in
+	  let left = None in
+	  let right = IMap.empty in
+	  let ptr = Ident.tmp() in
+	  let t = Env.bind (fst x, ptr) (Type.As (up, (left, right, size))) t in
+	  let t = Env.bind x (Type.As_root ptr) t in
+	  let v = Type.As_child ptr in
+	  pat t p (make_value v p))
 
-and pat_field ty t (p, pf) = pat_field_ ty t p pf
-and pat_field_ ty t p = function
-  | PFany -> (match ty with
-    | _, Tprim _ -> t
-    | _ -> check_observable (p, snd ty) ; t)
-  | PFid (p, x) -> IMap.add x (Fresh (p, IMap.empty)) t 
-  | PField (_, p) -> pat t p
+and pat_field pos v t (_, pf) = pat_field_ pos v t pf
+and pat_field_ pos v t = function
+  | PFany _ -> Env.bind (Type.make_pany pos) v t
+  | PFid x -> Env.bind x v t
+  | PField (_, p) -> pat t p (make_value v p)
 
-and tuple t (_, tpl) = 
-(* This for more flexibility *)
-(* without this special case we wouldn't be able to write set t 0 (get !t ..) *)
-  let ids, others = List.partition (function (_, Eid _) -> true | _ -> false) tpl in
-  let t = List.fold_left tuple_pos t others in
-  List.fold_left tuple_pos t ids
+and make_value v ((_, tyl), pl) =
+  let v = 
+    match v with
+    | Type.Safe 
+    | Type.As_child _
+    | Type.Obs _ as v -> v
+    | _ -> Type.Fresh
+  in
+  List.map (fun _ -> v) tyl
 
-and tuple_pos t (_, e) = expr_ t e
-and expr t (_, e) = expr_ t e
-and expr_ t = function
-  | Eid (p, x) -> pvar t p x
-  | Evalue _ -> t
-  | Evariant (_, e) -> tuple t e
-  | Ebinop (_, e1, e2) -> expr (expr t e1) e2 
-  | Euop (_, e) -> expr t e
-  | Erecord fdl -> List.fold_left field t fdl 
-  | Ewith (e, x :: rl) -> 
-      let t = List.fold_left field (field t x) rl in
-      expr t e
-  | Ewith _ -> assert false
-  | Efield (_, _) as e -> fields t e
-  | Ematch (e, al) -> 
-      let t = tuple t e in
-      let tl = List.map (action t) al in
-      let tl = List.map2 (fun (_, ((p, _), _)) x -> (p, x)) al tl in
-      let t' = List.fold_left (unify_map t) (List.hd tl) (List.tl tl) in
-      let t' = snd t' in
-      union t t'
-  | Elet (_, e1, e2) when IsPrim.tuple e1 -> tuple t e2
-  | Elet (p, e1, e2) -> 
-      let t = tuple t e1 in
-      let t = pat t p in
-      tuple t e2
-  | Eif (e1, e2, e3) -> 
-      let t = expr t e1 in
-      let t' = tuple t e2 in
-      let t' = fst (fst e2), t' in
-      let t'' = tuple t e3 in
-      let t'' = fst (fst e3), t'' in
-      let sub = unify_map t t' t'' in
-      let sub = snd sub in
-      union t sub
-  | Eobs (p, x) -> 
-      (match get x t with
-      | Used p' -> Error.already_used p p'
-      | _ -> t)
-  | Efree (_, (p, x)) -> pvar t p x
-  | Epartial (f, e) ->
-      let t = expr t f in
-      tuple t e
-  | Eapply (_, _, f, e) -> tuple t e 
-  | Eseq (e1, e2) -> 
-      let t = expr t e1 in
-      tuple t e2
-  | Efun (_, p, e) ->
-      let t = List.fold_left pat_el t p in
-      let sub = tuple t e in
-      IMap.iter (
-      fun x ty -> 
-	match ty with
-	| Used p -> 
-	    (try match IMap.find x t with
-	    | Used _ -> ()
-	    | Fresh (p, _) -> 
-		Error.esc_scope p (fst (fst e))
-	    | _ -> ()
-	    with Not_found -> ())
+
+and tuple t (_, tpl) =   
+  (* Everything but identifiers *)
+  let t, pvl1 = 
+    List.fold_right (
+    fun (tyl, e) (t, acc) ->
+      match e with
+      | Eid _ -> t, (fst tyl, []) :: acc
+      | _ ->
+	  let t, vl = expr_ t (snd tyl) e in
+	  t, (fst tyl, vl) :: acc
+   ) tpl (t, []) in
+  (* Identifiers *)
+  let t, pvl2 = 
+    List.fold_right (
+    fun (tyl, e) (t, acc) ->
+      match e with
+      | Eid _ -> 
+	  let t, vl = expr_ t (snd tyl) e in
+	  t, (fst tyl, vl) :: acc  
+      | _ -> t, (fst tyl, []) :: acc
+   ) tpl (t, []) in
+  let pvl = 
+    List.fold_right2 (
+    fun x y acc ->
+      match x, y with
+      | (_, []), v 
+      | v, _ -> v :: acc
+   ) pvl1 pvl2 [] in
+  List.iter (
+    fun (p, vl) ->
+      List.iter (
+      function 
+	| Type.Obs v -> 
+	    ISet.iter (
+	    fun x ->
+	      ignore (Env.obs (p, x) (Env.get x t) t)
+	   ) v
 	| _ -> ()
-     ) sub ;
-      t	
+     ) vl
+ ) pvl ;
+  let vl = List.flatten (List.map snd pvl) in
+  t, vl 
 
-and fields t = function
-  | Efield ((_, Eid (p, x)), _) ->
-      (match get x t with
-      | Used p' -> Error.already_used p p'
-      | _ -> t)
-  | Efield ((_, e), _) -> fields t e
-  | _ -> assert false
+and expr t (ty, e) = expr_ t [ty] e
+and expr_ t ty = function
+  | Eid x -> 
+      Env.use x t
+  | Evalue _ -> 
+      t, [Type.Safe]
+  | Evariant (x, e) -> 
+      let t, _ = tuple t e in
+      t, Type.fresh ty
+  | Ebinop (_, e1, e2) -> 
+      let t, _ = expr t e1 in
+      let t, _ = expr t e2 in
+      t, [Type.Safe]
+  | Euop (_, e) -> 
+      let t, _ = expr t e in
+      t, [Type.Safe]
+  | Erecord fdl -> 
+      let t = List.fold_left field t fdl in
+      t, Type.fresh ty
+  | Ewith (e, fdl) ->  (* TODO check no obs ? *)
+      let t, _ = expr t e in
+      let t = List.fold_left field t fdl in
+      t, Type.fresh ty
+  | Efield (e, _) -> failwith "TODO field"
+  | Ematch (e, al) -> 
+      let t, vl = tuple t e in
+      let t' = Env.push t in
+      let tall = List.map (action t' vl) al in
+      let tl, all = List.split tall in
+      let t = Env.merge t tl in
+      t, Type.unify_list all
+  | Elet (p, e1, e2) ->
+      let t, v = tuple t e1 in
+      let t = pat t p v in
+      let t, v = tuple t e2 in
+      t, v
+  | Eif (c, e1, e2) -> 
+      let t, _ = expr t c in
+      let t' = Env.push t in
+      let t1, vl1 = tuple t' e1 in
+      let t2, vl2 = tuple t' e2 in
+      Env.print t1 ;
+      Env.print t2 ;
+      let pos1 = fst (fst e1) in
+      let pos2 = fst (fst e2) in
+      let t = Env.merge t [pos1, t1; pos2, t2] in
+      t, Type.unify vl1 vl2
+  | Eapply (_, _, x, e) ->
+      let t, _ = Env.use x t in
+      let t, vl = tuple t e in
+      apply ty t e vl
+  | Eseq (e1, e2) ->
+      let t, _ = expr t e1 in
+      tuple t e2
+  | Eobs x -> 
+      Env.obs x (Env.get (snd x) t) t
+  | Efree (_, x) -> 
+      Env.use x t 
+  | Epartial (f, e) -> 
+      let t, _ = expr t f in
+      let t, vl = tuple t e in
+      let t, vl = Env.partial t vl in
+      t, vl
+  | Efun (_, obs, p, e) as e_ -> 
+      let vset = FreeObsVars.expr_ obs t ISet.empty e_ in
+      let t = Env.push t in
+      let tyl = List.map fst p in
+      let tyl = List.fold_right (fun x acc -> x :: acc) tyl [] in
+      let t = List.fold_left2 pat_el t p (Type.fresh tyl) in
+      let t, _ = tuple t e in
+      if obs 
+      then Env.closure t vset
+      else t, [Type.Fresh]
 
-and pvar t p x = 
-  match get x t with
-  | Prim
-  | Obs _ -> t
-  | Used p' -> Error.already_used p p'
-  | Fresh (_, ids) -> 
-      let t = 
-	IMap.fold (
-	fun x _ t ->
-	  pvar t p x
-       ) ids t in
-      IMap.add x (Used p) t
+and field t (_, e) =
+  let t, _ = tuple t e in
+  t
 
-and field t (_, e) = tuple t e
-and action t (p, e) = 
-  let t = pat t p in
-  tuple t e
+and action t vl (p, a) =
+  let t = pat t p vl in
+  let pos = fst (fst a) in
+  let t, vl = tuple t a in
+  (pos, t), vl
+
+and apply tyl t x vl = 
+  let obs_set = List.fold_left (
+    fun acc v ->
+      match v with
+      | Type.Obs s -> ISet.union acc s
+      | _ -> acc
+   ) ISet.empty vl in
+  if ISet.is_empty obs_set
+  then t, Type.fresh tyl
+  else 
+    t, List.map (
+    function 
+      | _, Tprim _ -> Type.Safe
+      | _, Tapply ((_, x), _) when x = Naming.tobs -> Type.Obs obs_set
+      | _ -> Type.Fresh
+   ) tyl

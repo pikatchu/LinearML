@@ -47,6 +47,8 @@ and type_prim = Nast.type_prim =
 
 and def = id * pat * tuple
 
+and tpat = pat_el * type_expr
+
 and pat = Pos.t * pat_tuple list
 and pat_tuple = Pos.t * pat_el list
 and pat_el = Pos.t * pat_
@@ -83,29 +85,11 @@ and expr_ =
   | Efree of id
   | Epartial of expr * tuple
   | Ecall of expr * tuple
-  | Efun of Ast.fun_kind * (pat_el * type_expr) list * tuple
+  | Efun of Ast.fun_kind * bool * tpat list * tuple
 
 and tuple = Pos.t * expr list
 
 and value = Nast.value
-
-module MakeArgs = struct
-
-
-  let rec type_expr (p, ty) = p, type_expr_ ty
-  and type_expr_ = function
-    | Tany
-    | Tprim _
-    | Tid _
-    | Targ _ as x -> x
-    | Tvar x -> Targ x
-    | Tapply (x, tyl) -> Tapply (x, type_expr_list tyl)
-    | Tfun (k, tyl1, tyl2) -> 
-	Tfun (k, type_expr_list tyl1, type_expr_list tyl2)
-
-  and type_expr_list (p, tyl) = p, List.map type_expr tyl
-
-end
 
 module TVars = struct
 
@@ -130,7 +114,6 @@ module TVars = struct
     List.fold_left (type_expr env) t tyl
 
 end
-
 
 module Instantiate = struct
 

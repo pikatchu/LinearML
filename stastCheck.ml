@@ -378,7 +378,7 @@ and expr_ t pos = function
       tuple t e2 ;
       tuple t e3
   | Epartial (e1, e2) -> expr t e1 ; tuple t e2
-  | Efun (_, _, e) -> tuple t e
+  | Efun (_, _, _, e) -> tuple t e
   | Eapply (_, _, _, e) -> tuple t e
   | Eseq (e1, e2) -> 
       expr t e1 ;

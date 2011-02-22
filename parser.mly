@@ -411,8 +411,8 @@ expr:
   Pos.btw $1 (pat_end l), Ematch ($2, l) 
   }
 
-| FUN simpl_tpat_l ARROW expr { Pos.btw $1 (fst $4), Efun (Ast.Lfun, $2, $4) }
-| FUN simpl_tpat_l SARROW expr { Pos.btw $1 (fst $4), Efun (Ast.Cfun, $2, $4) }
+| em_opt FUN simpl_tpat_l ARROW expr { Pos.btw $2 (fst $5), Efun (Ast.Lfun, $1, $3, $5) }
+| em_opt FUN simpl_tpat_l SARROW expr { Pos.btw $2 (fst $5), Efun (Ast.Cfun, $1, $3, $5) }
 | MINUS expr %prec unary_minus { Pos.btw $1 (fst $2), Euop (Euminus, $2) }
 | expr EQ expr { btw $1 $3, Ebinop (Eeq, $1, $3) }
 | expr DIFF expr { btw $1 $3, Ebinop (Ediff, $1, $3) }
@@ -460,5 +460,6 @@ expr:
   | _ -> Pos.btw (fst $1) (last $2), Eapply ($1, $2)
 }
 
-
-
+em_opt: 
+| EM { true }
+| { false }

@@ -152,7 +152,7 @@ module RecordCheck = struct
   | Eobs _ -> ()
   | Evalue _ -> ()
   | Eid _ -> ()
-  | Efun (_, _, e) -> tuple t e
+  | Efun (_, _, _, e) -> tuple t e
 
   and field t (_, e) = tuple t e
   and action t (_, e) = tuple t e
@@ -247,8 +247,7 @@ module CheckSig = struct
   and module_ md = 
     let acc = List.fold_left decl empty md.md_decls in
     let acc = List.fold_left def acc md.md_defs in
-    IMap.iter (check_val acc) acc.vals ;
-    IMap.iter (check_let acc) acc.lets
+    IMap.iter (check_val acc) acc.vals
 
   and decl acc = function
     | Dval (_, x, _, ext) -> 
@@ -283,11 +282,6 @@ module CheckSig = struct
     if IMap.mem x acc.lets 
     then ()
     else Error.fun_no_def p
-
-  and check_let acc x p =
-    if IMap.mem x acc.vals
-    then ()
-    else Error.fun_no_decl p
 
 end
 

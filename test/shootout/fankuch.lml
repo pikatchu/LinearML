@@ -7,7 +7,7 @@ module Fankuch = struct
 
 (** Flip the front [n] pancakes of [a]. *)
   val private flip: int * int array * int * int -> int array
-  let flip n a i iend= 
+  let flip n a i iend = 
     if i > iend
     then a
     else begin

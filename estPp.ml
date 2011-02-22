@@ -147,6 +147,7 @@ and expr = function
   | Eget (x, y) -> o "get " ; id (snd x) ; id (snd y)
   | Eset (x, y, z) -> o "set " ; id (snd x) ; id (snd y) ; id (snd z)
   | Eswap (x, y, z) -> o "swap " ; id (snd x) ; id (snd y) ; id (snd z)
+  | Epartial (f, e) -> o "partial " ; id (snd f) ; ty_idl e
 
 and field (x, l) = id x ; o " = " ; idl l
 and action (p, e) = 

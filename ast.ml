@@ -46,6 +46,7 @@ and extern_def =
   | Ext_Asm of pstring (* Assembly function *)
   | Ext_I (* Internally defined *)
 
+and tpat = pat * type_expr
 and pat = Pos.t * pat_
 and pat_ = 
   | Punit
@@ -92,7 +93,7 @@ and expr_ =
   | Ematch of expr * (pat * expr) list
   | Elet of pat * expr * expr
   | Eif of expr * expr * expr 
-  | Efun of fun_kind * (pat * type_expr) list * expr 
+  | Efun of fun_kind * bool * tpat list * expr 
   | Eapply of expr * expr list
   | Ewith of expr * field list
   | Eseq of expr * expr

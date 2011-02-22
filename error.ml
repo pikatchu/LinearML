@@ -370,14 +370,13 @@ let obs_not_allowed p =
 
 let forgot_free p = 
   pos p ;
-  err "This variable must be used or freed" ;
+  err "This resource must be used or freed" ;
   exit 2
 
-let esc_scope p1 p2 =
-  pos p2 ;
+let esc_scope p =
+  pos p ;
+  err "This resource is not observed" ;
   err "You can only capture observed values within a closure" ;
-  pos p1 ;
-  err "This value is not observed" ;
   exit 2
 
 let partial_not_obs p =
@@ -385,21 +384,21 @@ let partial_not_obs p =
   err "Partial can only be used with observed value" ;
   exit 2
 
-let forgot_free_branch p1 p2 = 
+let forgot_branch p1 p2 = 
   pos p1 ;
-  err "You forgot to free this variable" ;
+  err "You forgot to use this resource" ;
   pos p2 ;
   err "In this branch" ;
   exit 2
   
 let unused_variable p = 
   pos p ;
-  err ("This variable hasn't been used or freed") ;
+  err ("This ressource hasn't been used") ;
   exit 2
 
 let already_used p p' = 
   pos p ;
-  err "This variable has already been used" ;
+  err "This resource has already been used" ;
   pos p' ;
   err "Previous usage was here" ;
   exit 2
@@ -419,7 +418,6 @@ let multiple_record_name p1 p2 =
 let internal s = 
   err s ;
   exit 3
-
 
 let cannot_free_field p v = 
   pos p ;

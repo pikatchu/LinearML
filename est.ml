@@ -72,4 +72,5 @@ and expr =
   | Eget of ty_id * ty_id
   | Eset of ty_id * ty_id * ty_id
   | Eswap of ty_id * ty_id * ty_id
+  | Epartial of ty_id * ty_idl
 

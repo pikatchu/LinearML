@@ -70,6 +70,11 @@ let ws = [' ' '\t' '\r' '\x0c']
 let char = [''']'\\'?[^'''][''']
 let float = digit+ '.' digit+
 
+let wsnl = [' ' '\t' '\r' '\x0c' '\n']
+let vprivate = "val" wsnl+ "private"
+let tprivate = "type" wsnl+ "private"
+let not_cend = ([^'*'] | '*' [^')'])+
+let noise = [^'a'-'z''(''*']+
 
 rule token = parse
   (* ignored *)
@@ -132,4 +137,36 @@ and comment c = parse
   | "(*"               { comment (c+1) lexbuf }
   | "*)"               { if c = 0 then token lexbuf else comment (c-1) lexbuf }
   | _                  { comment c lexbuf }
+
+and interface o c pp = parse
+  | eof                { () }
+  | ws+                { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o c pp lexbuf }
+  | "(**"              { o (Lexing.lexeme lexbuf) ; 
+			 interface o (c+1) true lexbuf }
+  | tprivate           { interface o c false lexbuf }
+  | vprivate           { interface o c false lexbuf }
+  | "(*"               { interface o (c+1) false lexbuf }
+  | '('                { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o c pp lexbuf }
+  | '*'                { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o c pp lexbuf }			 
+  | "*)"               { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o (c-1) pp lexbuf }
+  | "begin"            { interface o (c+1) false lexbuf }
+  | "let"              { interface o c false lexbuf }
+  | "val"              { o (Lexing.lexeme lexbuf) ; 
+			 interface o c true lexbuf }
+  | "module"           { o (Lexing.lexeme lexbuf) ; 
+			 interface o c true lexbuf }
+  | "type"             { o (Lexing.lexeme lexbuf) ; 
+			 interface o c true lexbuf }
+  | "end"              { o "\n" ; if c = 0 
+                         then (o (Lexing.lexeme lexbuf) ;
+			       interface o c true lexbuf)
+	                 else interface o (c-1) pp lexbuf }
+  | word               { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o c pp lexbuf }
+  | noise+             { if pp then o (Lexing.lexeme lexbuf) ; 
+			 interface o c pp lexbuf }
 

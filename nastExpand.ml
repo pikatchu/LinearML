@@ -337,10 +337,12 @@ and type_expr_tuple ((p, ty_) as ty) =
   | Ttuple l -> (List.map type_expr l)
   | _ -> [type_expr ty]
 
-and def (id, pl, e) = 
+and def (id, p, e) = 
   let e = tuple e in 
-  let pl = pat_list pl in
+  let pl = pat_list p in
   id, pl, e
+
+and tpat (p, ty) = pat_pos p, type_expr ty
 
 and pat_list pl = 
   let pos, pl = Pos.list pl in
@@ -414,10 +416,10 @@ and expr_ p = function
       let e2 = tuple e2 in
       let e3 = tuple e3 in
       Neast.Eif (e1, e2, e3)
-  | Efun (k, il, el) -> 
+  | Efun (k, obs, il, el) -> 
       let il = List.map (fun (x, ty) -> pat_pos x, type_expr ty) il in
       let el = tuple el in
-      Neast.Efun (k, il, el)
+      Neast.Efun (k, obs, il, el)
   | Eapply (e, el) -> 
       let p, el = Pos.list el in
       let el = List.fold_right expr el [] in

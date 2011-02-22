@@ -488,7 +488,7 @@ and expr_ env undef (p, ty) = function
       tuple env e2
   | Eobs x -> env, [Id x]
   | Efree _ -> env, undef
-  | Efun (_, p, e) ->
+  | Efun (_, _, p, e) ->
       let tyl = List.map fst p in
       let v = List.map type_expr tyl in
       let env = pat_tuple env ((Pos.none, tyl), p) v in

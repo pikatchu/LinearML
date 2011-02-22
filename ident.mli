@@ -1,6 +1,7 @@
 
 type t
 
+val foo: t
 val make: string -> t
 val fresh: t -> t
 val tmp: unit -> t

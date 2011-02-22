@@ -256,7 +256,7 @@ and expr_ t pos ty = function
       let _ = expr t f in
       let _ = tuple t e in
       List.map type_expr ty
-  | Efun (_, _, e)
+  | Efun (_, _, _, e)
   | Eapply (_, _, _, e) -> 
       check_type pos (tuple t e) ;
       List.map type_expr ty 

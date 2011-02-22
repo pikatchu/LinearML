@@ -6,10 +6,11 @@ open Llvm_executionengine
 open Ast
 open Llst
 
+let ccc = Llvm.CallConv.c
 let ccfast = Llvm.CallConv.fast 
 
 let make_cconv = function
-  | Ast.Cfun -> Llvm.CallConv.c 
+  | Ast.Cfun -> ccc
   | Ast.Lfun -> ccfast
 
 module MakeNames = struct
@@ -35,18 +36,20 @@ module Type = struct
     Ident.expand_name md_id x ;
     Ident.full x
 
-  let rec program ctx mdl = 
+  let rec program root ctx mdl = 
     MakeNames.program mdl ;
-    let mds = List.fold_left (module_decl ctx) IMap.empty mdl in
+    (* Creating One big module ... This is a try *)
+    let llmd = create_module ctx root in 
+    let mds = List.fold_left (module_decl ctx llmd) IMap.empty mdl in
     let mds = List.fold_left (module_refine ctx mds) IMap.empty mdl in
     let t = List.fold_left (module_funs ctx mds) IMap.empty mdl in
-    mds, t
+    llmd, mds, t
 
-  and module_decl ctx acc md = 
-    let md_name = Ident.to_string md.md_id in
-    let llvm_md = create_module ctx md_name in
-    let t = List.fold_left (opaques md.md_id llvm_md ctx) IMap.empty md.md_decls in
-    IMap.add md.md_id (llvm_md, t) acc 
+  and module_decl ctx llmd acc md = 
+(*    let md_name = Ident.to_string md.md_id in
+    let llmd = create_module ctx md_name in  *)
+    let t = List.fold_left (opaques md.md_id llmd ctx) IMap.empty md.md_decls in
+    IMap.add md.md_id (llmd, t) acc 
 
   and module_refine ctx mds acc md = 
     let (llmd, t) = IMap.find md.md_id mds in
@@ -174,81 +177,12 @@ module Type = struct
     | Tfun (_, ty1, ty2) -> 
 	let fty = type_fun mds t ctx ty1 ty2 in
 	fty
-    | _ -> assert false
+    | ty -> LlstPp.type_expr ty ; assert false
 end
 
 module Pervasives = struct
 
 (*
-  let unsafe_farray_get md ctx interns = 
-    let builder = builder ctx in
-    let name = "unsafe_farray_get" in
-    let link = Llvm.Linkage.Private in
-    let float = double_type ctx in
-    let int = Type.type_prim ctx Llst.Tint in
-    let farray = pointer_type float in
-    let args = [| pointer_type (i8_type ctx) ; int |] in
-    let ftype = function_type float args in
-    let fdec = declare_function name ftype md in
-    let cconv = ccfast in
-    set_linkage link fdec ;
-    set_function_call_conv cconv fdec ;
-    add_function_attr fdec Attribute.Alwaysinline ;
-    let params = params fdec in
-    let bb = append_block ctx "" fdec in
-    position_at_end bb builder ;  
-    let t = build_bitcast params.(0) farray "" builder in
-    let t = build_gep t [|params.(1)|] "" builder in
-    let res = build_load t "" builder in
-    let _ = build_ret res builder in
-    SMap.add name fdec interns
-
-  let unsafe_farray_set md ctx interns = 
-    let builder = builder ctx in
-    let name = "unsafe_farray_set" in
-    let link = Llvm.Linkage.Private in
-    let float = double_type ctx in
-    let int = Type.type_prim ctx Llst.Tint in
-    let farray = pointer_type float in
-    let void_star = pointer_type (i8_type ctx) in
-    let args = [| void_star ; int ; float |] in
-    let ftype = function_type void_star args in
-    let fdec = declare_function name ftype md in
-    let cconv = ccfast in
-    set_linkage link fdec ;
-    set_function_call_conv cconv fdec ;
-    add_function_attr fdec Attribute.Alwaysinline ;
-    let params = params fdec in
-    let bb = append_block ctx "" fdec in
-    position_at_end bb builder ;  
-    let t = build_bitcast params.(0) farray "" builder in
-    let t = build_gep t [|params.(1)|] "" builder in
-    let _ = build_store params.(2) t builder in
-    let _ = build_ret params.(0) builder in
-    SMap.add name fdec interns
-
-  let unsafe_iarray_get md ctx interns = 
-    let builder = builder ctx in
-    let name = "unsafe_iarray_get" in
-    let link = Llvm.Linkage.Private in
-    let int = Type.type_prim ctx Llst.Tint in
-    let iarray = pointer_type int in
-    let args = [| pointer_type (i8_type ctx) ; int |] in
-    let ftype = function_type int args in
-    let fdec = declare_function name ftype md in
-    let cconv = ccfast in
-    set_linkage link fdec ;
-    set_function_call_conv cconv fdec ;
-    add_function_attr fdec Attribute.Alwaysinline ;
-    let params = params fdec in
-    let bb = append_block ctx "" fdec in
-    position_at_end bb builder ;  
-    let t = build_bitcast params.(0) iarray "" builder in
-    let t = build_gep t [|params.(1)|] "" builder in
-    let res = build_load t "" builder in
-    let _ = build_ret res builder in
-    SMap.add name fdec interns
-
   let unsafe_iarray_set md ctx interns = 
     let builder = builder ctx in
     let name = "unsafe_iarray_set" in
@@ -273,6 +207,9 @@ module Pervasives = struct
     SMap.add name fdec interns
 *)
 
+  
+  let mk_trampoline = Ident.make "trampoline"
+
   let make ctx md = 
     let string = pointer_type (i8_type ctx) in
     let unit = void_type ctx in
@@ -281,18 +218,16 @@ module Pervasives = struct
     let malloc = declare_function "malloc" fty md in
     let free = declare_function "free" 
 	(function_type unit [|pointer_type (i8_type ctx)|]) md in    
+    let trampoline = declare_function "llvm.init.trampoline" 
+	(function_type string [|string ; string ; string|]) md in 
     set_linkage Linkage.External malloc ; 
     set_linkage Linkage.External free ; 
+    set_linkage Linkage.External trampoline ; 
     let prims = IMap.empty in 
     let prims = IMap.add Naming.malloc malloc prims in
     let prims = IMap.add Naming.ifree free prims in
-
- (*   let interns = unsafe_farray_get md ctx SMap.empty in
-    let interns = unsafe_farray_set md ctx interns in
-    let interns = unsafe_iarray_get md ctx interns in
-    let interns = unsafe_iarray_set md ctx interns in
-*)
-    prims, SMap.empty (* interns *)
+    let prims = IMap.add mk_trampoline trampoline prims in
+    prims
 
 end
 
@@ -304,9 +239,9 @@ type env = {
     builder: llbuilder ;
     types: lltype IMap.t ;
     prims: llvalue IMap.t ;
-    internals: llvalue SMap.t ;
     bls: llbasicblock IMap.t ;
     orig_types: Llst.type_expr IMap.t ;
+    cblock: Ident.t ref ;
     ret: llvalue option ref ;
   }
 
@@ -314,15 +249,16 @@ let dump_module dump_as md_file md pm =
   ignore (PassManager.run_module md pm) ;
   if dump_as then
     Llvm.dump_module md     
-  else ()
-(*  (match Llvm_analysis.verify_module md with
-  | None -> ()
-  | Some r -> failwith r) ;
-  Llvm_analysis.assert_valid_module md ;
-  if Llvm_bitwriter.write_bitcode_file md md_file
-  then () 
-  else failwith ("Error: module generation failed"^md_file) *)
-
+  else () ;
+  begin
+    (match Llvm_analysis.verify_module md with
+    | None -> ()
+    | Some r -> failwith r) ;
+    Llvm_analysis.assert_valid_module md ;
+    if Llvm_bitwriter.write_bitcode_file md md_file
+    then () 
+    else failwith ("Error: module generation failed"^md_file) 
+  end
 
 let optims pm = 
   ()
@@ -332,7 +268,7 @@ let optims pm =
     ;  add_aggressive_dce pm
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm
-(*    ;  add_instruction_combination pm  
+    ;  add_instruction_combination pm  
     ;  add_licm pm
     ;  add_loop_unswitch pm
     ;  add_loop_unroll pm
@@ -356,11 +292,12 @@ let optims pm =
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm  
     ; add_instruction_combination pm 
-*)
+
 
 let rec program root no_opt dump_as mdl = 
   let ctx = global_context() in
-  let mds, t = Type.program ctx mdl in
+  let llmd, mds, t = Type.program root ctx mdl in
+  set_data_layout "s0:64:64" llmd ;
   let origs = List.fold_left (
     fun acc md ->
       List.fold_left (
@@ -369,36 +306,20 @@ let rec program root no_opt dump_as mdl =
 	| Dtype (x, Tptr y) -> IMap.add x y acc
 	| _ -> acc
      ) acc md.md_decls) IMap.empty mdl in
-  ignore (initialize_native_target ()) ;
-  let jit = 
-    match mdl with
-    | [] -> exit 0
-    | [x] -> 
-	let first = module_ no_opt dump_as mds ctx t origs x in
-	let jit = ExecutionEngine.create first in
-	jit
-  | x :: rl -> 
-      let first = module_ no_opt dump_as mds ctx t origs x in
-      let jit = ExecutionEngine.create first in
-      let mdl = List.rev_map (module_ no_opt dump_as mds ctx t origs) rl in
-      List.iter (fun x -> ExecutionEngine.add_module x jit) mdl ;
-      jit
-  in
-  match ExecutionEngine.find_function (root^"_main") jit with
-  | None -> Printf.fprintf stderr "Main not found!\n" ; exit 3
-  | Some f -> 
-      let _ = ExecutionEngine.run_function f [||] jit in
-      ()
-  
-and module_ no_opt dump_as mds ctx t orig_types md = 
-  let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
-  let (md, tys, fs, dl) = IMap.find md_id t in
+  let _ = List.rev_map (module_ no_opt dump_as mds ctx t origs) mdl in
   let pm = PassManager.create () in
   if no_opt
   then ()
   else optims pm ;    
+  if root <> ""
+  then dump_module dump_as (root^".bc") llmd pm ;
+  ()
+  
+and module_ no_opt dump_as mds ctx t orig_types md = 
+  let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in
+  let (md, tys, fs, dl) = IMap.find md_id t in
   let builder = builder ctx in
-  let prims, internals = Pervasives.make ctx md in
+  let prims = Pervasives.make ctx md in
   let env = { 
     mds = mds ;
     cmd = md ;
@@ -407,13 +328,14 @@ and module_ no_opt dump_as mds ctx t orig_types md =
     builder = builder ; 
     types = tys ;
     prims = prims ;
-    internals = internals ;
     bls = IMap.empty ;
+    cblock = ref Ident.foo ;
     orig_types = orig_types ;
     ret = ref None ;
   } in
   List.iter (def env) dl ;
-  dump_module dump_as (Ident.to_string md_id^".bc") md pm ;
+(*  dump_module dump_as (Ident.to_string md_id^".bc") md pm ;
+*)
   md
 
 and def env df = 
@@ -456,6 +378,7 @@ and make_phi env acc (x, ty, lbls) =
   IMap.add x v acc
 
 and block env acc bl =
+  env.cblock := bl.bl_id ;
   let bb = IMap.find bl.bl_id env.bls in
   position_at_end bb env.builder ;  
   let acc = List.fold_left (make_phi env) acc bl.bl_phi in
@@ -568,21 +491,14 @@ and find_function env acc fty f =
   try if is_prim then IMap.find f env.prims else IMap.find f acc 
   with Not_found -> 
     let f_name = Ident.full f in
-    try
-      let md_id = Ident.origin_id f in
-      let md, _ = IMap.find md_id env.mds in
-      (match lookup_function f_name md with
-      | None -> Printf.fprintf stderr "function %s not found\n" f_name ; exit 3
-      | Some f -> f)
-    with Not_found ->
-      let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
-      let fdec = declare_function f_name ftype env.cmd in
-      let cconv = match fty with
-      | Tfun (fk, _, _) -> make_cconv fk 
-      | _ -> assert false in
-      set_linkage Linkage.External fdec ; 
-      set_function_call_conv cconv fdec ;
-      fdec
+    let ftype = Type.fun_decl env.mds env.types env.ctx fty in   
+    let fdec = declare_function f_name ftype env.cmd in
+    let cconv = match fty with
+    | Tfun (fk, _, _) -> make_cconv fk 
+    | _ -> assert false in
+    set_linkage Linkage.External fdec ; 
+    set_function_call_conv cconv fdec ;
+    fdec
 
 and apply env acc xl fk (fty, f) argl = 
   let f = find_function env acc fty f in
@@ -744,19 +660,69 @@ and expr bb env acc (ty, x) e =
       IMap.add x t acc
   | Efield (_, _) -> failwith "TODO Efield"
   | Euop (_, _) -> failwith "TODO Euop"
-(*  
-  | Switch of id * (value * label) list * label
+  | Epartial ((Tfun (k, tyl1, [rty]), f), el) -> (* TODO return list *)
+      let cc = make_cconv k in
+      let targs = List.map fst el in
+      let tenv = Tstruct targs in
+      let tenv = Type.type_ env.mds env.types env.ctx tenv in
+      let cls_env = build_alloca tenv "" env.builder in
+      let i = ref 0 in
+      List.iter (
+      fun (_, x) ->
+	let x = IMap.find x acc in
+	let ptr = build_struct_gep cls_env !i "" env.builder in 
+	let _ = build_store x ptr env.builder in
+	incr i
+     ) el ;
+      let link = Llvm.Linkage.Private in
+      let tenv = pointer_type tenv in
+      let cut_args = Utils.cut tyl1 (List.length el) in
+      let cut_args = List.map (Type.type_ env.mds env.types env.ctx) cut_args in
+      let rty = Type.type_ env.mds env.types env.ctx rty in
+      let tyl1 = Array.of_list (tenv :: cut_args) in
+      let ftype = function_type rty tyl1 in 
+      let fdec = declare_function "anonymous" ftype env.cmd in
+      set_linkage link fdec ;
+      set_function_call_conv cc fdec ;
+      let params = params fdec in
+      add_param_attr params.(0) Attribute.Nest ;
+      let bb = append_block env.ctx "" fdec in
+      position_at_end bb env.builder ;
+      let params = Array.to_list params in
+      let st = List.hd params in
+      let i = ref 0 in
+      let vl = List.fold_right (
+	fun ty acc ->
+	  let ptr = build_struct_gep st !i "" env.builder in 
+	  let res = build_load ptr "" env.builder in
+	  incr i ;
+	  res :: acc
+       ) targs (List.tl params)
+      in
+      let f = IMap.find f acc in
+      let v = build_call f (Array.of_list vl) "" env.builder in
+      set_instruction_call_conv cc v ;
+      ignore (build_ret v env.builder) ;
+      let bb = IMap.find !(env.cblock) env.bls in
+      position_at_end bb env.builder ;
 
-  | Extract_value of id * type_ * idx
-  | Insert of id * type_ * type_ * idx
-  | Alloca of id * type_ 
-  | Load of id * type_ * id
-  | Get_element_ptr of id * int
-  | Icmp of id * icmp * type_ * id * id
-  | Fcmp of id * fcmp * type_ * id * id
-  | Return of id
+      let tr = array_type (i8_type env.ctx) Global.tramp_size in
+      let tr = build_alloca tr "" env.builder in
+      (* ARRGH alignement HOWTO !!! TODO *)
 
-*)
+      let int = Type.type_prim env.ctx Llst.Tint in
+      let z = const_int int 0 in
+      let tramp = build_gep tr [|z;z|] "" env.builder in
+      let vstar = pointer_type (i8_type env.ctx) in
+      let cls_env = build_bitcast cls_env vstar "" env.builder in
+      let fdec = build_bitcast fdec vstar "" env.builder in
+      let make_tr = IMap.find Pervasives.mk_trampoline env.prims in
+      let res = build_call make_tr [|tramp ; fdec ; cls_env|] "" env.builder in
+      let res_ty = pointer_type (function_type rty (Array.of_list cut_args)) in
+      let res = build_bitcast res res_ty "" env.builder in
+      IMap.add x res acc
+
+  | Epartial _ -> failwith "TODO multiple return"
 
 and binop ty = function
   | Eeq -> 

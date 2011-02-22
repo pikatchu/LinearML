@@ -89,7 +89,7 @@ and expr_ bds p = function
   | Eobs x -> Ist.Eid (id x)
   | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)
   | Epartial (f, e) -> Ist.Epartial (expr bds f, tuple bds e)
-  | Efun (k, pl, e) -> 
+  | Efun (k, _, pl, e) -> 
       let pl = List.map pat_el pl in
       let e = tuple bds e in
       Ist.Efun (k, pl, e)

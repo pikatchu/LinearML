@@ -26,7 +26,7 @@ let _ =
      "-bounds", Arg.Unit (fun () -> bounds := true), "show unchecked bounds";
      "-llst", Arg.Unit (fun () -> dump_llst := true), "internal";
      "-est", Arg.Unit (fun () -> dump_est := true), "internal";
-     "-bc", Arg.Unit (fun () -> dump_as := true), "internal" ;
+     "-asm", Arg.Unit (fun () -> dump_as := true), "internal" ;
      "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), "excludes standard library";
      "-no-opt", Arg.Unit (fun () -> no_opt := true), "disables optimizations" ;
    ]
@@ -46,6 +46,7 @@ let _ =
   let benv = BoundCheck.program !bounds stast in
   flush stderr ;
   let ist = IstOfStast.program benv stast in
+  let ist = ExtractFuns.program ist in
   let est = EstOfIst.program ist in
   if !dump_est then
     EstPp.program est ;
@@ -58,6 +59,5 @@ let _ =
   let llst = LlstRemoveUnit.program llst in 
   if !dump_llst then
     LlstPp.program llst ;       
-(*    let llst = LlstPullRet.program llst in     *)
   ignore (Emit.program !main !no_opt !dump_as llst) 
 

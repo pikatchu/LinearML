@@ -41,6 +41,7 @@ and type_prim =
 
 and def = id * pat list * expr
 
+and tpat = pat * type_expr
 and pat = Pos.t * pat_
 and pat_ = 
   | Pany 
@@ -80,7 +81,7 @@ and expr_ =
   | Eobs of id
   | Efree of id
   | Epartial of expr list
-  | Efun of Ast.fun_kind * (pat * type_expr) list * expr 
+  | Efun of Ast.fun_kind * bool * tpat list * expr 
 
 and value = 
   | Eunit

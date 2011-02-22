@@ -15,7 +15,6 @@ LLVM_LIBS = \
 	llvm_analysis.cma \
 	llvm_bitwriter.cma \
 	llvm_scalar_opts.cma \
-	llvm_executionengine.cma \
 	llvm_target.cma
 
 #	llvm_bitreader.cma 
@@ -56,6 +55,7 @@ OBJECTS_ML = \
 	boundCheck.ml\
 	ist.ml\
 	istOfStast.ml\
+	extractFuns.ml\
 	est.ml\
 	estSubst.ml\
 	estPp.ml\
@@ -90,7 +90,7 @@ liml: $(OBJECTS_CMX) stdlib/libliml.so
 	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
 		$(LIML_STDLIB) -o $@		
 
-liml.bc: $(OBJECTS_CMO)
+liml.bc: $(OBJECTS_CMO) stdlib/libliml.so
 	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
 		$(LIML_STDLIB) -o $@ 
 

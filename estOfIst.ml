@@ -463,7 +463,11 @@ and simpl_expr_ t ty = function
       let t, e1 = expr t e1 in
       let t, e2 = expr t e2 in
       t, Est.Eget (e1, e2)
-  | Epartial _ -> failwith "TODO partial application"
+  | Epartial (f, e) -> 
+      let t, f = expr t f in
+      let t, idl = tuple t e in
+      t, Est.Epartial (f, idl)
+  | Efun _ -> assert false
   | (Eseq (_, _)|Eapply (_, _, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)
   | Efield (_, _)|Eid _) | Eswap _ -> assert false
 

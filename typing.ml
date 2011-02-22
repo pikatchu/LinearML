@@ -324,7 +324,7 @@ and declare env = function
   | _ -> env
 
 and def env (fid, p, e) =
-  match MakeArgs.type_expr (find (snd fid) env) with
+  match find (snd fid) env with
   | _, Tfun (k, tyl, rty) -> 
       let env, p = pat env p tyl in
       let rty', e = tuple env e in
@@ -528,17 +528,17 @@ and expr_ env (p, e) =
   | Ebinop (bop, e1, e2) ->
       let ((ty1, _) as e1) = expr env e1 in
       let ((ty2, _) as e2) = expr env e2 in
+      let ty = Type.unify_el env ty1 ty2 in
       (match bop with
       | Ast.Eplus
       | Ast.Eminus
       | Ast.Estar 
-      | Ast.Ediv -> 
-	  check_numeric p ty1 ;
-	  check_numeric p ty2 
+      | Ast.Ediv ->()
+(*	  check_numeric p ty1 ;
+	  check_numeric p ty2  *)
       | Ast.Eor | Ast.Eand -> (* TODO check bool *) ()
       | _ -> ()) ;
-      let _ = Type.unify_el env ty1 ty2 in
-      let ty = binop env bop p ty1 ty2 in
+      let ty = binop env bop p ty in
       (ty, Tast.Ebinop (bop, e1, e2))
   | Euop (Ast.Enot, e) ->
       let (ty, _ as e) = expr env e in
@@ -571,16 +571,14 @@ and expr_ env (p, e) =
       let ty = find x env in
       let ty = p, (snd ty) in
       ((p, Tprim Tunit), Tast.Efree (ty, id))
-  | Efun (k, idl, e) ->
+  | Efun (k, obs, idl, e) ->
       let idl = List.map (fun (x, ty) -> snd (pat_el env x ty)) idl in
       let args = List.map fst idl in
       let (rty, _) as e = tuple env e in
-      let first = fst (List.hd args) in
-      let last = fst (llast args) in
-      let args = Pos.btw first last, args in
+      let args = Pos.list args in
       let fty = p, Tfun (k, args, rty) in
-      let fty = p, Tapply ((p, Naming.tobs), (p, [fty])) in
-      fty, Tast.Efun (k, idl, e)
+      let fty = if obs then p, Tapply ((p, Naming.tobs), (p, [fty])) else fty in
+      fty, Tast.Efun (k, obs, idl, e)
   | Eapply (_, _)
   | Epartial (_, _)
   | Ecall (_, _)
@@ -621,7 +619,7 @@ and proj env ty fty =
   in
   fst rty, List.map make_observed (snd rty)
 
-and binop env bop p ty1 ty2 = 
+and binop env bop p ty = 
   match bop with
   | Ast.Eeq 
   | Ast.Ediff
@@ -632,8 +630,8 @@ and binop env bop p ty1 ty2 =
   | Ast.Eplus
   | Ast.Eminus
   | Ast.Estar 
-  | Ast.Ediv -> Type.unify_el env ty1 ty2
-  | Ast.Eand | Ast.Eor -> (* TODO check bool ty1 ty2 *) (p, Tprim Tbool)
+  | Ast.Ediv -> ty
+  | Ast.Eand | Ast.Eor -> Type.unify_el env ty (p, Tprim Tbool)
 
 and value = function
   | Nast.Eunit -> Tunit

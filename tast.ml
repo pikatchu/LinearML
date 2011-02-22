@@ -53,7 +53,7 @@ and expr_ =
   | Eseq of expr * tuple
   | Eobs of id
   | Efree of type_expr * id
-  | Efun of Ast.fun_kind * pat_el list * tuple
+  | Efun of Ast.fun_kind * bool * pat_el list * tuple
 
 and value = Nast.value
 

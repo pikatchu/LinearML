@@ -69,6 +69,10 @@ let ilfold2 f acc l1 l2 =
     acc, n+1, x :: l) (acc, 0, []) l1 l2 in
   acc, List.rev l
 
+let hdtl = function
+  | x :: rl -> x, rl 
+  | _ -> assert false
+
 let rec uniq cmp = function
   | []
   | [_] as l -> l
@@ -110,6 +114,14 @@ let opt2 f x y =
 let soi = string_of_int 
 
 let lone = function [x] -> x | _ -> raise Exit
+
+let rec cut l n = 
+  if n <= 0
+  then l
+  else 
+    match l with
+    | [] -> []
+    | _ :: rl -> cut rl (n-1)
 
 let rec llast = function
   | [] -> assert false
