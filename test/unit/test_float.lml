@@ -1,0 +1,22 @@
+
+module Test = struct
+
+  val add1: float #-> float
+  let add1 x = x + 1.0
+
+  val app: ('a #-> 'a) * 'a -> 'a 
+  let app f x = f x
+
+  val main: unit -> unit
+  let main() = 
+    x0 := Math.sin 1.0 ;
+    x1 := Math.sqrt 2.0 ;
+    x2 := app Math.sqrt 2.0 ; 
+    x3 := app add1 2.0 ; 
+    if x0 <> 0.0 && x1 <> 0.0 && x2 <> 0.0
+	&& x3 <> 0.0
+    then (Print.string "OK" ; Print.newline())
+    else (Print.string "KO" ; Print.newline())
+
+
+end

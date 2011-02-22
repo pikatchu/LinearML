@@ -1,0 +1,37 @@
+
+module Test = struct
+
+  val debug: 'a obs #-> unit = "debug"
+  val pint: int #-> unit = "print_int"
+  val pstring: string #-> unit = "print_string"
+  val pnewline: unit #-> unit = "print_newline"
+
+  val test_int: unit -> int * int * int
+  let test_int () =
+    let t = Array.imake 10 1 in
+    let x1 = t.(3) in
+    x2 := t.(0-1) ;
+    debug !t ;
+    x3 := t.(10) ;
+    Array.irelease t ;
+    x1, x2, x3
+
+  val test_float: unit -> float * float * float
+  let test_float () =
+    let t = Array.fmake 10 1.0 in
+    let x1 = t.(3) in
+    x2 := t.(0-1) ;
+    x3 := t.(10) ;
+    Array.frelease t ;
+    x1, x2, x3
+
+  val main: unit -> unit
+  let main() = 
+    pstring "Test Array1:            " ;
+    let x1, x2, x3 = test_int () in
+    let y1, y2, y3 = test_float () in
+    if x1 = 1 && x2 = 0 && x3 = 0
+	&& y1 = 1.0 && y2 = 0.0 && y3 = 0.0
+    then (pstring "OK" ; pnewline())
+    else (pstring "KO" ; pnewline())
+end

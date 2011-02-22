@@ -1,0 +1,9 @@
+
+module Test = struct
+
+  val main: 'a -> unit
+  let main y = 
+    let l = [1 ; 2 ; 3] in
+    let l = List.map (fun (x: 'a) -> x+1) l in
+    List.release Print.int l
+end

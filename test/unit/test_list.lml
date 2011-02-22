@@ -1,0 +1,13 @@
+
+module List = struct
+
+  type 'a t =
+    | Empty
+    | Cons of 'a * 'a t
+
+  val rev: 'a t * 'a t -> 'a t
+  let rev acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> rev (x :: acc) rl
+end

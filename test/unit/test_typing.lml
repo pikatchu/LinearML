@@ -1,0 +1,147 @@
+module List = struct
+  type 'a t =
+    | Empty
+    | Cons of 'a * 'a t
+(*
+  val rev_append: 'a t * 'a t -> 'a t
+  let rev_append acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> rev_append (x :: acc) rl
+
+  val rev: 'c t -> 'c t
+  let rev l = rev_append [] l
+
+  val append: 'b t * 'b t -> 'b t
+  let append l1 l2 = 
+    match l1 with
+    | [] -> l2
+    | x :: rl -> x :: append rl l2
+*)
+(*
+  val map: ('c -> 'b) * 'c t -> 'b t
+  let map f l = 
+    match l with
+    | [] -> []
+    | x :: rl -> 
+	let x = f x in
+	let rl = map f rl in
+	x :: rl
+*)
+
+(*
+  val bb: 'a t * 'a t -> 'a t
+  let bb l1 l2 = 
+    let l1 = Cons 1 l1 in
+    l1
+*)
+
+(*
+  val init_: int * 'a * ('a * int #-> 'b)  #-> 'b t = "liml_array_make"
+
+  val call_int: ('c -> 'd) * 'c #-> 'd = asm ""
+
+  val init: int * (int -> 'e) -> 'e t
+  let init n f = init_ n f call_int
+*)
+
+(*
+  val init_: int * ('a * int #-> 'b) * 'a #-> 'b t = "liml_array_make"
+
+  val call_int: ('c -> 'd) * 'c #-> 'd = asm ""
+
+  val init: int * (int -> 'e) -> 'e t
+  let init n f = init_ n call_int f
+*)
+  
+(*
+  val test: ('a #-> 'a) #-> bool
+  let test f =
+    let x = f true in
+    let y = f "hhelo" in
+    x
+*)
+
+(*
+  val test: ('a #-> 'a) #-> unit = "dd"
+  val b: (int #-> int) #-> unit
+  let b f = test f
+*)
+
+(*
+  val test: ('c * 'c #-> 'c) #-> unit = "dd"
+  val b: ('a * 'a #-> 'a) #-> unit
+  let b f = test f
+*)
+
+(*
+  val test: 'a -> 'a = asm "dd"
+  val b: int -> int = asm "bb"
+  val f: unit -> (int -> int)
+  let f () = 
+    let x = if true then b else test in
+    x
+*)
+
+(*
+  val test: 'a -> 'a = asm "dd"
+  val b: 'b -> 'b = asm "bb"
+  val f: unit -> ('c -> 'c)
+  let f () = 
+    let x = if true then b else test in
+    x
+*)
+
+(*
+  val test: (int #-> int) #-> 'd = "test"
+  val b: ('a #-> 'a) #-> unit
+  let b f = 
+    let x = test f in
+    x
+*)
+
+(*
+  val test: ('a -> 'b -> 'b) -> 'd = asm "test"
+  val b: ('a -> 'c -> 'd) -> _
+  let b f = test f
+*)
+
+(*
+  val test: (('a -> 'b) -> 'b) * 'a -> 'd = asm "test"
+  val b: (('a -> 'a) -> 'a) * 'a -> _
+  let b f x = test f x
+*)
+
+(*
+  val test: ('a -> 'b -> 'c) -> 'd = asm "test"
+  val b: ('a -> 'b -> 'b) -> _
+  let b f = test f
+*)
+
+(*
+  val app: ('a -> 'b) * 'a -> 'b = asm ""
+  val b: ('c -> 'd) * 'c -> 'd
+  let b f x = 
+    let y = app f x in
+    y
+*)
+(*
+  val g: 'a -> 'a = asm ""
+  val f: 'b -> 'b
+  let f x = 
+    let y = g g in
+    x
+*)
+(*
+  val f: 'a -> 'a -> 'b = asm ""
+
+  val g: unit -> unit
+  let g () =
+    let h = f 1 in
+    let _ = h () in
+    let _ = h "true" in
+    ()
+*)
+end
+
+

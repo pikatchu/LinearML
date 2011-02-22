@@ -1,0 +1,185 @@
+
+
+
+module List = struct
+
+  type 'a t = 
+    | Empty
+    | Cons of 'a * 'a t
+
+  val magic: 'a #-> unit = "debug"      
+  val magic_obs: 'a obs #-> unit = "debug"
+
+  val map_acc: ('a * 'b -> 'a * 'c) obs * 'a * 'b t -> 'a * 'c t
+  let map_acc f acc l = 
+    match l with
+    | [] -> acc, []
+    | x :: rl -> 
+	let acc, x = f acc x in
+	let acc, rl = map_acc f acc rl in
+	acc, x :: rl
+
+  val fac: ('a -> 'b) obs * int -> 'b
+  let fac k n = 
+    if n <= 0
+    then k 1
+    else fac (!fun (res: int) -> k (n*res)) (n-1)
+
+(*
+  val rev_append: 'a t * 'a t -> 'a t
+  let rev_append acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> rev_append (x :: acc) rl
+*)
+(*
+  val f: 'a * 'a -> 'a
+  let f x z = 
+    match !x with
+    | y -> 
+	magic x ;
+	magic_obs y ;
+	z
+*)
+      
+(*
+  val f: 'a * 'a -> 'a
+  let f x z = 
+    let u, v = x, !x in
+    z
+*)
+
+(*
+  val f: 'a * 'a -> 'a
+  let f x y = 
+    let u = if true then !x else !y in
+    let _ = u in
+    x
+*)
+
+(*
+  val f: 'a -> 'a obs
+  let f x = 
+    let f = fun () -> !x in
+    magic x ;
+    f()
+*)
+
+(*
+  val g: 'a obs -> unit  = asm ""
+
+  val f: 'a -> 'a
+  let f x = 
+    let f = fun () -> g !x in
+    magic x ;
+    f() ;
+    x
+*)
+(*
+  val g: 'a obs * unit -> unit  = asm ""
+
+  val f: 'a -> 'a
+  let f x = 
+    let f = partial g !x in
+    magic x ;
+    f() ;
+    x
+*)
+
+(*
+  val f: 'a -> unit
+  let f x = 
+    let f = fun () -> !x in
+    let t = fun () -> 
+      let _ = f() in
+      let _ = x in
+      () in
+    magic x ;
+    let _ = t() in
+    ()
+*)
+(*
+  val f: 'a -> 'a
+  let f x =
+    let y, _ = x, !x in
+    y
+*)
+
+(*
+  val rev_append: 'a t -> 'a t
+  let rev_append l = 
+    match l with
+    | ((x :: (y :: rl as l1)) as l2) -> 
+	if true
+	then x :: l1
+	else (magic rl ; [y])
+    | l -> l
+*)
+
+(*
+  val rev_append: 'a t -> 'a t
+  let rev_append l = 
+    match l with
+    | ((x :: (y :: rl as l1)) as l2) -> 
+	if true
+	then x :: l1
+	else if true
+	then x :: y :: rl
+	else 
+	  let l = !rl in
+	  let f = fun () -> let _ = !rl in () in
+	  let z = magic l2 in
+	  f() ; []
+    | l -> l
+*)
+      
+(*
+  val rev_append: 'a t obs -> 'a t obs
+  let rev_append l = 
+    match l with
+    | (_ :: rl) as l -> l
+    | l -> l
+*)
+
+(*
+  val f1: 'a obs -> 'a obs
+  let f1 l = l
+
+  val f2: 'a -> 'a
+  let f2 x =
+    let x, y = x, !x in
+    x
+*)
+
+(*
+  val rev_append: 'a t -> unit
+  let rev_append l = 
+    match l with
+    | (x :: rl) as l -> 
+	let y = !l in
+	magic x ;
+	magic rl ;
+	magic_obs y
+    | l -> magic l
+  *)
+
+(*
+  val rev_append: 'a t -> 'a t
+  let rev_append l = 
+    match l with
+    | (x :: rl) as l -> rl
+    | l -> l
+*)
+
+(*
+  val rev_append: 'a t -> 'a t
+  let rev_append l = 
+    match l with
+    | ((x :: rl) as l) -> 
+	if true
+	then (x :: rl)
+	else l
+    | l -> l
+*)
+
+end
