@@ -305,10 +305,11 @@ let rec program mdl =
   List.rev_map module_ mdl
 
 and module_ md = {
-    Est.md_id = md.md_id ;
-    Est.md_decls = md.md_decls ;
-    Est.md_defs = List.map def md.md_defs ;
-  }
+  Est.md_sig = md.md_sig ;  
+  Est.md_id = md.md_id ;
+  Est.md_decls = md.md_decls ;
+  Est.md_defs = List.map def md.md_defs ;
+}
 
 and def (k, x, p, e) = 
   let t = empty in

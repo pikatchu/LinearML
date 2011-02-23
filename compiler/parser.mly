@@ -206,12 +206,20 @@ module_l:
 | module_ module_l      { $1 :: $2 }
 
 module_: 
-| MODULE CSTR EQ STRUCT def_l 
-    { { md_sig = false;
-	md_id = $2; 
-	md_defs = $5; 
+| MODULE mtype CSTR EQ struct_ def_l 
+    { { md_sig = $2;
+	md_id = $3; 
+	md_defs = $6; 
       } 
     }
+
+struct_:
+| SIG { () }
+| STRUCT { () }
+
+mtype: 
+| { false }
+| TYPE { true }
 
 def_l:
 | END { [] }

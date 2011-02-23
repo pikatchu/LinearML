@@ -69,7 +69,6 @@ module Type = struct
 
   let rec program root ctx mdl = 
     MakeNames.program mdl ;
-    (* Creating One big module ... This is a try *)
     let llmd = create_module ctx root in 
     let mds = List.fold_left (module_decl ctx llmd) IMap.empty mdl in
     let mds = List.fold_left (module_refine ctx mds) IMap.empty mdl in
@@ -77,8 +76,6 @@ module Type = struct
     llmd, mds, t
 
   and module_decl ctx llmd acc md = 
-(*    let md_name = Ident.to_string md.md_id in
-    let llmd = create_module ctx md_name in  *)
     let t = List.fold_left (opaques md.md_id llmd ctx) IMap.empty md.md_decls in
     IMap.add md.md_id (llmd, t) acc 
 
@@ -89,7 +86,7 @@ module Type = struct
     IMap.add md.md_id (llmd, t') acc
 
   and module_funs ctx mds acc md = 
-    let md_id, dl, decl = md.md_id, md.md_defs, md.md_decls in
+    let md_sig, md_id, dl, decl = md.md_sig, md.md_id, md.md_defs, md.md_decls in
     let (md, tys) = IMap.find md_id mds in
     let lkinds = List.fold_left (
       fun acc dec -> 
@@ -97,7 +94,7 @@ module Type = struct
 	| Dval (ll, x, _, _) -> IMap.add x ll acc
 	| _ -> acc) IMap.empty decl in
     let fs = List.fold_left (def_fun md_id mds tys md ctx lkinds) IMap.empty dl in
-    let fs = List.fold_left (def_external mds tys md ctx) fs decl in
+    let fs = List.fold_left (def_external md_id mds tys md ctx md_sig) fs decl in
     IMap.add md_id (md, tys, fs, dl) acc
 
   and opaques md_id md ctx t = function
@@ -116,10 +113,15 @@ module Type = struct
     let fun_ = function_ md_name mds t md ctx lkinds df in
     IMap.add df.df_id fun_ acc
 
-  and def_external mds t md ctx acc = function
+  and def_external md_name mds t md ctx md_sig acc = function
     | Dval (_, x, Tfun (_, ty1, ty2), (Ast.Ext_C (_, v) | Ast.Ext_Asm (_, v))) ->
 	let ty = type_fun mds t ctx ty1 ty2 in
 	let fdec = declare_function v ty md in
+	IMap.add x fdec acc
+    | Dval (_, x, Tfun (_, ty1, ty2), _) when md_sig ->
+	let ftype = type_fun mds t ctx ty1 ty2 in
+	let name = public_name md_name x in
+	let fdec = declare_function name ftype md in
 	IMap.add x fdec acc
     | _ -> acc
 
@@ -262,6 +264,28 @@ module Pervasives = struct
 
 end
 
+module MakeRoot = struct
+
+  let make root ctx md = 
+    let f = root^"_main" in
+    let f = 
+      match lookup_function f md with
+      | None -> Printf.fprintf stderr "Main not found in %s\n" root ; exit 2
+      | Some f -> f in
+    let builder = builder ctx in
+    let name = "main" in
+    let void = void_type ctx in
+    let ftype = function_type void [||] in 
+    let fdec = declare_function name ftype md in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;  
+    let v = build_call f [||] "" builder in
+    set_instruction_call_conv ccfast v ; (* TODO check signature etc ... *)
+    let _ = build_ret_void builder in 
+    ()
+
+end
+
 type env = {
     mds: (llmodule * lltype IMap.t) IMap.t ;
     cmd: llmodule ;
@@ -276,20 +300,15 @@ type env = {
     ret: llvalue option ref ;
   }
 
-let dump_module dump_as md_file md pm =
+let dump_module md_file md pm =
   ignore (PassManager.run_module md pm) ;
-  if dump_as then
-    Llvm.dump_module md     
-  else () ;
-  begin
-    (match Llvm_analysis.verify_module md with
-    | None -> ()
-    | Some r -> failwith r) ;
-    Llvm_analysis.assert_valid_module md ;
-    if Llvm_bitwriter.write_bitcode_file md md_file
-    then () 
-    else failwith ("Error: module generation failed"^md_file) 
-  end
+  (match Llvm_analysis.verify_module md with
+  | None -> ()
+  | Some r -> failwith r) ;
+  Llvm_analysis.assert_valid_module md ;
+  if Llvm_bitwriter.write_bitcode_file md md_file
+  then () 
+  else failwith ("Error: module generation failed"^md_file)
 
 let optims pm = 
   ()
@@ -325,9 +344,9 @@ let optims pm =
     ; add_instruction_combination pm 
 
 
-let rec program root no_opt dump_as mdl = 
+let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
-  let llmd, mds, t = Type.program root ctx mdl in
+  let llmd, mds, t = Type.program base ctx mdl in
   set_data_layout "s0:64:64" llmd ;
   let origs = List.fold_left (
     fun acc md ->
@@ -341,10 +360,15 @@ let rec program root no_opt dump_as mdl =
   let pm = PassManager.create () in
   if no_opt
   then ()
-  else optims pm ;    
+  else optims pm ;
+  if dump_as then
+    Llvm.dump_module llmd     
+  else () ;
   if root <> ""
-  then dump_module dump_as (root^".bc") llmd pm ;
-  ()
+  then MakeRoot.make root ctx llmd ;
+  let md_name = base^".bc" in
+  dump_module md_name llmd pm ;
+  md_name
   
 and module_ no_opt dump_as mds ctx t orig_types md = 
   let md_id, md, strings = md.md_id, md.md_defs, IMap.empty in

@@ -12,11 +12,16 @@ SOURCES =\
 	math.c\
 	debug.c
 
+LML_SOURCES =\
+	array.lml \
+	print.lml
+
 OBJECTS = $(SOURCES:.c=.o)	
 
-libliml.a: $(OBJECTS)
+libliml.a: $(OBJECTS) $(LML_SOURCES)
 	@rm -f libliml.a
-	ar cr libliml.a $(OBJECTS) $(LIBS)
+	../compiler/limlc -no-stdlib $(LML_SOURCES) -lib libliml.lmli 
+	$(AR) r libliml.a $(OBJECTS)
 
 ##############################################################################
 

@@ -247,7 +247,10 @@ and module_ t types ty_decls md =
   let decls = IMap.find md.md_id ty_decls in
   let t = { t with types = types } in
   let defs = List.map (def t) md.md_defs in 
-  { Llst.md_id = md.md_id ; Llst.md_decls = decls ; Llst.md_defs = defs }
+  { Llst.md_sig = md.md_sig ;
+    Llst.md_id = md.md_id ; 
+    Llst.md_decls = decls ; 
+    Llst.md_defs = defs }
 
 and decl_alias t acc = function
   | Dalgebric td -> 

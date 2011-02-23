@@ -58,6 +58,7 @@ let rec program types mdl =
   List.map (module_ t) mdl 
 
 and module_ t md = {
+  Stast.md_sig = md.md_sig ;
   Stast.md_id = md.md_id ;
   Stast.md_decls = List.fold_right (decl t) md.md_decls [] ;
   Stast.md_defs = List.map (def t) md.md_defs ;

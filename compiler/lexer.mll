@@ -188,7 +188,9 @@ and interface o c pp = parse
   | "let"              { interface o c false lexbuf }
   | "val"              { o (Lexing.lexeme lexbuf) ; 
 			 interface o c true lexbuf }
-  | "module"           { o (Lexing.lexeme lexbuf) ; 
+  | "module"           { o "module type" ; 
+			 interface o c true lexbuf }
+  | "struct"           { o "sig" ; 
 			 interface o c true lexbuf }
   | "type"             { o (Lexing.lexeme lexbuf) ; 
 			 interface o c true lexbuf }

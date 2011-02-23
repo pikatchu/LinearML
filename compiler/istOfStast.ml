@@ -39,9 +39,10 @@ let rec program bounds mdl =
   List.rev_map (module_ bounds) mdl
 
 and module_ bounds md = {
-    Ist.md_id = id md.md_id ;
-    Ist.md_decls = List.map decl md.md_decls ;
-    Ist.md_defs = List.map (def bounds) md.md_defs ;
+  Ist.md_sig = md.md_sig ;  
+  Ist.md_id = id md.md_id ;
+  Ist.md_decls = List.map decl md.md_decls ;
+  Ist.md_defs = List.map (def bounds) md.md_defs ;
   }
 
 and decl = function

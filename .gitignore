@@ -16,6 +16,7 @@ compiler/limlc
 compiler/limlc.bc
 compiler/liml
 *~
+stdlib/libliml.lmli
 \#*
 parser.output
 TODO

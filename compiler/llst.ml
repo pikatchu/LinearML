@@ -38,6 +38,7 @@ type pstring = string
 type program = module_ list
 
 and module_ = {
+    md_sig: bool;
     md_id: id ;
     md_decls: decl list ;
     md_defs: def list ;

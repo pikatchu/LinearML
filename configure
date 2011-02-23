@@ -32,6 +32,7 @@
 
 cpp=""
 cc=""
+ar=""
 ocamlc=""
 ocamlopt=""
 ocamldep=""
@@ -68,6 +69,8 @@ do
 	  cpp=$2	; shift ;;
     --cc) 
 	  cc=$2		; shift ;;
+    --ar) 
+	  ar=$2		; shift ;;
     --ocamlc) 
 	  ocamlc=$2	; shift ;;
     --ocamlopt) 
@@ -78,8 +81,6 @@ do
 	  ocamllex=$2	; shift ;;
     --ocamlyacc) 
 	  ocamlyacc=$2	; shift ;;
-    --stdlibdir) 
-	  stdlibdir=$2	; shift ;;
     --bindir) 
 	  bindir=$	; shift ;;
     --libdir) 
@@ -94,6 +95,11 @@ do
   shift
 done
 
+make=`which make`
+if test -z "$make"; then
+    echo "Couldn't file make"
+fi
+
 if test -z "$cc"; then
     cc=`which gcc`;
     if test -z "$cc"; then
@@ -101,6 +107,15 @@ if test -z "$cc"; then
 	exit 2
     fi
     echo -e "Found cc\t: $cc"
+fi
+
+if test -z "$ar"; then
+    ar=`which ar`;
+    if test -z "$ar"; then
+	echo "Couldn't find ar please use --ar"; 
+	exit 2
+    fi
+    echo -e "Found ar\t: $ar"
 fi
 
 if test -z "$cpp"; then
@@ -298,7 +313,7 @@ else echo "Unknown architecture!" ; exit 2
 fi
 fi
 
-if test -z "$stdlibdir"; then
+if test -z "$libdir"; then
     stdlibdir="/usr/lib/liml"
 fi
 
@@ -313,6 +328,7 @@ echo "OCAMLDEP  = $ocamldep" >> "$config"
 echo "OCAMLLEX  = $ocamllex" >> "$config"
 echo "OCAMLYACC = $ocamlyacc" >> "$config"
 echo "CC        = $cc" >> "$config"
+echo "AR        = $ar" >> "$config"
 echo "CPP       = $cpp" >> "$config"
 echo "LLVM_LIBS = $llvm_cma $llvm_analysis_cma $llvm_bitwriter_cma $llvm_scalar_opts_cma $llvm_target_cma" >> "$config"
 
@@ -341,4 +357,6 @@ echo "let tramp_size = $trampoline_size" >> "$config_ml"
 echo "let tramp_align = $stack_align" >> "$config_ml"
 echo "let max_reg_return = $max_reg_ret" >> "$config_ml"
 echo "let llc = \"$llc\"" >> "$config_ml"
-echo "let stdlibdir = \"$stdlibdir\"" >> "$config_ml"
+echo "let stdlibdir = \"$libdir\"" >> "$config_ml"
+echo "let cc = \"$cc\"" >> "$config_ml"
+echo "let ar = \"$ar\"" >> "$config_ml"

@@ -376,7 +376,8 @@ and module_ genv md =
   let acc = genv, env, [] in
   let _, env, defs = List.fold_left def acc md.md_defs in
   let defs = List.rev defs in
-  { Nast.md_id = md_id ;
+  { Nast.md_sig = md.md_sig ;
+    Nast.md_id = md_id ;
     Nast.md_decls = decls ;
     Nast.md_defs = defs ;
   }

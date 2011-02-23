@@ -32,11 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 include GenGlobals
 let suffix = ".lml"
+let llc_opts = " -O3 -tailcallopt "
 let (@@) x l = (stdlibdir ^ x ^ suffix) :: l
-let stdlib =
-  "print" @@
-  "array" @@ 
-  "list" @@ 
-  "math" @@ 
-  []
+let stdlib = Filename.concat stdlibdir "libliml.lmli"
 

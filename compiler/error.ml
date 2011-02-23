@@ -548,3 +548,8 @@ let not_enough_args p =
   pos p ;
   err "Not enough arguments";
   exit 2
+
+let code_in_sig p =
+  pos p ;
+  err "Definition in a signature" ;
+  exit 2

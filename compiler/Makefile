@@ -67,13 +67,13 @@ OBJECTS_ML = \
 OBJECTS_CMO = $(OBJECTS_ML:.ml=.cmo)	
 OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)	
 
-limlc: $(OBJECTS_CMX) ../stdlib/libliml.a
+limlc: $(OBJECTS_CMX)
 	echo $(LIBS)
 	$(OCAMLOPT) -cc $(CPP) $(INCLUDE) \
 		-linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
 		-o $@		
 
-limlc.bc: $(OBJECTS_CMO) ../stdlib/libliml.a
+limlc.bc: $(OBJECTS_CMO)
 	$(OCAMLC) $(OCAMLC_OPTS) -g -cc $(CPP) \
 		$(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
 		-o $@ 
@@ -96,10 +96,6 @@ limlc.bc: $(OBJECTS_CMO) ../stdlib/libliml.a
 	$(OCAMLYACC) -v $<
 
 ###############################################################################
-
-../stdlib/libliml.a:
-	@echo "Compiling the standard library"
-	cd ../stdlib && make
 
 .depend: $(OBJECTS_ML)
 	$(OCAMLDEP) -native -slash $(INCLUDE) $(OBJECTS_ML) > .depend

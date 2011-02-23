@@ -288,6 +288,7 @@ let rec program mdl =
   List.map module_ mdl
 
 and module_ md = {
+  Neast.md_sig = md.md_sig ;
   Neast.md_id = md.md_id ;
   Neast.md_decls = List.fold_left decl [] md.md_decls ;
   Neast.md_defs = List.map (def) md.md_defs ;

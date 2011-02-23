@@ -342,7 +342,8 @@ let rec program mdl =
 and module_ env md = try
   let _ = List.fold_left declare env md.md_decls in
   let defs = List.map (def env) md.md_defs in
-  { Tast.md_id = md.md_id ;
+  { Tast.md_sig = md.md_sig ;
+    Tast.md_id = md.md_id ;
     Tast.md_decls = md.md_decls ;
     Tast.md_defs = defs ;
   }

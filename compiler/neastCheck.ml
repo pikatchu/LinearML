@@ -278,7 +278,7 @@ module CheckSig = struct
   and module_ md = 
     let acc = List.fold_left decl empty md.md_decls in
     let acc = List.fold_left def acc md.md_defs in
-    IMap.iter (check_val acc) acc.vals
+    IMap.iter (check_val md.md_sig acc) acc.vals
 
   and decl acc = function
     | Dval (_, x, _, ext) -> 
@@ -296,12 +296,17 @@ module CheckSig = struct
     let lets = IMap.add (snd x) (fst x) acc.lets in
     { acc with lets = lets }
 
-  and check_val acc x p  = 
-    if IMap.mem x acc.exts 
-    then check_no_let acc x p 
+  and check_val is_sig acc x p = 
+    if is_sig 
+    then 
+      if IMap.mem x acc.lets 
+      then Error.code_in_sig (IMap.find x acc.lets)
+      else ()
+    else if IMap.mem x acc.exts
+    then check_no_let is_sig acc x p 
     else check_has_let acc x p 
 
-  and check_no_let acc x p = 
+  and check_no_let is_sig acc x p =
     if IMap.mem x acc.lets
     then 
       let p2 = IMap.find x acc.exts in
