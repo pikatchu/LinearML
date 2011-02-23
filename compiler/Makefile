@@ -1,27 +1,11 @@
 
-OCAMLBIN =
-OCAMLLIB ?= /usr/lib/ocaml/llvm-2.8
+-include ../Makefile.config
 
-OCAMLC   = ocamlc -dtypes -warn-error A
-OCAMLOPT = ocamlopt
-OCAMLDEP = ocamldep
-OCAMLLEX = ocamllex
-OCAMLYACC = ocamlyacc
-CC = g++
-
-LLVM_LIBS = \
-	llvm.cma \
-	llvm_analysis.cma \
-	llvm_bitwriter.cma \
-	llvm_scalar_opts.cma \
-	llvm_target.cma
-
-#	llvm_bitreader.cma 
-
+OCAMLC_OPTS = -dtypes -warn-error A
 LIBS = unix.cma $(LLVM_LIBS)
 LIBSOPT = $(LIBS:.cma=.cmxa)
 INCLUDE = -I $(OCAMLLIB)
-CLIBS = $(addprefix $(OCAMLLIB)/, $(LLVM_LIBS:.cma=.a))
+CLIBS = $($(OCAMLLIB), $(LLVM_LIBS:.cma=.a))
 
 default: limlc
 
@@ -85,11 +69,13 @@ OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)
 
 limlc: $(OBJECTS_CMX) ../stdlib/libliml.a
 	echo $(LIBS)
-	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
+	$(OCAMLOPT) -cc $(CPP) $(INCLUDE) \
+		-linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
 		-o $@		
 
 limlc.bc: $(OBJECTS_CMO) ../stdlib/libliml.a
-	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
+	$(OCAMLC) $(OCAMLC_OPTS) -g -cc $(CPP) \
+		$(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
 		-o $@ 
 
 ##############################################################################
@@ -111,9 +97,6 @@ limlc.bc: $(OBJECTS_CMO) ../stdlib/libliml.a
 
 ###############################################################################
 
-genGlobals.ml:
-	echo "let root = \"$(STDLIB_PATH)\"" > genGlobals.ml
-
 ../stdlib/libliml.a:
 	@echo "Compiling the standard library"
 	cd ../stdlib && make
@@ -130,4 +113,3 @@ clean:
 	cd ../stdlib && make clean
 
 -include .depend
--include Makefile.config

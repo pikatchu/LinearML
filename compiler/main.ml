@@ -41,9 +41,21 @@ let parse acc fn =
     acc
   with 
   | Lexer.Lexical_error _ -> Error.lexing_error lb 
-  | Parsing.Parse_error -> Error.syntax_error lb 
+  | Parsing.Parse_error -> Error.syntax_error lb
+
+let output_interface fn = 
+  Pos.file := fn;
+  let o = output_string stdout in
+  let ic = open_in fn in
+  let lb = Lexing.from_channel ic in
+  try 
+    Lexer.interface o 0 true lb ;
+    close_in ic
+  with 
+  | Lexer.Lexical_error _ -> Error.lexing_error lb 
     
 let _ = 
+  let space n s = String.make n ' ' ^ s in
   let module_l = ref [] in
   let dump_llst = ref false in
   let dump_est = ref false in
@@ -52,19 +64,34 @@ let _ =
   let no_stdlib = ref false in
   let no_opt = ref false in
   let main = ref "" in
+  let print_int = ref false in
   Arg.parse 
-    ["-main", Arg.String (fun s -> main := s), "specifies the root module";
-     "-bounds", Arg.Unit (fun () -> bounds := true), "show unchecked bounds";
-     "-llst", Arg.Unit (fun () -> dump_llst := true), "internal";
-     "-est", Arg.Unit (fun () -> dump_est := true), "internal";
-     "-asm", Arg.Unit (fun () -> dump_as := true), "internal" ;
-     "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), "excludes standard library";
-     "-no-opt", Arg.Unit (fun () -> no_opt := true), "disables optimizations" ;
+    ["-main", Arg.String (fun s -> main := s), 
+     space 10 "specifies the root module";
+     "-bounds", Arg.Unit (fun () -> bounds := true), 
+     space 8 "show unchecked bounds";
+     "-llst", Arg.Unit (fun () -> dump_llst := true), 
+     space 10 "internal";
+     "-est", Arg.Unit (fun () -> dump_est := true),
+     space 11 "internal";
+     "-asm", Arg.Unit (fun () -> dump_as := true), 
+     space 11 "internal" ;
+     "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), 
+     space 5 "excludes standard library";
+     "-no-opt", Arg.Unit (fun () -> no_opt := true), 
+     space 8 "disables optimizations" ;
+     "-i", Arg.Unit (fun () -> print_int := true), 
+     space 13 "print interface and exit" ;
    ]
     (fun x -> module_l := x :: !module_l)
     (Printf.sprintf "%s files" Sys.argv.(0)) ;
+  if !print_int then
+    (List.iter output_interface !module_l ; exit 0) ;
   let ast = List.fold_left parse [] !module_l in
-  let ast = if !no_stdlib then ast else List.fold_left parse ast Global.stdlib in
+  let ast = 
+    if !no_stdlib then ast else 
+    List.fold_left parse ast Global.stdlib 
+  in 
   let nast = Naming.program ast in
   NastCheck.program nast ;
   let neast = NastExpand.program nast in

@@ -44,7 +44,6 @@ let rec pat_end = function
   | [_,x] -> (fst x)
   | _ :: rl -> pat_end rl
 
-
 let rec tapply x = function
   | [] -> x
   | t :: rl -> tapply (btw x t, Tapply (t, [x])) rl
@@ -208,8 +207,10 @@ module_l:
 
 module_: 
 | MODULE CSTR EQ STRUCT def_l 
-    { { md_id = $2 ; 
-	md_defs = $5 } 
+    { { md_sig = false;
+	md_id = $2; 
+	md_defs = $5; 
+      } 
     }
 
 def_l:

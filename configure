@@ -35,18 +35,24 @@ cc=""
 ocamlc=""
 ocamlopt=""
 ocamldep=""
+ocamllex=""
+ocamlyacc=""
 llc=""
 llbindings=""
 
 llvm_cma=""
-analysis_cma=""
-bitwriter_cma=""
+llvm_analysis_cma=""
+llvm_bitwriter_cma=""
 llvm_scalar_opts_cma=""
 llvm_target_cma=""
 
 stdlibdir=""
 bindir=""
 libdir=""
+
+stack_align=""
+trampoline_size=""
+max_reg_ret=""
 
 echo "**************************"
 echo "*  Configuring linearML  *"
@@ -68,6 +74,10 @@ do
 	  ocamlopt=$2	; shift ;;
     --ocamldep) 
 	  ocamldep=$2	; shift ;;
+    --ocamllex) 
+	  ocamllex=$2	; shift ;;
+    --ocamlyacc) 
+	  ocamlyacc=$2	; shift ;;
     --stdlibdir) 
 	  stdlibdir=$2	; shift ;;
     --bindir) 
@@ -131,7 +141,23 @@ if test -z "$ocamldep"; then
     if test -z "$ocamldep"; then
 	echo "Couldn't find ocamldep please use --ocamldep" ; exit 2
     fi
-    echo -e "Found ocamldep\t: $ocamldep -e"
+    echo -e "Found ocamldep\t: $ocamldep"
+fi
+
+if test -z "$ocamllex"; then
+    ocamllex=`which ocamllex`;
+    if test -z "$ocamllex"; then
+	echo "Couldn't find ocamllex please use --ocamllex" ; exit 2
+    fi
+    echo -e "Found ocamllex\t: $ocamllex"
+fi
+
+if test -z "$ocamlyacc"; then
+    ocamlyacc=`which ocamlyacc`;
+    if test -z "$ocamlyacc"; then
+	echo "Couldn't find ocamlyacc please use --ocamlyacc" ; exit 2
+    fi
+    echo -e "Found ocamlyacc\t: $ocamlyacc"
 fi
 
 if test -z "$llc"; then
@@ -176,20 +202,20 @@ if test -z "$llbindings"; then
     else echo -e "Found $llvm_cma_base\t: $llvm_cma"
     fi
 
-    analysis_cma="$llbindings/llvm_analysis.cma"
-    analysis_cma_base="analysis"
-    if test -z "$analysis_cma"; then
-	echo "Cound not find analysis.cma" ;
+    llvm_analysis_cma="$llbindings/llvm_analysis.cma"
+    llvm_analysis_cma_base="analysis"
+    if test -z "$llvm_analysis_cma"; then
+	echo "Cound not find llvm_analysis.cma" ;
 	exit 2
-    else echo -e "Found $analysis_cma_base\t: $analysis_cma"
+    else echo -e "Found $llvm_analysis_cma_base\t: $llvm_analysis_cma"
     fi
 
-    bitwriter_cma="$llbindings/llvm_bitwriter.cma"
-    bitwriter_cma_base="bitwriter"
-    if test -z "$bitwriter_cma"; then
-	echo "Cound not find bitwriter.cma" ;
+    llvm_bitwriter_cma="$llbindings/llvm_bitwriter.cma"
+    llvm_bitwriter_cma_base="bitwriter"
+    if test -z "$llvm_bitwriter_cma"; then
+	echo "Cound not find llvm°bitwriter.cma" ;
 	exit 2
-    else echo -e "Found $bitwriter_cma_base\t: $bitwriter_cma"
+    else echo -e "Found $llvm_bitwriter_cma_base\t: $llvm_bitwriter_cma"
     fi
 
     llvm_scalar_opts_cma="$llbindings/llvm_scalar_opts.cma"
@@ -235,6 +261,22 @@ else
     exit 2
 fi
 
+ocamllex_version=`$ocamllex -version` ;
+if [[ "$ocamllex_version" =~ 3.1[^0].* ]]; then
+    echo -e "Checking ocamllex\t: OK $ocamllex_version"
+else 
+    echo "Bad version of ocamllex (< 3.11): $version" 2>&1;
+    exit 2
+fi
+
+ocamlyacc_version=`$ocamlyacc -version` ;
+if [[ "$ocamlyacc_version" =~ 3.1[^0].* ]]; then
+    echo -e "Checking ocamlyacc\t: OK $ocamlyacc_version"
+else 
+    echo "Bad version of ocamlyacc (< 3.11): $version" 2>&1;
+    exit 2
+fi
+
 ocamldep_version=`$ocamldep -version` ;
 if [[ "$ocamldep_version" =~ 3.1[^0].* ]]; then
     echo -e "Checking ocamldep\t: OK $ocamldep_version"
@@ -255,3 +297,48 @@ else if [[ "$march" == "ARCH_64" ]]; then
 else echo "Unknown architecture!" ; exit 2 
 fi
 fi
+
+if test -z "$stdlibdir"; then
+    stdlibdir="/usr/lib/liml"
+fi
+
+config="Makefile.config"
+rm -f "$config"
+touch "$config"
+
+echo "OCAMLLIB  = $llbindings" >> "$config"
+echo "OCAMLC    = $ocamlc" >> "$config"
+echo "OCAMLOPT  = $ocamlopt" >> "$config"
+echo "OCAMLDEP  = $ocamldep" >> "$config"
+echo "OCAMLLEX  = $ocamllex" >> "$config"
+echo "OCAMLYACC = $ocamlyacc" >> "$config"
+echo "CC        = $cc" >> "$config"
+echo "CPP       = $cpp" >> "$config"
+echo "LLVM_LIBS = $llvm_cma $llvm_analysis_cma $llvm_bitwriter_cma $llvm_scalar_opts_cma $llvm_target_cma" >> "$config"
+
+config_ml="compiler/genGlobals.ml"
+rm -f "$config_ml"
+touch "$config_ml"
+
+if [[ $march == "ARCH_32" ]]; then
+    stack_align="4"
+    trampoline_size="10"
+    max_reg_ret="4"
+fi
+
+if [[ $march == "ARCH_64" ]]; then
+    stack_align="8"
+    trampoline_size="16"
+    max_reg_ret="4"
+fi
+
+echo -e "Stack alignment\t: $stack_align"
+echo -e "Trampoline size\t: $trampoline_size"
+echo -e "Return in registers\t: $max_reg_ret"
+
+echo "let arch_type = \"$march\"" >> "$config_ml"
+echo "let tramp_size = $trampoline_size" >> "$config_ml"
+echo "let tramp_align = $stack_align" >> "$config_ml"
+echo "let max_reg_return = $max_reg_ret" >> "$config_ml"
+echo "let llc = \"$llc\"" >> "$config_ml"
+echo "let stdlibdir = \"$stdlibdir\"" >> "$config_ml"

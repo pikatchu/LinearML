@@ -1,7 +1,6 @@
+-include ../Makefile.config
 
-CC = gcc
 CC_OPT = -O3
-CC_ARCH = -DARCH_32
 
 default: libliml.a
 

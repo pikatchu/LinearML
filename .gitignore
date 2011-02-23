@@ -12,9 +12,9 @@ parser.mli
 lexer.ml
 .depend
 Makefile.config
-/limlc
-/limlc.bc
-/liml
+compiler/limlc
+compiler/limlc.bc
+compiler/liml
 *~
 \#*
 parser.output
