@@ -1,7 +1,6 @@
 
 OCAMLBIN =
 OCAMLLIB ?= /usr/lib/ocaml/llvm-2.8
-STDLIB_PATH = /home/pika/LinearML/stdlib/
 
 OCAMLC   = ocamlc -dtypes -warn-error A
 OCAMLOPT = ocamlopt
@@ -23,11 +22,10 @@ LIBS = unix.cma $(LLVM_LIBS)
 LIBSOPT = $(LIBS:.cma=.cmxa)
 INCLUDE = -I $(OCAMLLIB)
 CLIBS = $(addprefix $(OCAMLLIB)/, $(LLVM_LIBS:.cma=.a))
-LIML_STDLIB = -ccopt -Lstdlib -ccopt -lliml
 
-default: liml
+default: limlc
 
-.PHONY: liml
+.PHONY: limlc
 
 OBJECTS_ML = \
 	genGlobals.ml\
@@ -85,14 +83,14 @@ OBJECTS_ML = \
 OBJECTS_CMO = $(OBJECTS_ML:.ml=.cmo)	
 OBJECTS_CMX = $(OBJECTS_ML:.ml=.cmx)	
 
-liml: $(OBJECTS_CMX) stdlib/libliml.so
+limlc: $(OBJECTS_CMX) ../stdlib/libliml.a
 	echo $(LIBS)
 	$(OCAMLOPT) -cc $(CC) $(INCLUDE) -linkall $(CLIBS) $(LIBSOPT) $(OBJECTS_CMX) \
-		$(LIML_STDLIB) -o $@		
+		-o $@		
 
-liml.bc: $(OBJECTS_CMO) stdlib/libliml.so
+limlc.bc: $(OBJECTS_CMO) ../stdlib/libliml.a
 	$(OCAMLC) -g -cc $(CC) $(INCLUDE) $(LIBS) $(OBJECTS_CMO) \
-		$(LIML_STDLIB) -o $@ 
+		-o $@ 
 
 ##############################################################################
 
@@ -116,9 +114,9 @@ liml.bc: $(OBJECTS_CMO) stdlib/libliml.so
 genGlobals.ml:
 	echo "let root = \"$(STDLIB_PATH)\"" > genGlobals.ml
 
-stdlib/libliml.so:
+../stdlib/libliml.a:
 	@echo "Compiling the standard library"
-	cd stdlib && make
+	cd ../stdlib && make
 
 .depend: $(OBJECTS_ML)
 	$(OCAMLDEP) -native -slash $(INCLUDE) $(OBJECTS_ML) > .depend
@@ -126,10 +124,10 @@ stdlib/libliml.so:
 clean: 
 	rm -f *.cm* pkl *~ lexer.ml parser.ml parser.mli lexer.mli *.o* \#*
 	rm -f limlc limlc.bc liml liml.bc *.annot .depend
-	rm -f stdlib/*.o stdlib/*.s stdlib/*.bc stdlib/*~ test/*.o test/*.s 
+	rm -f test/*.o test/*.s 
 	rm -f test/*.bc test/*~
 	rm -f genGlobals.ml
-	cd stdlib && make clean
+	cd ../stdlib && make clean
 
 -include .depend
 -include Makefile.config
