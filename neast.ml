@@ -115,7 +115,7 @@ module TVars = struct
 
 end
 
-module Instantiate = struct
+module Subst = struct
 
   let rec type_expr env t (p, ty) = 
     p, type_expr_ env t ty
@@ -143,14 +143,18 @@ module Instantiate = struct
     let name = fresh x in
     IMap.add x name acc
 
+end
+
+module Instantiate = struct
+
   let type_expr env ty = 
     let tvars = TVars.type_expr env ISet.empty ty in
-    let instv = ISet.fold make_name tvars IMap.empty in
-    type_expr env instv ty
+    let instv = ISet.fold Subst.make_name tvars IMap.empty in
+    Subst.type_expr env instv ty
 
   let type_expr_list env tyl = 
     let tvars = TVars.type_expr_list env ISet.empty tyl in
-    let instv = ISet.fold make_name tvars IMap.empty in
-    type_expr_list env instv tyl
-
+    let instv = ISet.fold Subst.make_name tvars IMap.empty in
+    Subst.type_expr_list env instv tyl
 end
+

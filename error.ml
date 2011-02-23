@@ -376,7 +376,13 @@ let forgot_free p =
 let esc_scope p =
   pos p ;
   err "This resource is not observed" ;
-  err "You can only capture observed values within a closure" ;
+  err "You can only capture observed values within an observed closure" ;
+  exit 2
+
+let esc_obs_scope p =
+  pos p ;
+  err "This resource is observed" ;
+  err "You can not capture an observed value within a non-observed closure" ;
   exit 2
 
 let partial_not_obs p =

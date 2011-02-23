@@ -111,7 +111,7 @@ and type_expr_ = function
   | Tprim _ -> P
   | Tany 
   | Tvar _ | Tfun _ -> A
-  | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> type_expr ty
+  | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> A
   | Tid (_, x)
   | Tapply ((_, x), _) -> Rid x
 
@@ -173,7 +173,10 @@ and def t (_, x, ((tyl, _) as p), e) =
 
 and pat t (_, ptl) tl = List.fold_left (pat_tuple tl) t ptl
 and pat_tuple tl t (_, pel) = List.fold_left2 pat_el t pel tl
-and pat_el t (_, p) ty = pat_ t p ty
+and pat_el t (_, p) ty = 
+
+  pat_ t p ty
+    
 and pat_ t p ty = 
   match p with
   | Pvalue _
@@ -187,7 +190,7 @@ and pat_ t p ty =
 
 and pat_record t pfl = function
   | A
-  | P -> assert false
+  | P -> t
   | R m -> 
       let t, m = List.fold_left pat_field (t, m) pfl in
       let t = List.fold_left (pat_rest m) t pfl in
@@ -221,7 +224,8 @@ and tuple t (_, tpl) =
     tuple_pos t e @ acc) tpl []
 
 and tuple_pos t ((p, tyl), e) = expr_ t p tyl e
-and expr t ((p, _) as ty, e) = expr_ t p [ty] e 
+and expr t ((p, ty_) as ty, e) = expr_ t p [ty] e 
+
 and expr_ t pos ty = function
   | Eobs (_, x)
   | Eid (_, x) -> 

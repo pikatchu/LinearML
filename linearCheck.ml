@@ -1,7 +1,6 @@
 open Utils
 open Stast
 
-
 module Type = struct
 
   type t =
@@ -106,13 +105,11 @@ end = struct
 
   type t = Type.t IMap.t list
 
-
   let print t = 
     IMap.iter (
     fun x ty -> 
       Ident.print x; Type.print ty ; o "\n" ;
    ) (List.hd t)
-
       
   let empty = [IMap.empty]
 
@@ -287,9 +284,13 @@ module FreeObsVars = struct
     | Type.Obs s -> ISet.add x (ISet.union s t)
     | _ -> t
 
-  let obs_id obs env t (p, x) =
-    let t = id false env t (p, x) in
-    ISet.add x t
+  let rec obs_id obs env t (p, x) =
+    match Env.get x env with
+    | Type.As_root x -> obs_id obs env t (p, x)
+    | Type.As_child x -> obs_id obs env t (p, x)
+    | Type.As (x, _) -> obs_id obs env t (p, x)
+    | Type.Obs s when not obs -> Error.esc_scope p
+    | _ -> ISet.add x t
   
   let rec pat obs t (_, ptl) = 
     List.fold_left (pat_tuple obs) t ptl
@@ -498,11 +499,11 @@ and expr_ t ty = function
   | Erecord fdl -> 
       let t = List.fold_left field t fdl in
       t, Type.fresh ty
-  | Ewith (e, fdl) ->  (* TODO check no obs ? *)
-      let t, _ = expr t e in
+  | Ewith (e, fdl) ->  
       let t = List.fold_left field t fdl in
+      let t, _ = expr t e in
       t, Type.fresh ty
-  | Efield (e, _) -> failwith "TODO field"
+  | Efield (e, _) -> proj t e
   | Ematch (e, al) -> 
       let t, vl = tuple t e in
       let t' = Env.push t in
@@ -520,8 +521,6 @@ and expr_ t ty = function
       let t' = Env.push t in
       let t1, vl1 = tuple t' e1 in
       let t2, vl2 = tuple t' e2 in
-      Env.print t1 ;
-      Env.print t2 ;
       let pos1 = fst (fst e1) in
       let pos2 = fst (fst e2) in
       let t = Env.merge t [pos1, t1; pos2, t2] in
@@ -562,6 +561,12 @@ and action t vl (p, a) =
   let pos = fst (fst a) in
   let t, vl = tuple t a in
   (pos, t), vl
+
+and proj t (_, e) = 
+  match e with
+  | Eid x -> Env.obs x (Env.get (snd x) t) t
+  | Efield (e, _) -> proj t e
+  | _ -> assert false
 
 and apply tyl t x vl = 
   let obs_set = List.fold_left (
