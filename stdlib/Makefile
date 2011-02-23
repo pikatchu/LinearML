@@ -14,7 +14,8 @@ SOURCES =\
 
 LML_SOURCES =\
 	array.lml \
-	print.lml
+	print.lml \
+	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	
 
