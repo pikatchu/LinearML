@@ -1,11 +1,11 @@
 
-CC = llvm-gcc
-CC_OPT = -O3 -fPIC -fpcc-struct-return
+CC = gcc
+CC_OPT = -O3
 CC_ARCH = -DARCH_32
 
-default: libliml.so.1
+default: libliml.a
 
-.PHONY: libliml.so.1
+.PHONY: libliml.a
 
 SOURCES =\
 	array.c\
@@ -15,11 +15,9 @@ SOURCES =\
 
 OBJECTS = $(SOURCES:.c=.o)	
 
-libliml.so.1: $(OBJECTS)
-	@rm -f libliml.so.1 libliml.so
-	gcc -shared -Wl,-soname,libliml.so \
-		    -o libliml.so.1 $(OBJECTS) $(LIBS)
-	ln -s libliml.so.1 libliml.so
+libliml.a: $(OBJECTS)
+	@rm -f libliml.a
+	ar cr libliml.a $(OBJECTS) $(LIBS)
 
 ##############################################################################
 
@@ -30,5 +28,5 @@ libliml.so.1: $(OBJECTS)
 ###############################################################################
 
 clean: 
-	rm -f *.o *~ libliml.so.1 libliml.so \#*
+	rm -f *.o *~ libliml.a \#*
 
