@@ -116,6 +116,8 @@ and expr_ bds p = function
       then aget bds p e
       else if fid = Naming.aswap 
       then aswap bds p e
+      else if fid = Naming.alength
+      then snd (alength e)
       else Ist.Eapply (fk, type_expr fty, id x, e)
   | Eseq (e1, e2) -> Ist.Eseq (expr bds e1, (tuple bds e2))
   | Eobs x -> Ist.Eid (id x)
@@ -140,10 +142,10 @@ and if_up i x v1 v2 =
   let ty = List.flatten (List.map fst v1) in
   ty, Ist.Eif (b, v1, v2)
 
+and alength t = length (List.hd t)
 and length t = 
-  let link = Ast.Lfun in
-  let fty = Ist.Tfun (link, fst t, [Ist.Tprim Tint]) in
-  [Ist.Tprim Tint], Ist.Eapply (link, fty, Naming.alength, [t])
+  let z = [Ist.Tprim Tint], Ist.Evalue (Ist.Eint "-1") in
+  [Ist.Tprim Tint], Ist.Eget (t, z)
 
 and default ty =
   [ty], match ty with
