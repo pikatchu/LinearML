@@ -190,6 +190,10 @@ fi
 if test -z "$llbindings"; then
     llvm_cma=`locate llvm.cma`
 
+    if test -z "$llvm_cma"; then
+	echo "Could not find ocaml bindings for llvm!" ; exit 2
+    fi
+
     llbindings=`dirname $llvm_cma`
     if test -z "$llbindings"; then
 	llbindings="/usr/lib/ocaml/llvm-2.8"
