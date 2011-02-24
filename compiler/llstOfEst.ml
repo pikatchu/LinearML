@@ -321,7 +321,6 @@ and type_expr = function
       Llst.Tfun (k, tyl1, tyl2)
 
 and ftype_expr = function
-  | Tprim Tunit -> Llst.Tprim Tunit
   | Tany | Tprim _
   | Tvar _ | Tid _
   | Tapply _ | Tfun _ -> Llst.Tprim Llst.Tint
@@ -528,7 +527,6 @@ and add_casts idl1 idl2 acc =
   List.fold_right2 (
   fun x y acc -> 
     match fst y with
-    | Llst.Tprim Llst.Tunit as u -> ([u, snd x], Llst.Eid y) :: acc
     | _ -> ([x], Llst.Eid y) :: acc
  ) idl1 idl2 acc
 

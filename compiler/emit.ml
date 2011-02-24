@@ -165,7 +165,6 @@ module Type = struct
 
   and type_args mds t ctx l = 
     match l with
-    | [Tprim Tunit] -> [||]
     | l -> Array.of_list (List.map (type_ mds t ctx) l)
 
   and type_ mds t ctx = function
@@ -192,7 +191,7 @@ module Type = struct
 	pointer_type ty
 
   and type_prim ctx = function 
-    | Tunit -> void_type ctx
+    | Tunit -> type_prim ctx Tint
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
     | Tint  -> i32_type ctx (* TODO *)
@@ -202,7 +201,7 @@ module Type = struct
   and type_list mds t ctx l = 
     let tyl = List.map (type_ mds t ctx) l in
     match tyl with
-    | [] -> void_type ctx
+    | [] -> assert false
     | [x] -> x 
     | _ -> struct_type ctx (Array.of_list tyl)
 
@@ -245,7 +244,7 @@ module Pervasives = struct
 
   let make ctx md = 
     let string = pointer_type (i8_type ctx) in
-    let unit = void_type ctx in
+    let unit = Type.type_prim ctx Llst.Tint in
     let args = i64_type ctx in
     let fty = function_type string [|args|] in
     let malloc = declare_function "malloc" fty md in
@@ -274,14 +273,15 @@ module MakeRoot = struct
       | Some f -> f in
     let builder = builder ctx in
     let name = "main" in
-    let void = void_type ctx in
-    let ftype = function_type void [||] in 
+    let int = Type.type_prim ctx Llst.Tint in
+    let z = const_int int 0 in
+    let ftype = function_type int [|int|] in 
     let fdec = declare_function name ftype md in
     let bb = append_block ctx "" fdec in
     position_at_end bb builder ;  
-    let v = build_call f [||] "" builder in
+    let v = build_call f [|z|] "" builder in
     set_instruction_call_conv ccfast v ; (* TODO check signature etc ... *)
-    let _ = build_ret_void builder in 
+    let _ = build_ret z builder in 
     ()
 
 end
@@ -444,7 +444,7 @@ and return env acc = function
   | Return (_, l) -> 
       let l = List.map (fun (_, x) -> IMap.find x acc) l in
       (match Array.of_list l with
-      | [||] -> ignore (build_ret_void env.builder)
+      | [||] -> assert false
       | [|x|] -> ignore (build_ret x env.builder)
       | t -> 
 	  (match !(env.ret) with
@@ -482,7 +482,6 @@ and ret_struct env st t =
 
 and build_args acc l = 
   match l with
-  | [Tprim Tunit, _] -> []
   | _ -> List.map (fun (_, v) -> IMap.find v acc) l
 
 and instructions bb env acc ret l = 
@@ -515,14 +514,16 @@ and instructions bb env acc ret l =
 
 and instruction bb env acc (idl, e) = 
   match idl, e with 
-  | _, Efree (_, v) ->
+  | [(_, x)], Efree (_, v) ->
       let f = IMap.find Naming.ifree env.prims in
       let v = IMap.find v acc in
       let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in
       let v = build_call f [|v|] "" env.builder in
       let cconv = Llvm.CallConv.c in
       set_instruction_call_conv cconv v ;
-      acc
+      let int = Type.type_prim env.ctx Llst.Tint in
+      let z = const_int int 0 in
+      IMap.add x z acc
   | [(_, x1) ; (_, x2)], Eswap (t, i, (ty, v)) ->
       let el_ty = Type.type_ env.mds env.types env.ctx ty in
       let t = IMap.find (snd t) acc in
@@ -842,7 +843,7 @@ and binop ty = function
   | Eor -> build_or
 
 and const env ty = function
-  | Eunit -> assert false
+  | Eunit -> const_int_of_string ty "0" 10
   | Ebool true -> const_int (i1_type env.ctx) 1
   | Ebool false -> const_int (i1_type env.ctx) 0
   | Eint s -> 

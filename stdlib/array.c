@@ -1,20 +1,5 @@
-#define DARCH_32 
 #include"liml.h"
 #include<malloc.h>
-
-typedef struct{
-  lvalue l1 ;
-  lvalue l2 ;
-} cpl ;
-
-cpl toto(int n){
-  cpl res ;
-  printf("%d\n", n) ;
-
-  res.l1 = n ; 
-  res.l2 = n ;
-  return res ;
-}
 
 lvalue liml_array_make(lvalue size__, lvalue call__, lvalue f){
   int size = (int) size__ ;
@@ -49,9 +34,9 @@ lvalue liml_array_length(lvalue t__){
   return (lvalue)*(t-1) ; 
 }
 
-void liml_array_release(lvalue call__, lvalue f, lvalue t__){
+lvalue liml_array_release(lvalue call__, lvalue f, lvalue t__){
   int* t = (int*) t__ ;
-  void(*call)(lvalue, lvalue) = (void(*)(lvalue,lvalue)) call__ ;
+  lvalue(*call)(lvalue, lvalue) = (lvalue(*)(lvalue,lvalue)) call__ ;
   int i ;
   int size = *(t-1) ;
 
@@ -59,11 +44,11 @@ void liml_array_release(lvalue call__, lvalue f, lvalue t__){
     call(f, t[i]) ;
   }
   free(t-1) ;
-  return;
+  return 0;
 }
 
-void liml_array_ifrelease(lvalue t__){
+lvalue liml_array_ifrelease(lvalue t__){
   int* t = (void*) t__;
   free(t-1) ;
-  return;
+  return 0;
 }

@@ -1,8 +1,9 @@
 #include "liml.h"
 #include<stdio.h>
 
-void debug(lvalue v){
+lvalue debug(lvalue v){
   printf("%p\n", (void*)v) ;
+  return 0 ;
 }
 
 int land(int n1, int n2){

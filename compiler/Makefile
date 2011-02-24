@@ -50,7 +50,6 @@ OBJECTS_ML = \
 	llstOfEst.ml\
 	llstFree.ml\
 	llstOptim.ml\
-	llstRemoveUnit.ml\
 	emit.ml\
 	main.ml
 #	istAdhoc.ml

@@ -180,7 +180,6 @@ let _ =
   let llst = LlstOptim.inline llst in 
   let llst = LlstFree.program llst in  
   let llst = LlstOptim.program llst in 
-  let llst = LlstRemoveUnit.program llst in 
   if !dump_llst then
     LlstPp.program llst ;   
   let bc = Emit.program base !root !no_opt !dump_as llst in

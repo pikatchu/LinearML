@@ -1,21 +1,25 @@
 #include"liml.h"
 #include<stdio.h>
 
-void print_int(lvalue n__){
+lvalue print_int(lvalue n__){
   int n = (int) n__ ;
   printf("%d", n) ;
+  return 0 ;
 }
 
-void print_newline(){
+lvalue print_newline(){
   printf("\n") ;
+  return 0 ;
 }
 
-void print_float(lvalue x__){
+lvalue print_float(lvalue x__){
   float x = V2F(x__) ;
   printf("%f", x) ;
+  return 0 ;
 }
 
-void print_string(lvalue x__){
+lvalue print_string(lvalue x__){
   char *x = (char*) x__ ;
   printf("%s", x) ;
+  return 0 ;
 }
