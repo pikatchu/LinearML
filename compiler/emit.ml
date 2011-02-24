@@ -194,8 +194,10 @@ module Type = struct
     | Tunit -> type_prim ctx Tint
     | Tbool -> i1_type ctx
     | Tchar -> i8_type ctx
-    | Tint  -> i32_type ctx (* TODO *)
-    | Tfloat -> float_type ctx (* TODO *)
+    | Tint when Global.arch_type = "ARCH_32" -> i32_type ctx 
+    | Tint  -> i64_type ctx 
+    | Tfloat when Global.arch_type = "ARCH_32" -> float_type ctx
+    | Tfloat -> double_type ctx
     | Tstring -> pointer_type (i8_type ctx)
 
   and type_list mds t ctx l = 
@@ -347,7 +349,7 @@ let optims pm =
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
   let llmd, mds, t = Type.program base ctx mdl in
-  set_data_layout "s0:64:64" llmd ;
+  set_data_layout Global.data_layout llmd ;
   let origs = List.fold_left (
     fun acc md ->
       List.fold_left (

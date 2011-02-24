@@ -63,10 +63,6 @@ module Print = struct
 	(try type_expr env o (IMap.find (snd x) env)
 	with Not_found ->
 	  id o x)
-    | Targ x -> 	
-	(try type_expr env o (IMap.find (snd x) env)
-	with Not_found ->
-	  id o x)
     | Tid x -> id o x
     | Tapply (x, tyl) -> 
 	type_expr_list env o tyl ;
@@ -159,7 +155,6 @@ module LocalUtils = struct
     match ty with
     | Tany -> true
     | Tprim _ -> b
-    | Targ _
     | Tvar _ -> b
     | Tid _ -> b
     | Tapply (_, l) -> has_any_list b l 
@@ -228,7 +223,6 @@ module Type = struct
   and unify_el_prim env ((p1, ty1) as pty1) ((p2, ty2) as pty2) =
     match ty1, ty2 with
     | Tprim x, Tprim y when x = y -> ty2
-    | Targ (_, x), Targ (_, y) when x = y -> ty2
     | Tany, _ -> ty2
     | _, Tany -> ty1
     | Tprim _, Tapply (y, (_, [ty2])) when snd y = Naming.tobs -> 

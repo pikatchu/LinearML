@@ -333,19 +333,25 @@ echo "CPP       = $cpp" >> "$config"
 echo "LLVM_LIBS = $llvm_cma $llvm_analysis_cma $llvm_bitwriter_cma $llvm_scalar_opts_cma $llvm_target_cma" >> "$config"
 
 config_ml="compiler/genGlobals.ml"
+config_h="stdlib/config.h"
 rm -f "$config_ml"
+rm -f "$config_h"
 touch "$config_ml"
 
 if [[ $march == "ARCH_32" ]]; then
     stack_align="4"
     trampoline_size="10"
     max_reg_ret="4"
+    data_layout="s0:32:32"
+    echo "#define ARCH_32" > "$config_h"
 fi
 
 if [[ $march == "ARCH_64" ]]; then
     stack_align="8"
     trampoline_size="16"
     max_reg_ret="4"
+    data_layout="s0:64:64"
+    echo "#define ARCH_64" > "$config_h"
 fi
 
 echo -e "Stack alignment\t: $stack_align"
@@ -356,7 +362,13 @@ echo "let arch_type = \"$march\"" >> "$config_ml"
 echo "let tramp_size = $trampoline_size" >> "$config_ml"
 echo "let tramp_align = $stack_align" >> "$config_ml"
 echo "let max_reg_return = $max_reg_ret" >> "$config_ml"
+echo "let data_layout = \"$data_layout\"" >> "$config_ml"
 echo "let llc = \"$llc\"" >> "$config_ml"
 echo "let stdlibdir = \"$libdir\"" >> "$config_ml"
 echo "let cc = \"$cc\"" >> "$config_ml"
 echo "let ar = \"$ar\"" >> "$config_ml"
+
+echo ""
+echo -e "Generated\t: $config"
+echo -e "Generated\t: $config_ml"
+echo -e "Generated\t: $config_h"

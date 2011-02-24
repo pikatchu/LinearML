@@ -61,7 +61,6 @@ and type_expr = Pos.t * type_expr_
 and type_expr_ = 
   | Tany
   | Tprim of type_prim
-  | Targ of id
   | Tvar of id
   | Tid of id
   | Tapply of id * type_expr_list
@@ -129,7 +128,6 @@ module TVars = struct
 
   and type_expr_ env t = function
     | Tany
-    | Targ _
     | Tprim _ 
     | Tid _ -> t
     | Tvar (_, x) -> 
@@ -155,7 +153,6 @@ module Subst = struct
   and type_expr_ env t = function
     | Tany
     | Tprim _ 
-    | Targ _
     | Tid _ as x -> x
     | Tvar (p, x) -> 
 	(try snd (type_expr env t (IMap.find x env))

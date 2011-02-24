@@ -85,7 +85,6 @@ and type_expr t (p, ty) = p, type_expr_ t ty
 and type_expr_ t = function
     | Neast.Tany -> Stast.Tany
     | Neast.Tprim ty -> Stast.Tprim ty
-    | Neast.Targ x -> Stast.Tvar x
     | Neast.Tvar ((_, x) as v) -> 
 	(try snd (type_expr t (IMap.find x t.Env.types))
 	with Not_found -> Stast.Tvar v)

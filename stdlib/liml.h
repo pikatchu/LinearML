@@ -1,6 +1,6 @@
-#define DARCH_32
+#include "./config.h"
 
-#ifdef DARCH_32
+#ifdef ARCH_32
 
 typedef int   lvalue ;
 
@@ -9,7 +9,7 @@ typedef int   lvalue ;
 
 #endif
 
-#ifdef DARCH_64
+#ifdef ARCH_64
 
 typedef void   *lvalue ;
 #define lint   int

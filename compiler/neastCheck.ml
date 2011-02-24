@@ -102,7 +102,7 @@ end = struct
   and type_expr_list env (_, tyl) = List.iter (type_expr env) tyl
   and type_expr env (pos, ty) = type_expr_ env ty
   and type_expr_ env = function
-    | Tany  | Targ _
+    | Tany 
     | Tprim _   | Tvar _  -> ()
     | Tid (p, x) -> 
 	let pdef, arity = get x env in
@@ -245,7 +245,6 @@ module CheckExternal = struct
     | Tprim Tbool -> Error.invalid_extern_type p p
     | Tprim _ -> ()
     | Tvar _
-    | Targ _
     | Tid _ -> ()
     | Tapply (_, tyl) -> type_expr_list tyl
     | Tfun (Ast.Lfun, _, _) -> raise (Error p) 
@@ -258,6 +257,21 @@ end
 (*****************************************************************************)
 (*     Check signatures                                                      *)
 (*****************************************************************************)
+module CheckNoObs = struct
+
+  let rec type_expr_list (_, tyl) = List.iter type_expr tyl
+  and type_expr (pos, ty) = type_expr_ ty
+  and type_expr_ = function
+    | Tany
+    | Tprim _   | Tvar _  -> ()
+    | Tid _ -> ()
+    | Tapply ((p, x), _) when x = Naming.tobs ->
+	Error.obs_not_allowed p
+    | Tapply (_, ((_, l) as tl)) -> type_expr_list tl 
+    | Tfun _ -> ()
+
+end
+
 module CheckSig = struct
 
   type acc = {
@@ -285,6 +299,13 @@ module CheckSig = struct
 	let vals = IMap.add (snd x) (fst x) acc.vals in
 	let exts = extern acc.exts x ext in
 	{ acc with vals = vals ; exts = exts }
+    | Drecord td
+    | Dalgebric td ->
+	IMap.iter (
+	fun _ (_, tyl) ->
+	  CheckNoObs.type_expr_list tyl
+       ) td.td_map ;
+	acc
     | _ -> acc
 
   and extern exts x = function
@@ -318,7 +339,6 @@ module CheckSig = struct
     if IMap.mem x acc.lets 
     then ()
     else Error.fun_no_def p
-
 end
 
 
