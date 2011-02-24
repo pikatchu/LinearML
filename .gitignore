@@ -15,6 +15,7 @@ Makefile.config
 compiler/limlc
 compiler/limlc.bc
 compiler/liml
+stdlib/config.h
 *~
 stdlib/libliml.lmli
 \#*
