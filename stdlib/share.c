@@ -1,7 +1,8 @@
+#include "liml.h"
 #include<malloc.h>
 
 typedef struct{
-  int counter ;
+  lvalue counter ;
   void* value ;
 } share_t ;
 

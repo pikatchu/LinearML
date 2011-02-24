@@ -1,3 +1,4 @@
+#include "liml.h"
 #include<pthread.h>
 #include<stdlib.h>
 
@@ -53,7 +54,7 @@ void* future_wait(future* t){
   return res ;
 }
 
-int future_ready(future* t){
+lvalue future_ready(future* t){
   return (t->v == NULL) ;
 }
 

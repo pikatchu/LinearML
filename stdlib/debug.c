@@ -6,10 +6,10 @@ lvalue debug(lvalue v){
   return 0 ;
 }
 
-int land(int n1, int n2){
+lvalue land(lvalue n1, lvalue n2){
   return (n1 & n2) ;
 }
 
-int lsl(int n1, int n2){
+lvalue lsl(lvalue n1, lvalue n2){
   return (n1 << n2) ;
 }
