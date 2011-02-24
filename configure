@@ -188,10 +188,17 @@ if test -z "$llc"; then
 fi
 
 if test -z "$llbindings"; then
-    llvm_cma=`locate llvm.cma`
+    llvm_cma="/usr/lib/ocaml/llvm-2.8/llvm.cma"
 
-    if test -z "$llvm_cma"; then
-	echo "Could not find ocaml bindings for llvm!" ; exit 2
+    if test -e "$llvm_cma"; then
+	llvm_cma="/usr/lib/ocaml/llvm-2.8/llvm.cma"
+	if test -e "$llvm_cma"; then
+	    llvm_cma="/usr/local/lib/ocaml/llvm-2.8/llvm.cma"
+	    if test -e "$llvm_cma"; then
+		llvm_cma="/usr/share/lib/ocaml/llvm-2.8/llvm.cma"
+		echo "Could not find ocaml bindings for llvm!" ; exit 2
+	    fi
+	fi  
     fi
 
     llbindings=`dirname $llvm_cma`
