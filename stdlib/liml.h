@@ -11,8 +11,8 @@ typedef int   lvalue ;
 
 #ifdef ARCH_64
 
-typedef void   *lvalue ;
-#define lint   int
+typedef long   lvalue ;
+#define lint   long
 #define lfloat lvalue
 
 #define V2F(x)   (*((double*)&(x)))
