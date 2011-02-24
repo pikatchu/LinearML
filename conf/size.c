@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv){
 
-  int isize = sizeof(int) ;
+  int isize = sizeof(long) ;
   int vsize = sizeof(void*) ;
   int fsize = sizeof(float) ;
   int dsize = sizeof(double) ;

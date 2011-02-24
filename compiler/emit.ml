@@ -67,12 +67,12 @@ module Type = struct
     Ident.expand_name md_id x ;
     Ident.full x
 
-  let rec program root ctx mdl = 
+  let rec program root is_lib ctx mdl = 
     MakeNames.program mdl ;
     let llmd = create_module ctx root in 
     let mds = List.fold_left (module_decl ctx llmd) IMap.empty mdl in
     let mds = List.fold_left (module_refine ctx mds) IMap.empty mdl in
-    let t = List.fold_left (module_funs ctx mds) IMap.empty mdl in
+    let t = List.fold_left (module_funs is_lib ctx mds) IMap.empty mdl in
     llmd, mds, t
 
   and module_decl ctx llmd acc md = 
@@ -85,7 +85,7 @@ module Type = struct
     List.iter (refine t t') md.md_decls ;
     IMap.add md.md_id (llmd, t') acc
 
-  and module_funs ctx mds acc md = 
+  and module_funs is_lib ctx mds acc md = 
     let md_sig, md_id, dl, decl = md.md_sig, md.md_id, md.md_defs, md.md_decls in
     let (md, tys) = IMap.find md_id mds in
     let lkinds = List.fold_left (
@@ -93,7 +93,7 @@ module Type = struct
 	match dec with 
 	| Dval (ll, x, _, _) -> IMap.add x ll acc
 	| _ -> acc) IMap.empty decl in
-    let fs = List.fold_left (def_fun md_id mds tys md ctx lkinds) IMap.empty dl in
+    let fs = List.fold_left (def_fun is_lib md_id mds tys md ctx lkinds) IMap.empty dl in
     let fs = List.fold_left (def_external md_id mds tys md ctx md_sig) fs decl in
     IMap.add md_id (md, tys, fs, dl) acc
 
@@ -109,8 +109,8 @@ module Type = struct
     | Dtype (x, ty) -> IMap.add x (type_ mds t ctx ty) t
     | _ -> t
 
-  and def_fun md_name mds t md ctx lkinds acc df = 
-    let fun_ = function_ md_name mds t md ctx lkinds df in
+  and def_fun is_lib md_name mds t md ctx lkinds acc df = 
+    let fun_ = function_ is_lib md_name mds t md ctx lkinds df in
     IMap.add df.df_id fun_ acc
 
   and def_external md_name mds t md ctx md_sig acc = function
@@ -131,11 +131,11 @@ module Type = struct
 	refine_type (IMap.find x t) ty
     | _ -> ()
 
-  and function_ md_name mds t md ctx lkinds df = 
+  and function_ is_lib md_name mds t md ctx lkinds df = 
     let link = 
       match IMap.find df.df_id lkinds with 
-      | Public | Abstract -> Llvm.Linkage.External 
-      | Private -> Llvm.Linkage.Private in
+      | Public | Abstract when is_lib -> Llvm.Linkage.External 
+      | _ -> Llvm.Linkage.Private in
     let args = List.map fst df.df_args in
     let ftype = type_fun mds t ctx args df.df_ret in
     let name = public_name md_name df.df_id in
@@ -143,8 +143,6 @@ module Type = struct
     let cconv = make_cconv df.df_kind in
     set_linkage link fdec ;
     set_function_call_conv cconv fdec ;
-(*    add_function_attr fdec Attribute.Nounwind ;
-    add_function_attr fdec Attribute.Readnone ; *)
     fdec
 
   and type_path mds x y = 
@@ -348,7 +346,7 @@ let optims pm =
 
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
-  let llmd, mds, t = Type.program base ctx mdl in
+  let llmd, mds, t = Type.program base (root <> "") ctx mdl in
   set_data_layout Global.data_layout llmd ;
   let origs = List.fold_left (
     fun acc md ->

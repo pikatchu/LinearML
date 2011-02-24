@@ -183,7 +183,8 @@ let _ =
   if !dump_llst then
     LlstPp.program llst ;   
   let bc = Emit.program base !root !no_opt !dump_as llst in
-  let cmd = Global.llc ^ Global.llc_opts ^ bc in
+  let cmd = Global.llc ^ Global.llc_opts in
+  let cmd = cmd ^ bc in
   run cmd ;
   let asm = base ^ ".s" in
   let obj = base ^ ".o" in
