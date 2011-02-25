@@ -325,7 +325,8 @@ fi
 fi
 
 if test -z "$libdir"; then
-    stdlibdir="/usr/lib/liml"
+    libdir="$PWD/stdlib"
+    # will do for now
 fi
 
 config="Makefile.config"
@@ -383,3 +384,6 @@ echo ""
 echo -e "Generated\t: $config"
 echo -e "Generated\t: $config_ml"
 echo -e "Generated\t: $config_h"
+
+echo ""
+echo "You can now start compiling LinearML"

@@ -5,6 +5,8 @@ default: compiler/limlc
 
 compiler/limlc: Makefile.config
 	cd compiler && make
+	cd stdlib && make
+	cp compiler/limlc .
 
 stdlib/libliml.lmli: compiler/limlc
 	@echo "Compiling the standard library"

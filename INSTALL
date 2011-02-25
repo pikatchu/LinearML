@@ -1,0 +1,21 @@
+DEPENDENCIES:
+
+To compile linearML, you need:
+
+* a unix platform     (won't work with windows)
+* a C compiler        (only test with gcc)
+* a C++ compiler      (only tested with g++)
+* llvm-2.8
+* ocaml-3.11          (or higher)
+* llvm-ocaml bindings (usually installed with llvm-2.8)
+
+
+Instructions install LinearML
+
+step1:
+
+./configure
+
+step2:
+
+make
