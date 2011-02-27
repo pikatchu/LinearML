@@ -1,6 +1,7 @@
 #include "./config.h"
 
 #ifdef ARCH_32
+#include<malloc.h>
 
 typedef int   lvalue ;
 
@@ -10,6 +11,7 @@ typedef int   lvalue ;
 #endif
 
 #ifdef ARCH_64
+#include<malloc.h>
 
 typedef long   lvalue ;
 #define lint   long

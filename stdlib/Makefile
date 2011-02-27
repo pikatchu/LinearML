@@ -10,11 +10,13 @@ SOURCES =\
 	array.c\
 	print.c\
 	math.c\
+	string.c\
 	debug.c
 
 LML_SOURCES =\
 	array.lml \
 	print.lml \
+	string.lml \
 	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	

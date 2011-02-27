@@ -5,6 +5,7 @@ module Print = struct
   val c_newline: unit #-> unit = "print_newline"
   val c_float: float #-> unit = "print_float"
   val c_string: string #-> unit = "print_string"
+  val c_rstring: String.t obs #-> unit = "print_string"
 
   val int: int -> unit
   let int x = c_int x
@@ -17,5 +18,8 @@ module Print = struct
 
   val string: string -> unit
   let string x = c_string x
+
+  val rstring: String.t obs -> unit
+  let rstring x = c_rstring x
 
 end

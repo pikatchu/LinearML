@@ -3,7 +3,30 @@ module String = struct
 
   type t
 
-  val make: string #-> t = "string_make"
-  val length: t obs #-> int = "string_length"
-  val release: t #-> unit = "string_release"
+  val private c_make: string #-> t = "string_make"
+  val private c_length: t obs #-> int = "string_length"
+  val private c_release: t #-> unit = "string_release"
+  val private c_append: t obs * t obs #-> t = "string_concat"
+
+  val make: string -> t
+  let make s = c_make s
+
+  val length: t obs -> int
+  let length s = c_length !s
+
+  val release: t -> unit
+  let release s = c_release s
+
+  val append_obs: t obs * t obs -> t
+  let append_obs s1 s2 = 
+    let res = c_append !s1 !s2 in
+    res
+    
+  val append: t * t -> t
+  let append s1 s2 = 
+    let res = c_append !s1 !s2 in
+    release s1 ;
+    release s2 ;
+    res
+
 end
