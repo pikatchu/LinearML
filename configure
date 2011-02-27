@@ -41,7 +41,7 @@ ocamlyacc=""
 llc=""
 llbindings=""
 
-llvm_cma=""
+llvm_cma="$(ocamlc -where)/llvm.cma"
 llvm_analysis_cma=""
 llvm_bitwriter_cma=""
 llvm_scalar_opts_cma=""
