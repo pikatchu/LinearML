@@ -1,5 +1,5 @@
 
-module SpectralNorm = struct
+module Main = struct
 
   module FA = Array
 

@@ -1,61 +1,13 @@
 
-LIMLC = ../../limlc
-LLC = llc  -tailcallopt -O3
-LINK = llvm-link
-OPT = opt
-CC = gcc -O3
-
-#	llvm_executionengine.cma
-
-LIML_LIBS = ../../stdlib/*.lml
-CC_LIBS = -lpthread -lm
-
-default: fankuch bintree spectral
+LIMLC = ../../compiler/limlc
 
 
-FILES_LIML = \
-	bintree.lml
+default: fankuch.run bintree.run
 
-BC_FILES = \
-	Print.bc\
-	List.bc \
-	FloatArray.bc \
-	IntBox.bc \
-	Future.bc \
-	BinaryTree.bc \
-	SpectralNorm.bc \
-	Fankuch.bc 
-
-STDLIB_OBJS = ../../stdlib/*.o
-
-.PHONY: objects
-
-objects: $(FILES_LIML)
-	$(LIMLC) $(LIML_LIBS) *.lml
-
-bintree: objects $(BC_FILES) custom_lib.o bintree_main.o
-	$(LINK) $(BC_FILES) -o bintree.bc
-	$(OPT) -inline -std-link-opts -tailcallelim -O3 bintree.bc -o bintree_opt.bc
-	$(LLC) bintree_opt.bc
-	$(CC) bintree_opt.s $(STDLIB_OBJS) custom_lib.o bintree_main.o $(CC_LIBS) -o $@ 
-
-spectral: objects $(BC_FILES) custom_lib.o spectral_main.o
-	$(LINK)  Print.bc FloatArray.bc SpectralNorm.bc -o spectral.bc
-	$(OPT) -inline -std-link-opts -tailcallelim -O3 spectral.bc -o spectral_opt.bc
-	$(LLC) spectral_opt.bc
-	$(CC) spectral_opt.s $(STDLIB_OBJS) custom_lib.o spectral_main.o $(CC_LIBS) -o $@ 
-
-fankuch: objects $(BC_FILES) custom_lib.o fankuch_main.o
-	$(LINK) Fankuch.bc Print.bc -o fankuch.bc
-	$(OPT) -inline -std-link-opts -tailcallelim -O3 fankuch.bc -o fankuch_opt.bc 
-	$(LLC) fankuch_opt.bc
-	$(CC) fankuch_opt.s $(STDLIB_OBJS) custom_lib.o fankuch_main.o $(CC_LIBS) -pg -o $@ 
-
-
-%.o : %.c
-	$(CC) -c $<
+%.run: %.lml
+	$(LIMLC) $< -root Main -o $@
 
 clean: 
-	rm -f ./bintree ./spectral ./fankuch
+	rm -f ./bintree.run ./spectral.run ./fankuch.run
 	rm -f *.o *.s *.bc *~ test/*.o test/*.s 
 

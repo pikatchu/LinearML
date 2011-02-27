@@ -1,5 +1,5 @@
 
-module BinaryTree = struct
+module Main = struct
 
   val lsl: int * int -> int
   let lsl x y =

@@ -134,7 +134,7 @@ module Type = struct
   and function_ is_lib md_name mds t md ctx lkinds df = 
     let link = 
       match IMap.find df.df_id lkinds with 
-      | Public | Abstract when is_lib -> Llvm.Linkage.External 
+      | Public | Abstract -> Llvm.Linkage.External 
       | _ -> Llvm.Linkage.Private in
     let args = List.map fst df.df_args in
     let ftype = type_fun mds t ctx args df.df_ret in
@@ -668,7 +668,7 @@ and expr bb env acc (ty, x) e =
       let z = const_int int 0 in
       List.iter (
       fun (n, (_, v)) -> 
-	let int = Type.type_prim env.ctx Llst.Tint in
+	let int = i32_type env.ctx in
 	let n = const_int int n in
 	let v = IMap.find v acc in
 	let ptr = build_gep bl [|z;n|] "" env.builder in
