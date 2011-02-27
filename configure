@@ -95,6 +95,7 @@ do
   shift
 done
 
+os=`uname`
 make=`which make`
 if test -z "$make"; then
     echo "Couldn't file make"
@@ -185,6 +186,19 @@ if test -z "$llc"; then
 	fi
     fi
     echo -e "Found llc\t: $llc"
+fi
+
+if [ $os = "Darwin" ]; then 
+   llvm_cma="/opt/local/lib/ocaml/llvm.cma"
+   llbindings=`dirname $llvm_cma`
+   llvm_analysis_cma="$llbindings/llvm_analysis.cma"
+   llvm_analysis_cma_base="analysis"
+   llvm_bitwriter_cma="$llbindings/llvm_bitwriter.cma"
+   llvm_bitwriter_cma_base="bitwriter"
+   llvm_scalar_opts_cma="$llbindings/llvm_scalar_opts.cma"
+   llvm_scalar_opts_cma_base="sopts"
+   llvm_target_cma="$llbindings/llvm_target.cma"
+   llvm_target_cma_base="target"
 fi
 
 if test -z "$llbindings"; then
