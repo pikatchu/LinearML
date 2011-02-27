@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 open Lexing 
 
 let run s = 
-  Printf.printf "Running: %s\n" s ; flush stdout ;
+(*   Printf.printf "Running: %s\n" s ; flush stdout ; *)
   let code = Sys.command s in
   if code <> 0
   then (Printf.fprintf stderr "Error (%d): couldn't run %s\n" code s ;
