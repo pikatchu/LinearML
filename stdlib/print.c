@@ -23,3 +23,8 @@ lvalue print_string(lvalue x__){
   printf("%s", x) ;
   return 0 ;
 }
+
+lvalue print_char(lvalue x){
+  printf("%c", (char)x) ;
+  return 0;
+}

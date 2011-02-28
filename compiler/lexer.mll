@@ -88,6 +88,46 @@ let illegal_char c =
   let code = string_of_int (Char.code c) in
   error ("illegal character: " ^ code) 
 
+let make_char s = 
+  match s.[1] with
+  | '\\' -> 
+      (match s.[2] with
+      | '\\'   -> "92"
+      | 't' -> "9" 
+      | 'r' -> "13" 
+      | 'n' -> "10"
+      | 'b' -> "8" 
+      | c   -> illegal_char c
+      )
+  | c -> string_of_int (Char.code c)
+
+let rec escape res s i j = 
+  if i >= String.length s
+  then res
+  else if s.[i] = '\\'
+  then if i = String.length s - 1
+  then illegal_char '\\'
+  else begin 
+    (match s.[i+1] with
+    | '\\'   -> res.[j] <- '\\'
+    | 't' -> res.[j] <- '\t'
+    | 'r' -> res.[j] <- '\r'
+    | 'n' -> res.[j] <- '\n'
+    | 'b' -> res.[j] <- '\b' 
+    | c   -> illegal_char c) ;
+    escape res s (i+2) (j+1)
+  end
+  else (res.[j] <- s.[i] ; escape res s (i+1) (j+1))
+
+let escape_string s = 
+  let n = ref 0 in
+  for i = 0 to String.length s - 1 do
+    if s.[i] = '\\' 
+    then incr n
+  done ;
+  let res = String.create (String.length s - !n) in
+  escape res s 0 0
+
 }
 
 let digit = ['0'-'9']
@@ -121,8 +161,9 @@ rule token = parse
   | qword              { TVAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | cword              { CSTR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
   | string             { STRING (Pos.make lexbuf, let s = Lexing.lexeme lexbuf in 
-			         String.sub s 1 (String.length s - 2)) }
-  | char               { CHAR (Pos.make lexbuf, Lexing.lexeme lexbuf) }
+			         escape_string (String.sub s 1 (String.length s - 2))) }
+  | char               { CHAR (Pos.make lexbuf, 
+			       make_char (Lexing.lexeme lexbuf)) }
 
   | "->"               { ARROW (Pos.make lexbuf) }
   | "#->"              { SARROW (Pos.make lexbuf) }

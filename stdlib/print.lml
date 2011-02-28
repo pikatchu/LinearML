@@ -1,11 +1,15 @@
 
 module Print = struct
 
+  val c_char: char #-> unit = "print_char"
   val c_int: int #-> unit = "print_int"
   val c_newline: unit #-> unit = "print_newline"
   val c_float: float #-> unit = "print_float"
   val c_string: string #-> unit = "print_string"
   val c_rstring: String.t obs #-> unit = "print_string"
+
+  val char: char -> unit
+  let char c = c_char c
 
   val int: int -> unit
   let int x = c_int x

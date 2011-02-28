@@ -191,8 +191,9 @@ module Type = struct
   and type_prim ctx = function 
     | Tunit -> type_prim ctx Tint
     | Tbool -> i1_type ctx
-    | Tchar -> i8_type ctx
+    | Tchar _
     | Tint when Global.arch_type = "ARCH_32" -> i32_type ctx 
+    | Tchar _
     | Tint  -> i64_type ctx 
     | Tfloat when Global.arch_type = "ARCH_32" -> float_type ctx
     | Tfloat -> double_type ctx
@@ -859,5 +860,5 @@ and const env ty = function
 (*    set_global_constant true g ; *)
     set_linkage Linkage.Private g ;
     g
-  | Echar c -> failwith "TODO constant char"
+  | Echar c -> const_int_of_string ty c 10
 
