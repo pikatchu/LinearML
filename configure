@@ -202,7 +202,9 @@ if [ $os = "Darwin" ]; then
 fi
 
 if test -z "$llbindings"; then
-    llvm_cma="/usr/lib/ocaml/llvm-2.8/llvm.cma"
+    if test -z "$llvm_cma"; then
+	llvm_cma="/usr/lib/ocaml/llvm-2.8/llvm.cma"
+    fi
 
     if ! test -e "$llvm_cma"; then
 	llvm_cma="/usr/lib/ocaml/llvm-2.8/llvm.cma"
