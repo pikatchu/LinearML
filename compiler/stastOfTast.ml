@@ -53,6 +53,32 @@ module Env = struct
     | _ -> t
 end
 
+let check_binop op ((p, _) as ty) = 
+  let ty = 
+    match ty with
+    | p, Neast.Tprim Neast.Tstring -> Error.no_string p
+    | _, Neast.Tprim ty -> ty
+    | p, _ -> Error.expected_primty p in
+  match op, ty with
+  | Ast.Eeq, _
+  | Ast.Ediff, _
+  | Ast.Elt, _
+  | Ast.Elte, _
+  | Ast.Egt, _
+  | Ast.Egte, _ -> ()
+  | Ast.Eplus, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Eminus, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Estar, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Ediv, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Eor, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Eand, (Neast.Tint | Neast.Tfloat) -> ()
+  | _ -> Error.expected_numeric p
+
+let check_bool (ty, _) =
+  match ty with
+  | _, Neast.Tprim Neast.Tbool -> ()
+  | p, _ -> Error.expected_bool p
+
 let rec program types mdl = 
   let t = Env.program types mdl in
   List.map (module_ t) mdl 
@@ -133,6 +159,7 @@ and expr_ t ty = function
       let e = tuple t e in
       Stast.Evariant (id, e)
   | Ebinop (bop, e1, e2) -> 
+      check_binop bop (fst e1) ;
       Stast.Ebinop (bop, expr t e1, expr t e2)
   | Euop (uop, e) -> Stast.Euop (uop, expr t e)
   | Erecord (itl) -> Stast.Erecord (List.map (id_tuple t) itl)
@@ -146,6 +173,7 @@ and expr_ t ty = function
       let e2 = tuple t e2 in
       Stast.Elet (pat t p, e1, e2)
   | Eif (e1, e2, e3) -> 
+      check_bool e1 ;
       let e2 = tuple t e2 in
       let e3 = tuple t e3 in
       Stast.Eif (expr t e1, e2, e3)

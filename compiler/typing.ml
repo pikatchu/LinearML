@@ -137,18 +137,6 @@ module LocalUtils = struct
     | (_, Tapply ((_, x), (_, [y]))) when x = Naming.tobs -> y
     | x -> x
 
-(* TODO move this to stastOfTast *)
-  let check_numeric p ty = 
-    match ty with
-    | _, Tprim (Tint _ | Tfloat _) -> ()
-    | _, _ -> Error.expected_numeric p
-
-  let check_bool ((p, ty), _) = 
-    match ty with
-    | Tprim Tbool -> ()
-    | _ -> Error.expected_bool p
-
-
   let pos_variant p ty = p, (snd ty)
 
   let rec has_any b (_, ty) = 
@@ -493,7 +481,6 @@ and tuple_ env p = function
       rty, Tast.Epartial (f, args)
   | Eif (e1, el1, el2) -> 
       let e1 = expr env e1 in
-      check_bool e1 ;
       let ((tyl1, _) as el1) = tuple env el1 in
       let ((tyl2, _) as el2) = tuple env el2 in
       let tyl = Type.unify_list env tyl1 tyl2 in

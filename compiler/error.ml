@@ -529,6 +529,11 @@ let expected_prim_array p =
   err "Expected an array of primivite values" ;
   exit 2
 
+let expected_primty p = 
+  pos p ;
+  err "Expected a primitive type" ;
+  exit 2
+
 let partial_is_total p = 
   pos p ;
   err "This application is total (<> partial)" ;
@@ -552,4 +557,9 @@ let not_enough_args p =
 let code_in_sig p =
   pos p ;
   err "Definition in a signature" ;
+  exit 2
+
+let no_string p =
+  pos p ;
+  err "Didn't expect a string" ;
   exit 2

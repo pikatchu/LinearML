@@ -104,7 +104,6 @@ clean:
 	rm -f limlc limlc.bc liml liml.bc *.annot .depend
 	rm -f test/*.o test/*.s 
 	rm -f test/*.bc test/*~
-	rm -f genGlobals.ml
 	cd ../stdlib && make clean
 
 -include .depend

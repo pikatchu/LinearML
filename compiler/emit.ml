@@ -785,40 +785,50 @@ and binop ty = function
   | Eeq -> 
       (match ty with
       | Tfloat -> build_fcmp Llvm.Fcmp.Oeq
+      | Tbool
+      | Tchar
       | Tint -> build_icmp Llvm.Icmp.Eq
-      | _ -> failwith "TODO rest of comparisons emit2.ml")
+      | _ -> assert false)
   | Ediff -> assert false
   | Elt -> 
       (match ty with
+      | Tbool | Tchar ->
+	  build_icmp Llvm.Icmp.Ult 
       | Tint -> 
 	  build_icmp Llvm.Icmp.Slt 
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Olt 
-      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      | _ -> assert false
       )
   | Elte -> 
       (match ty with
+      | Tbool | Tchar ->
+	  build_icmp Llvm.Icmp.Ule
       | Tint -> 
 	  build_icmp Llvm.Icmp.Sle
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Ole
-      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      | _ -> assert false
       )
   | Egt -> 
       (match ty with
+      | Tbool | Tchar ->
+	  build_icmp Llvm.Icmp.Ugt 
       | Tint -> 
 	  build_icmp Llvm.Icmp.Sgt 
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Ogt 
-      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      | _ -> assert false
       )
   | Egte -> 
       (match ty with
+      | Tbool | Tchar ->
+	  build_icmp Llvm.Icmp.Uge
       | Tint -> 
 	  build_icmp Llvm.Icmp.Sge
       | Tfloat ->
 	  build_fcmp Llvm.Fcmp.Oge
-      | _ -> failwith "TODO rest of comparisons emit2.ml"
+      | _ -> assert false
       )
   | Eplus -> 
       (match ty with
