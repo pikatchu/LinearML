@@ -189,7 +189,7 @@ if test -z "$llc"; then
 fi
 
 if [ $os = "Darwin" ]; then 
-   llvm_cma="/opt/local/lib/ocaml/llvm.cma"
+   llvm_cma="`ocamlc -where`/llvm.cma"
    llbindings=`dirname $llvm_cma`
    llvm_analysis_cma="$llbindings/llvm_analysis.cma"
    llvm_analysis_cma_base="analysis"
