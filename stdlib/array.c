@@ -1,5 +1,4 @@
 #include"liml.h"
-#include<malloc.h>
 
 lvalue liml_array_make(lvalue size__, lvalue call__, lvalue f){
   lvalue size = (lvalue) size__ ;
