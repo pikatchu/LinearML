@@ -211,8 +211,10 @@ if test -z "$llbindings"; then
 	if ! test -e "$llvm_cma"; then
 	    llvm_cma="/usr/local/lib/ocaml/llvm-2.8/llvm.cma"
 	    if ! test -e "$llvm_cma"; then
-		llvm_cma="/usr/share/lib/ocaml/llvm-2.8/llvm.cma"
-		echo "Could not find ocaml bindings for llvm!" ; exit 2
+		llvm_cma="/usr/local/lib/ocaml/llvm.cma"
+		if ! test -e "$llvm_cma"; then
+		    echo "Could not find ocaml bindings for llvm!" ; exit 2
+		fi
 	    fi
 	fi  
     fi
