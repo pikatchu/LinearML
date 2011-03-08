@@ -563,3 +563,10 @@ let no_string p =
   pos p ;
   err "Didn't expect a string" ;
   exit 2
+
+let too_general p1 p2 =
+  pos p1 ;
+  err "This type is too general" ;
+  pos p2 ;
+  err "Because of this usage" ;
+  exit 2

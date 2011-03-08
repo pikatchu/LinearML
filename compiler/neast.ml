@@ -187,3 +187,41 @@ module Instantiate = struct
     Subst.type_expr_list env instv tyl
 end
 
+module ExpandType = struct
+
+  let rec id env ty x =
+    try type_expr env (IMap.find x env)
+    with Not_found -> ty
+
+  and type_expr env ((p, ty_) as ty) = 
+    match ty_ with
+    | Tvar (_, x) -> id env ty x 
+    | Tapply (x, tyl) -> 
+	p, Tapply (x, type_expr_list env tyl)
+    | Tfun (fk, tyl1, tyl2) -> 
+	p, Tfun (fk, type_expr_list env tyl1, type_expr_list env tyl2)
+    | _ -> ty
+
+  and type_expr_list env (p, tyl) = 
+    p, List.map (type_expr env) tyl
+
+end
+
+
+module SubType = struct
+
+  let rec type_expr (p1, ty1) (p2, ty2) = 
+    match ty1, ty2 with
+    | Tvar _, Tvar _ -> ()
+    | Tvar _, _ -> Error.too_general p1 p2
+    | Tapply (_, tyl1), Tapply (_, tyl2) ->
+	type_expr_list tyl1 tyl2
+    | Tfun (_, tyl1, tyl2), Tfun (_, tyl3, tyl4) -> 
+	type_expr_list tyl1 tyl3 ;
+	type_expr_list tyl2 tyl4 
+    | _ -> ()
+
+  and type_expr_list (_, tyl1) (_, tyl2) = 
+    List.iter2 type_expr tyl1 tyl2
+
+end

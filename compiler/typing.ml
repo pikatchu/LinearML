@@ -338,11 +338,13 @@ and declare env = function
   | _ -> env
 
 and def env (fid, p, e) =
-  match find (snd fid) env with
+  let fty = find (snd fid) env in
+  match fty with
   | _, Tfun (k, tyl, rty) -> 
       let env, p = pat env p tyl in
       let rty', e = tuple env e in
       let rty = Type.unify_list env rty' rty in
+      SubType.type_expr fty (ExpandType.type_expr !env fty) ;
       k, fid, p, (rty, e)
   | _ -> assert false
 
