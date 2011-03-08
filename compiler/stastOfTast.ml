@@ -56,8 +56,8 @@ end
 let check_binop op ((p, _) as ty) = 
   let ty = 
     match ty with
-    | p, Neast.Tprim Neast.Tstring -> Error.no_string p
-    | _, Neast.Tprim ty -> ty
+    | p, Stast.Tprim Stast.Tstring -> Error.no_string p
+    | _, Stast.Tprim ty -> ty
     | p, _ -> Error.expected_primty p in
   match op, ty with
   | Ast.Eeq, _
@@ -66,12 +66,12 @@ let check_binop op ((p, _) as ty) =
   | Ast.Elte, _
   | Ast.Egt, _
   | Ast.Egte, _ -> ()
-  | Ast.Eplus, (Neast.Tint | Neast.Tfloat) -> ()
-  | Ast.Eminus, (Neast.Tint | Neast.Tfloat) -> ()
-  | Ast.Estar, (Neast.Tint | Neast.Tfloat) -> ()
-  | Ast.Ediv, (Neast.Tint | Neast.Tfloat) -> ()
-  | Ast.Eor, (Neast.Tint | Neast.Tfloat) -> ()
-  | Ast.Eand, (Neast.Tint | Neast.Tfloat) -> ()
+  | Ast.Eplus, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Eminus, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Estar, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Ediv, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Eor, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Eand, (Stast.Tint | Stast.Tfloat) -> ()
   | _ -> Error.expected_numeric p
 
 let check_bool (ty, _) =
@@ -159,8 +159,10 @@ and expr_ t ty = function
       let e = tuple t e in
       Stast.Evariant (id, e)
   | Ebinop (bop, e1, e2) -> 
+      let e1 = expr t e1 in
+      let e2 = expr t e2 in
       check_binop bop (fst e1) ;
-      Stast.Ebinop (bop, expr t e1, expr t e2)
+      Stast.Ebinop (bop, e1, e2)
   | Euop (uop, e) -> Stast.Euop (uop, expr t e)
   | Erecord (itl) -> Stast.Erecord (List.map (id_tuple t) itl)
   | Ewith (e, itl) -> 
