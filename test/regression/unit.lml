@@ -1,0 +1,11 @@
+(*
+  Test contributed by: Magnus Jonsson
+  issue 5 in github
+*)
+
+module Main = struct
+  val main: unit -> unit 
+  let main() =
+    let d = ()
+    in (!fun () -> d) ()
+end

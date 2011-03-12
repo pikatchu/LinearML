@@ -1,0 +1,11 @@
+module Main = struct
+
+  val pp: unit -> unit
+  let pp() = 
+    Print.string "OK\n"
+
+  val main: unit -> unit 
+  let main() =
+    let d = ()
+    in (!fun () -> pp d) ()
+end

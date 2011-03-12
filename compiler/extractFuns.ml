@@ -217,9 +217,15 @@ and expr_ funs ty = function
   | Efun (k, pel, t) as e ->
       let fv = FreeVars.expr_ IMap.empty ty e in
       let fvl = IMap.fold (fun _ v y -> v :: y) fv [] in
+      let pel = List.fold_right make_arg fvl pel in
       match fvl with
       | [] -> make_fun funs ty k pel t
       | args -> partial funs ty k pel t args
+
+and make_arg (tyl, e) acc = 
+  match tyl, e with
+  | [ty], Eid x -> (ty, Pid x) :: acc
+  | _ -> assert false
 
 and field funs (p, t) = 
   let funs, t = tuple funs t in
