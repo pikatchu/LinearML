@@ -7,12 +7,16 @@
 *.cmo
 *.annot
 .*.swp
+*.run
 parser.ml
 parser.mli
 lexer.ml
 .depend
 Makefile.config
 compiler/limlc
+limlc
+limlc.bc
+a.out
 compiler/limlc.bc
 compiler/liml
 stdlib/config.h
