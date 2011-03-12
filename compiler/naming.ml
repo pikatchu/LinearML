@@ -69,6 +69,7 @@ let ifree       = prim_value "free"
 let vassert     = prim_value "assert"
 let eunit       = prim_value "()"
 let call        = prim_value "call"
+let bnot        = prim_value "not"
 
 let alength     = prim_array "length"
 let amake       = prim_array "init"

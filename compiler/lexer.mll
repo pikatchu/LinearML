@@ -67,7 +67,6 @@ let assoc_keyword = [
   "to"     , (fun lb -> TO (Pos.make lb)) ;
   "begin"  , (fun lb -> BEGIN (Pos.make lb)) ;
   "in"     , (fun lb -> IN (Pos.make lb)) ;
-  "not"    , (fun lb -> NOT (Pos.make lb)) ;
   "asm"    , (fun lb -> ASM (Pos.make lb)) ;
   "internal" , (fun lb -> INTERNAL (Pos.make lb)) ;
   "private"  , (fun lb -> PRIVATE (Pos.make lb)) ;
@@ -180,11 +179,14 @@ rule token = parse
   | "<>"               { DIFF (Pos.make lexbuf) }
   | "=="               { EQEQ (Pos.make lexbuf) }
   | "||"               { BARBAR (Pos.make lexbuf) }
+  | '|'                { BAR (Pos.make lexbuf) }
   | "&&"               { AMPAMP (Pos.make lexbuf) }
+  | '&'                { AMP (Pos.make lexbuf) }
   | '+'                { PLUS (Pos.make lexbuf) }
   | '-'                { MINUS (Pos.make lexbuf)}
   | '*'                { STAR (Pos.make lexbuf) }
   | '/'                { SLASH (Pos.make lexbuf) }
+  | '%'                { PERCENT (Pos.make lexbuf) }
   | '{'                { LCB (Pos.make lexbuf) }
   | '}'                { RCB (Pos.make lexbuf) }
   | '['                { LB (Pos.make lexbuf) }
@@ -196,6 +198,8 @@ rule token = parse
   | '>'                { GT (Pos.make lexbuf) }
   | ">="               { GTE (Pos.make lexbuf) }
   | '~'                { TILD (Pos.make lexbuf) }
+  | "<<"               { LTLT (Pos.make lexbuf) }
+  | ">>"               { GTGT (Pos.make lexbuf) }
   | '!'                { EM (Pos.make lexbuf) }
 
   (* others *)

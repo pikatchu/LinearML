@@ -274,12 +274,15 @@ module Env = struct
     tfun [tvar tmp] [tapply Naming.toption [tvar tmp]]
 
   let tnone = tapply Naming.toption [tany]
+  let tnot = tfun [tprim Tbool] [tprim Tbool]
+  let tabs = tfun [tprim Tint] [tprim Tint]
 
   let rec make mdl = 
     let env = IMap.empty in
     let env = IMap.add Naming.some tsome env in
     let env = IMap.add Naming.none tnone env in
     let env = IMap.add Naming.vassert tassert env in
+    let env = IMap.add Naming.bnot tnot env in
     let env = List.fold_left module_ env mdl in
     env
 
@@ -338,13 +341,11 @@ and declare env = function
   | _ -> env
 
 and def env (fid, p, e) =
-  let fty = find (snd fid) env in
-  match fty with
+  match find (snd fid) env with
   | _, Tfun (k, tyl, rty) -> 
       let env, p = pat env p tyl in
       let rty', e = tuple env e in
       let rty = Type.unify_list env rty' rty in
-      SubType.type_expr fty (ExpandType.type_expr !env fty) ;
       k, fid, p, (rty, e)
   | _ -> assert false
 
@@ -544,24 +545,10 @@ and expr_ env (p, e) =
       let ((ty1, _) as e1) = expr env e1 in
       let ((ty2, _) as e2) = expr env e2 in
       let ty = Type.unify_el env ty1 ty2 in
-      (match bop with
-      | Ast.Eplus
-      | Ast.Eminus
-      | Ast.Estar 
-      | Ast.Ediv ->()
-(*	  check_numeric p ty1 ;
-	  check_numeric p ty2  *)
-      | Ast.Eor | Ast.Eand -> (* TODO check bool *) ()
-      | _ -> ()) ;
       let ty = binop env bop p ty in
       (ty, Tast.Ebinop (bop, e1, e2))
-  | Euop (Ast.Enot, e) ->
-      let (ty, _ as e) = expr env e in
-      (* TODO check bool *)
-      (ty, Tast.Euop (Ast.Euminus, e))
   | Euop (Ast.Euminus, e) -> 
       let (ty, _ as e) = expr env e in
-      (* TODO check numeric *)
       (ty, Tast.Euop (Ast.Euminus, e))
   | Erecord fdl -> 
       let fdl = List.map (variant env) fdl in
@@ -645,6 +632,7 @@ and binop env bop p ty =
   | Ast.Eplus
   | Ast.Eminus
   | Ast.Estar 
+  | Ast.Emod
   | Ast.Ediv -> ty
   | Ast.Eand | Ast.Eor -> Type.unify_el env ty (p, Tprim Tbool)
 

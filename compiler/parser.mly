@@ -99,6 +99,7 @@ let rec make_clist p = function
 %}
 
 %token <Pos.t> ABSTRACT
+%token <Pos.t> AMP
 %token <Pos.t> AMPAMP
 %token <Pos.t> AND
 %token <Pos.t> ARROW 
@@ -129,6 +130,7 @@ let rec make_clist p = function
 %token <Pos.t> FUN
 %token <Pos.t> GT
 %token <Pos.t> GTE
+%token <Pos.t> GTGT
 %token <Pos.t * string> ID
 %token <Pos.t> IF
 %token <Pos.t> IN
@@ -142,15 +144,16 @@ let rec make_clist p = function
 %token <Pos.t> LP
 %token <Pos.t> LT
 %token <Pos.t> LTE
+%token <Pos.t> LTLT
 %token <Pos.t> MATCH
 %token <Pos.t> MINUS
 %token <Pos.t> MODULE
-%token <Pos.t> NOT
 %token <Pos.t> OF
 %token <Pos.t> RB
 %token <Pos.t> RCB
 %token <Pos.t> REC
 %token <Pos.t> RP
+%token <Pos.t> PERCENT
 %token <Pos.t> PLUS
 %token <Pos.t> PRIVATE
 %token <Pos.t> SC
@@ -181,11 +184,12 @@ let rec make_clist p = function
 %nonassoc ASSIGN
 %nonassoc if_
 %right COMMA
-%left BARBAR AMPAMP
+%left BARBAR
+%left AMPAMP AMP
 %left EQ DIFF LT LTE GT GTE
 %right COLCOL
 %left PLUS MINUS 
-%left STAR SLASH
+%left STAR SLASH PERCENT
 %nonassoc NOT
 %left apply_ DOT
 %nonassoc module_dot EM
@@ -464,8 +468,11 @@ expr:
 | expr MINUS expr { btw $1 $3, Ebinop (Eminus, $1, $3) }
 | expr STAR expr { btw $1 $3, Ebinop (Estar, $1, $3) }
 | expr SLASH expr { btw $1 $3, Ebinop (Ediv, $1, $3) }
+| expr PERCENT expr { btw $1 $3, Ebinop (Emod, $1, $3) }
 | expr BARBAR expr { btw $1 $3, Ebinop (Eor, $1, $3) }
 | expr AMPAMP expr { btw $1 $3, Ebinop (Eand, $1, $3) }
+/* | expr AMP expr { btw $1 $3, Ebinop (Eband, $1, $3) }
+| expr BAR expr { btw $1 $3, Ebinop (Ebor, $1, $3) } */
 | expr COLCOL expr { 
   let x1 = $2, "List" in
   let x2 = $2, "Cons" in
@@ -490,7 +497,6 @@ expr:
   let eset = Pos.btw (fst $1) $5, Eapply (f, args) in
   fst $9, Elet ((fst $1, Pid $1), eset, $9)
 }
-| NOT expr { Pos.btw $1 (fst $2), Euop (Enot, $2) }
 | expr SC expr { btw $1 $3, Eseq ($1, $3) }
 | expr COMMA expr { btw $1 $3, Etuple [$1;$3] }
 | ID COLEQ expr SC expr { fst $5, Elet ((fst $1, Pid $1), $3, $5) }

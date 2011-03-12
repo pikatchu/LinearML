@@ -145,10 +145,11 @@ and bop =
   | Eplus
   | Eminus
   | Estar
+  | Emod
   | Ediv
   | Eor
   | Eand
+  | Eband
 
 and uop =
   | Euminus
-  | Enot

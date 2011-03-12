@@ -1,0 +1,10 @@
+
+
+module Test = struct
+
+  val main: unit -> unit
+  let main() = 
+    let c = '\t' in
+    Print.char c ;
+    ()
+end

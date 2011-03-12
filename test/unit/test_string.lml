@@ -1,0 +1,14 @@
+
+module Test = struct
+
+  val main: unit -> unit
+  let main() =
+    let s = "This is a test" in
+    let s2 = ", this is the \t rest of the test\n" in
+    let s = String.make s in
+    let s2 = String.make s2 in
+    let s = String.append s s2 in
+    Print.int (String.length !s) ;
+    Print.rstring !s ;
+    String.release s
+end

@@ -1,0 +1,8 @@
+
+module Pervasives = struct
+
+  val c_abs: int #-> int = "abs"
+
+  val abs: int -> int
+  let abs x = c_abs x
+end

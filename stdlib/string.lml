@@ -7,6 +7,7 @@ module String = struct
   val private c_length: t obs #-> int = "string_length"
   val private c_release: t #-> unit = "string_release"
   val private c_append: t obs * t obs #-> t = "string_concat"
+  val private c_compare: t obs * t obs #-> int = "strcmp"
 
   val make: string -> t
   let make s = c_make s
@@ -28,5 +29,8 @@ module String = struct
     release s1 ;
     release s2 ;
     res
+
+  val compare: t obs * t obs -> int
+  let compare s1 s2 = c_compare s1 s2
 
 end

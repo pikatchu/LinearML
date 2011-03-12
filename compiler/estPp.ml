@@ -206,6 +206,7 @@ and binop = function
   | Ast.Egte -> o "gte"
   | Ast.Eplus -> o "plus"
   | Ast.Eminus -> o "minus"
+  | Ast.Emod -> o "mod"
   | Ast.Estar -> o "star"
   | Ast.Ediv -> o "div"
   | Ast.Eand -> o "and"
@@ -213,4 +214,3 @@ and binop = function
 
 and unop = function
   | Ast.Euminus -> o "uminus"
-  | Ast.Enot -> o "not"

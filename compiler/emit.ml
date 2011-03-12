@@ -240,6 +240,22 @@ module Pervasives = struct
     SMap.add name fdec interns
 *)
 
+  let enot md ctx = 
+    let builder = builder ctx in
+    let int = Type.type_prim ctx Llst.Tint in
+    let bool = Type.type_prim ctx Llst.Tbool in
+    let ftype = function_type int [|int|] in
+    let fdec = declare_function "not" ftype md in
+    set_linkage Llvm.Linkage.Private fdec ;
+    add_function_attr fdec Attribute.Alwaysinline ;
+    let params = params fdec in
+    let bb = append_block ctx "" fdec in
+    position_at_end bb builder ;
+    let v = build_intcast params.(0) bool "" builder in
+    let v = build_not v "" builder in
+    let v = build_intcast v int "" builder in
+    let _ = build_ret v builder in
+    fdec
   
   let mk_trampoline = Ident.make "trampoline"
 
@@ -260,6 +276,7 @@ module Pervasives = struct
     let prims = IMap.add Naming.malloc malloc prims in
     let prims = IMap.add Naming.ifree free prims in
     let prims = IMap.add mk_trampoline trampoline prims in
+    let prims = IMap.add Naming.bnot (enot md ctx) prims in
     prims
 
 end
@@ -606,6 +623,8 @@ and cast env xs ty1 ty2 y =
   | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast y ty1 xs env.builder
   | TypeKind.Pointer, _ -> build_inttoptr y ty1 "" env.builder
   | _, TypeKind.Pointer -> build_ptrtoint y ty1 "" env.builder
+  | TypeKind.Integer, TypeKind.Integer ->
+      build_intcast y ty1 xs env.builder
   | _, _ -> build_bitcast y ty1 xs env.builder
 
 and expr bb env acc (ty, x) e =
@@ -716,7 +735,13 @@ and expr bb env acc (ty, x) e =
       let _ = build_store v t' env.builder in
       IMap.add x t acc
   | Efield (_, _) -> failwith "TODO Efield"
-  | Euop (_, _) -> failwith "TODO Euop"
+  | Euop (uop, (ty, y)) -> 
+      let v = IMap.find y acc in
+      let v = 
+	match uop with
+	| Euminus -> build_neg v "" env.builder
+      in
+      IMap.add x v acc
   | Epartial ((Tfun (k, tyl1, [rty]), f), el) -> (* TODO return list *)
       let cc = make_cconv k in
       let targs = List.map fst el in
@@ -844,6 +869,11 @@ and binop ty = function
       (match ty with
       | Tint -> build_mul
       | Tfloat -> build_fmul
+      | _ -> assert false)
+  | Emod -> 
+      (match ty with
+      | Tint -> build_srem
+      | Tfloat -> build_frem
       | _ -> assert false)
   | Ediv -> 
       (match ty with

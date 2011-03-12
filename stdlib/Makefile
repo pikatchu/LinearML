@@ -14,6 +14,7 @@ SOURCES =\
 	debug.c
 
 LML_SOURCES =\
+	pervasives.lml\
 	array.lml \
 	print.lml \
 	string.lml \

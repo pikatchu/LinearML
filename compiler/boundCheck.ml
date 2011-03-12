@@ -554,7 +554,6 @@ and binop bop v1 v2 =
 and unop uop v = 
   match uop with
   | Ast.Euminus -> Minus (Value (Const Int64.zero), v)
-  | _ -> Value Undef
 
 and field (env, m) ((_, x), e) = 
   let env, v = tuple env e in
