@@ -273,7 +273,7 @@ end = struct
     IMap.iter (
     fun x ty ->
       match ty with
-      | Var (p, _) -> Error.unused_variable p
+      | Var (p, x) -> Error.unused_variable p (Ident.to_string x)
       | _ -> ()
    ) env
 

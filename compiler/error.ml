@@ -428,9 +428,9 @@ let forgot_branch p1 p2 =
   err "In this branch" ;
   exit 2
   
-let unused_variable p = 
+let unused_variable (p: Pos.t) (id: string) = 
   pos p ;
-  err ("This ressource hasn't been used") ;
+  err ("The resource `" ^ id ^ "' has not been used") ;
   exit 2
 
 let already_used p p' = 
