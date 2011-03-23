@@ -36,6 +36,7 @@ OBJECTS_ML = \
 	linearCheck.ml\
 	boundCheck.ml\
 	ist.ml\
+	istPp.ml\
 	istOfStast.ml\
 	extractFuns.ml\
 	est.ml\

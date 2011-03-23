@@ -119,6 +119,7 @@ let _ =
   let dump_llst = ref false in
   let dump_est = ref false in
   let dump_as = ref false in
+  let dump_ist = ref false in
   let bounds = ref false in
   let no_stdlib = ref false in
   let no_opt = ref false in
@@ -136,6 +137,8 @@ let _ =
      "-est", Arg.Unit (fun () -> dump_est := true),
      space 11 "internal";
      "-asm", Arg.Unit (fun () -> dump_as := true), 
+     space 11 "internal";
+     "-ist", Arg.Unit (fun () -> dump_ist := true), 
      space 11 "internal" ;
      "-no-stdlib", Arg.Unit (fun () -> no_stdlib := true), 
      space 5 "excludes standard library";
@@ -172,6 +175,8 @@ let _ =
   flush stderr ;
   let ist = IstOfStast.program benv stast in
   let ist = ExtractFuns.program ist in
+  if !dump_ist then
+    IstPp.program ist;
   let est = EstOfIst.program ist in
   if !dump_est then
     EstPp.program est ;
