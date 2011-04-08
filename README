@@ -1,4 +1,4 @@
-LinearML (or LiML) is a pogramming language designed to write efficient parallel programs.
+LinearML (or LiML) is a programming language designed to write efficient parallel programs.
 Its main characteristics are:
 
     * Purely functional
