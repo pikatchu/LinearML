@@ -29,139 +29,221 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *)
-(*open Utils
-open Ast
+open Utils
+open Ist
 
-exception Pattern_match_failed of pat * expr
+type value = 
+  | Unit
+  | Bool of bool
+  | Char of char
+  | Int of int
+  | Float of float
+  | String of string
+  | Array of value array
+  | Variant of id * value list
+  | Record of value list IMap.t
+  | Fun of pat * tuple
 
-let id t (pos, s) = 
-  try SMap.find s t 
-  with Not_found -> Error.unbound_name pos s
+module Genv = struct
 
-let rec program mdl = List.fold_left module_ SMap.empty mdl
-and module_ env md = List.fold_left def env md.md_defs
-and def env = function
-  | Dmodule _ -> assert false
-  | Dval ((_,id), pl, e) -> SMap.add id (Efun (pl, e)) env
-  | _ -> env
+  let rec program mdl = 
+    let env = IMap.empty in
+    List.fold_left module_ env mdl
 
-and filter env p e = 
-  match p, e with
-  | Pany, _ -> env
-  | Punit, Eunit -> env
-  | Pid (_,x), e -> SMap.add x e env
-  | Pint n1, Eint n2 when n1 = n2 -> env
-  | Pcstr (x1, p), Ecstr (x2, e) when x1 = x2 -> filter_opt env p e
-  | Pprod (p1, p2), Ebinop (Comma, e1, e2) -> filter (filter env p1 e1) p2 e2
-  | Pstruct pfl, Estruct efl -> filter_fields env (psort pfl) (esort efl)
-  | Pcons (p1, p2), Elist (e1 :: e2) -> filter (filter env p1 e1) p2 (Elist e2)
-  | Plist pl, Elist el -> filter_list env pl el
-  | _ -> raise Exit
+  and module_ env md = 
+    List.fold_left def env md.md_defs
 
-and filter_opt env p e = 
-  match p, e with
-  | None, None -> env
-  | Some p, Some e -> filter env p e
-  | _ -> failwith "TODO bad constructor" 
+  and def env (_, x, p, t) = 
+    IMap.add x (Fun (p, t)) env
+end
 
-and filter_list env l1 l2 = 
-  match l1, l2 with
-  | [], [] -> env
-  | [], _ | _, [] -> raise Exit
-  | x :: rl1, y :: rl2 -> filter_list (filter env x y) rl1 rl2
+let rec program main mdl = 
+  let env = Genv.program mdl in
+  match IMap.find main env with
+  | Fun (_, e) -> tuple env e
+  | _ -> failwith "main not found"
 
-and filter_fields env pl el = 
-  match pl, el with
-  | [], [] -> env
-  | PFany :: _, _ -> env
-  | [PFid (_,x)], el -> SMap.add x (Estruct el) env
-  | PField ((_,x), p) :: rl1, Ffield ((_,y), e) :: rl2 ->
-      let c = String.compare x y in
-      if c < 0
-      then filter_fields env rl1 el
-      else if c > 0
-      then filter_fields env pl rl2
-      else filter_fields (filter env p e) rl1 rl2
-  | _ -> assert false
+and pat env ptl vl = 
+  match ptl with
+  | [] -> failwith "match failed"
+  | pt :: rl -> 
+      (try pat_tuple env pt vl 
+      with Exit -> pat env rl vl)
 
-and action env = function
-  | Anone -> Eunit
-  | Awhen _ -> assert false
-  | Aexpr e -> expr env e
+and pat_tuple env pel vl = 
+  List.fold_left2 pat_el env pel vl
 
-and field env acc = function
-  | Frow (_,x) -> 
-      (match SMap.find x env with
-      | Estruct l -> l @ acc
+and pat_el env (_, p) v = 
+  pat_ env p v
+
+and pat_ env p v = 
+ match p with
+  | Pany -> env
+  | Pid x -> IMap.add x v env
+  | Pvalue _ -> assert false
+  | Pvariant (x, p) ->
+      (match v with
+      | Variant (y, vl) when x = y ->
+	  pat env p vl
       | _ -> raise Exit)
-  | Ffield (id, e) -> Ffield (id, expr env e) :: acc
+  | Precord pfl -> 
+      (match v with
+      | Record fds ->
+	  List.fold_left (pat_field fds) env pfl
+      | _ -> raise Exit)
+  | Pas (x, p) -> 
+      let env = pat env p [v] in
+      IMap.add x v env
 
-and ematch env e pl = 
-  match pl with
-  | [] -> failwith "Pattern match failed"
-  | (p,a) :: rl -> action (filter env p e) a
+and pat_field fds env = function
+  | PFany -> env
+  | PFid x -> IMap.add x (Record fds) env 
+  | PField (x, p) -> 
+      let fd = IMap.find x fds in
+      pat env p fd
 
-and expr env = function
- | Eunit 
- | Ebool _
- | Echar _
- | Eint _
- | Eclosure _ 
- | Ecstr (_, None)
- | Estring _ as e -> e
- | Eid (_,x) -> expr env (SMap.find x env)
- | Ecstr (c, Some e) -> Ecstr (c, Some (expr env e))
- | Elist el -> Elist (List.map (expr env) el)
- | Estruct fdl -> Estruct (uniq ef_cmp (List.fold_left (field env) [] fdl))
- | Etyped (e, _) -> expr env e
- | Edot_string (e1, e2) -> dot_string (expr env e1) (expr env e2)
- | Edot_array _ -> failwith "todo dot array"
- | Epath _ (* of expr * id *) -> failwith "TODO Epath"
- | Ematch (e, pal) -> ematch env (expr env e) pal
- | Elet ([p], e1, e2) -> ematch env (expr env e1) [p, Aexpr e2]
- | Elet _ -> failwith "TODO rest of let"
- | Eif (e1, e2, _) when expr env e1 = Ebool true -> expr env e2
- | Eif (_, _, e) -> expr env e
- | Ebinop (Seq, e1, e2) -> ignore (expr env e1) ; expr env e2
- | Ebinop (bop, e1, e2) -> binary_op bop (expr env e1) (expr env e2)
- | Eunop (uop, e) -> unary_op uop (expr env e)
- | Eapply (e1, e2) -> eapply env (expr env e1) (expr env e2)
- | (Efun (pl, b) as e) -> 
-     let t = free_vars SSet.empty e in
-     let vl = SSet.elements t in
-     let el = List.map (fun x -> SMap.find x env) vl in
-     let el = List.map (expr env) el in
-     Eclosure (e, List.map2 (fun x y -> x,y) vl el)
+and tuple env el = 
+  List.flatten (List.map (expr env) el)
 
-and eapply env e1 e2 = 
-  match e1 with
-  | Eclosure (Efun (pl, e), el) -> 
-      let env = List.fold_left (fun env (x, y) -> SMap.add x y env) env el in
-      expr env (Elet (pl, e2, e))
-  | _ -> failwith "Bad application"
+and expr env (_, e) = expr_ env e
+and expr_ env = function
+  | Eid x -> 
+      (try [IMap.find x env]
+      with Not_found -> 
+	let x = Ident.to_string x in
+	Printf.fprintf stderr "Not an interpreted value: %s" x;
+	exit 2)
+  | Evalue v -> [value v]
+  | Evariant (x, e) -> 
+      let e = tuple env e in
+      [Variant (x, e)]
+  | Ebinop (bop, e1, e2) -> 
+      let e1 = List.hd (expr env e1) in
+      let e2 = List.hd (expr env e2) in
+      [binop bop e1 e2]
+  | Euop (uop, e) -> 
+      let e = List.hd (expr env e) in
+      [unop uop e]
+  | Erecord fdl -> 
+      let fields = List.fold_left (field env) IMap.empty fdl in
+      [Record fields]
+  | Ewith (e, fdl) -> 
+      let e = expr env e in
+      (match e with
+      | [Record fds] ->
+	  let fields = List.fold_left (field env) fds fdl in
+	  [Record fields]
+      | _ -> assert false)
+  | Efield (e, v) -> 
+      (match expr env e with
+      | [Record fds] -> IMap.find v fds
+      | _ -> assert false)
+  | Ematch (e, al) -> 
+      actions env (tuple env e) al
+  | Elet (p, e1, e2) -> 
+      let env = pat env p (tuple env e1) in
+      tuple env e2
+  | Eif (c, e1, e2) -> 
+      (match expr env c with
+      | [Bool true] -> tuple env e1
+      | [Bool false] -> tuple env e2
+      | _ -> assert false)
+  | Eapply (_, _, f, e) -> 
+      (match IMap.find f env with
+      | Fun (p, b) -> 
+	  let env = pat env p (tuple env e) in
+	  tuple env b
+      | _ -> assert false)
+  | Eseq (e1, e2) -> 
+      let _ = expr env e1 in
+      tuple env e2
+  | Efree _ -> [Unit]
+  | Eset (e1, e2, e3) -> 
+      [match expr env e1, expr env e2 with
+      | [Array a], [Int i] -> 
+	  let v = List.hd (expr env e3) in
+	  a.(i) <- v ; 
+	  Unit
+      | _ -> assert false]
+  | Eget (e1, e2) -> 
+      [match expr env e1, expr env e2 with
+      | [Array a], [Int i] -> a.(i)
+      | _ -> assert false]
+  | Eswap (e1, e2, e3) -> 
+      [match expr env e1, expr env e2 with
+      | [Array a], [Int i] -> 
+	  let res = a.(i) in
+	  a.(i) <- List.hd (expr env e3) ; 
+	  res
+      | _ -> assert false]
+  | Epartial _ -> failwith "TODO partial"
+  | Efun (_, pel, e) -> failwith "TODO fun"
 
-and dot_string e1 e2 = 
+and field env acc (x, e) = 
+  let e = tuple env e in
+  IMap.add x e acc
+
+and value = function
+  | Eunit -> Unit
+  | Ebool b -> Bool b
+  | Eint n -> Int (int_of_string n)
+  | Efloat f -> Float (float_of_string f)
+  | Echar c -> Char (c.[0])
+  | Estring s -> String s
+
+and binop bop e1 e2 = 
+  match bop with
+  | Ast.Eeq -> Bool (e1 = e2)
+  | Ast.Ediff -> Bool (e1 <> e2)
+  | Ast.Elt -> Bool (e1 < e2)
+  | Ast.Elte -> Bool (e1 <= e2)
+  | Ast.Egt -> Bool (e1 > e2)
+  | Ast.Egte -> Bool (e1 >= e2)
+  | Ast.Eor
+  | Ast.Eand as op -> 
+      Bool (bool_op op e1 e2)
+  | Ast.Eplus
+  | Ast.Eminus
+  | Ast.Estar
+  | Ast.Emod
+  | Ast.Ediv as op -> 
+      Int (int_op op e1 e2)
+  | Ast.Eband -> failwith "TODO"
+
+and bool_op op e1 e2 = 
   match e1, e2 with
-  | Estring (_,s), Eint n -> Echar (s.[n])
+  | Bool b1, Bool b2 -> 
+      (match op with
+      | Ast.Eor -> b1 || b2
+      | Ast.Eand -> b1 && b2
+      | _ -> assert false
+      )
+  | _ -> assert false
+	
+and int_op op e1 e2 = 
+  match e1, e2 with
+  | Int n1, Int n2 ->
+      (match op with
+      | Ast.Eplus -> n1 + n2
+      | Ast.Eminus -> n1 - n2
+      | Ast.Estar -> n1 * n2
+      | Ast.Emod -> n1 mod n2
+      | Ast.Ediv -> n1 / n2
+      | _ -> assert false
+      )
   | _ -> assert false
 
-and binary_op op e1 e2 = 
-  match op, e1, e2 with
-  | Eq, _, _ -> Ebool (e1 = e2)
-  | Lt, _, _ -> Ebool (e1 < e2)
-  | Lte, _, _ -> Ebool (e1 <= e2)
-  | Gt, _, _ -> Ebool (e1 > e2)
-  | Gte, _, _ -> Ebool (e1 >= e2)
-  | Plus, Eint n1, Eint n2 -> Eint (n1 + n2)
-  | Minus, Eint n1, Eint n2 -> Eint (n1 - n2)
-  | Star, Eint n1, Eint n2 -> Eint (n1 * n2)
-  | Comma, e1, e2 -> Ebinop (Comma, e1, e2)
-  | Cons, x, Elist l -> Elist (x :: l)
-  | Seq, _, _ -> assert false (* is handled by expr *)
-  | _ -> raise Exit
+and unop op e =
+  match e with
+  | Int n -> Int (-n)
+  | _ -> assert false
 
-and unary_op op e = 
-  match op, e with
-  | Uminus, Eint n -> Eint (-n)
-  | _ -> raise Exit
-*)
+and actions env e al =
+  match al with
+  | [] -> failwith "pattern-match failed"
+  | (p, a) :: rl -> 
+      (try 
+	let env = pat env p e in
+	tuple env a
+      with Exit -> actions env e rl)
+  
