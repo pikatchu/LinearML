@@ -350,7 +350,7 @@ module FreeObsVars = struct
     List.fold_left (tuple_pos obs env) t tpl
     
   and tuple_pos obs env t (_, e) = expr_ obs env t e
-  and expr obs env t (_, e) = expr_ obs env t e
+  and expr obs env t (ty, e) = expr_ obs env t e
   and expr_ obs env t = function
     | Eid x -> id obs env t x
     | Evalue _ -> t
@@ -429,7 +429,9 @@ and pat_el t (ty, p) v =
 
 and pat_ t ty p v = 
   match p with
-  | Pany -> Env.bind (Type.make_pany (fst ty)) v t
+  | Pany -> 
+      let v = match ty with _, Tprim _ -> Type.Safe | _ -> v in
+      Env.bind (Type.make_pany (fst ty)) v t
   | Pid id -> Env.bind id v t
   | Pvalue _ -> t
   | Pvariant (_, p) -> pat t p (make_value v p)
@@ -514,7 +516,10 @@ and tuple t (_, tpl) =
 and expr t (ty, e) = expr_ t [ty] e
 and expr_ t ty = function
   | Eid x -> 
-      Env.use x t
+      (match ty with
+      | [_, Tprim _] -> 
+	  Env.bind x Type.Safe t, [Type.Safe]
+      | _ -> Env.use x t)
   | Evalue _ -> 
       t, [Type.Safe]
   | Evariant (x, e) -> 
