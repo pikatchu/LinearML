@@ -181,10 +181,11 @@ end = struct
     let t, env, id = new_id t env x in
     { t with types = env }, id
 
-  let new_tvar t x = 
+  let new_tvar t (p, x) = 
     let env = t.tvars in
-    let t, env, id = new_id t env x in
-    { t with tvars = env }, id
+    let id = Ident.make x in
+    let env = SMap.add x id env in
+    { t with tvars = env }, (p, id)
 
   let new_cstr t x = 
     let env = t.cstrs in
