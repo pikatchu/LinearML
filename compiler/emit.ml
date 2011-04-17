@@ -341,7 +341,6 @@ let optims pm =
     ;  add_loop_unswitch pm
     ;  add_loop_unroll pm
     ;  add_loop_rotation pm
-    ;  add_loop_index_split pm
     ;  add_memory_to_register_promotion pm 
     ;  add_reassociation pm
     ;  add_jump_threading pm
