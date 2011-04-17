@@ -43,8 +43,39 @@ type value =
   | Variant of id * value list
   | Record of value list IMap.t
   | Fun of pat * tuple
+  | Prim1 of (value -> value)
+  | Prim2 of (value -> value -> value)
 
 module Genv = struct
+
+  let make_prims env = 
+    let env = ref env in
+    let register x v = 
+      env := IMap.add x v !env 
+    in
+    register Naming.bnot (Prim1
+    (function 
+      | Bool b -> Bool (not b) 
+      | _ -> assert false
+   ));
+    register Naming.alength (Prim1
+    (function
+      | Array a -> Int (Array.length a)
+      | _ -> assert false
+   ));
+    register Naming.imake (Prim2
+    (fun size v ->
+      match size, v with
+      | Int size, v -> Array (Array.make size v)
+      | _ -> assert false
+   ));
+    register Naming.imake (Prim2
+    (fun size v ->
+      match size, v with
+      | Int size, v -> Array (Array.make size v)
+      | _ -> assert false
+   ));
+    !env
 
   let rec program mdl = 
     let env = IMap.empty in
@@ -57,11 +88,17 @@ module Genv = struct
     IMap.add x (Fun (p, t)) env
 end
 
-let rec program main mdl = 
+let rec program root_id mdl = 
   let env = Genv.program mdl in
-  match IMap.find main env with
-  | Fun (_, e) -> tuple env e
-  | _ -> failwith "main not found"
+  (match root_id with
+  | None -> failwith "main not found"
+  | Some (_, id) -> 
+      match IMap.find id env with
+      | Fun (_, e) -> 
+	  let v = tuple env e in
+	  let o = output_string stdout in
+	  print o v
+      | _ -> assert false)
 
 and pat env ptl vl = 
   match ptl with

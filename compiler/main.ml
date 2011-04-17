@@ -127,6 +127,7 @@ let _ =
   let lib = ref "" in
   let oname = ref "a.out" in
   let print_int = ref false in
+  let eval = ref false in
   Arg.parse 
     ["-root", Arg.String (fun s -> root := s), 
      space 10 "specifies the root module";
@@ -150,6 +151,8 @@ let _ =
      space 13 "outputs executable" ;
      "-lib", Arg.String (fun s -> lib := s), 
      space 11 "creates a library" ;
+     "-eval", Arg.Unit (fun () -> eval := true),
+     space 10 "evaluates the main";
    ]
     (fun x -> module_l := x :: !module_l)
     (Printf.sprintf "%s files" Sys.argv.(0)) ;
@@ -162,7 +165,7 @@ let _ =
   then (Printf.fprintf stderr "Root node missing !\n" ; exit 2) ;
   let ast = List.fold_left parse [] !module_l in
   let ast = if !no_stdlib then ast else parse ast Global.stdlib in
-  let nast = Naming.program ast in
+  let root_id, nast = Naming.program !root ast in
   NastCheck.program nast ;
   let neast = NastExpand.program nast in
   NeastCheck.program neast ;
@@ -175,6 +178,8 @@ let _ =
   flush stderr ;
   let ist = IstOfStast.program benv stast in
   let ist = ExtractFuns.program ist in
+  if !eval
+  then (Eval.program root_id ist; exit 0);
   if !dump_ist then
     IstPp.program ist;
   let est = EstOfIst.program ist in

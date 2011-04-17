@@ -363,9 +363,12 @@ module FreeVars = struct
     SMap.fold (fun _ y acc -> y :: acc) vm []
 end
 
-let rec program mdl = 
+let rec program root mdl = 
   let genv = Genv.make mdl in
-  List.map (module_ genv) mdl
+  let root_id = 
+    try Some (Genv.module_id genv (Pos.none, root))
+    with Not_found -> None in
+  root_id, List.map (module_ genv) mdl
 
 and module_ genv md = 
   let md_id = Genv.module_id genv md.md_id in
