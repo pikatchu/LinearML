@@ -46,6 +46,55 @@ type value =
   | Prim1 of (value -> value)
   | Prim2 of (value -> value -> value)
 
+module Print = struct
+
+  let rec value o = function
+  | Unit -> o "()"
+  | Bool true -> o "true"
+  | Bool false -> o "false"
+  | Char c -> 
+      let s = "'.'" in
+      s.[1] <- c;
+      o s
+  | Int n -> o (string_of_int n)
+  | Float f -> o (string_of_float f)
+  | String s -> o ("\""^String.escaped s^"\"")
+  | Array a -> o "[|" ; array o a 0 (Array.length a - 1); o "|]"
+  | Variant (x, []) -> o (Ident.to_string x)
+  | Variant (x, vl) -> 
+      o (Ident.to_string x); 
+      o "(";
+      value_list o vl;
+      o ")"
+  | Record r -> 
+      o "{";
+      IMap.iter (field o) r;
+      o "}"
+  | Fun _
+  | Prim1 _
+  | Prim2 _ -> o "fun"
+
+  and array o a i iend = 
+    if i = iend
+    then value o a.(i)
+    else begin
+      value o a.(i);
+      o ";";
+      array o a (i+1) iend
+    end
+
+  and value_list o vl =
+    match vl with
+    | [] -> ()
+    | [x] -> value o x
+    | x :: rl -> value o x ; o ", "; value_list o rl
+
+  and field o s vl =
+    o (Ident.to_string s); o " = "; value_list o vl;
+    o "; "
+    
+end
+
 module Genv = struct
 
   let make_prims env = 
@@ -97,12 +146,15 @@ let rec program root_id mdl =
       | Fun (_, e) -> 
 	  let v = tuple env e in
 	  let o = output_string stdout in
-	  print o v
+	  Print.value_list o v
       | _ -> assert false)
 
 and pat env ptl vl = 
   match ptl with
-  | [] -> failwith "match failed"
+  | [] -> 
+      if vl = []
+      then env
+      else raise Exit
   | pt :: rl -> 
       (try pat_tuple env pt vl 
       with Exit -> pat env rl vl)

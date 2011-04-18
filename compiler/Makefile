@@ -52,6 +52,7 @@ OBJECTS_ML = \
 	llstFree.ml\
 	llstOptim.ml\
 	emit.ml\
+	eval.ml\
 	main.ml
 #	istAdhoc.ml
 

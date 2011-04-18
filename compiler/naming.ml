@@ -366,7 +366,11 @@ end
 let rec program root mdl = 
   let genv = Genv.make mdl in
   let root_id = 
-    try Some (Genv.module_id genv (Pos.none, root))
+    try 
+      let root = Pos.none, root in
+      let md_id = Genv.module_id genv root in
+      let env = Genv.sig_ genv md_id in
+      Env.try_value env (Pos.none, "main")
     with Not_found -> None in
   root_id, List.map (module_ genv) mdl
 
