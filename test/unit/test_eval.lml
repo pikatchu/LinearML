@@ -1,0 +1,13 @@
+
+module Test = struct
+
+  val rev: 'a List.t * 'a List.t -> 'a List.t
+  let rev acc l = 
+    match l with
+    | [] -> acc
+    | x :: rl -> rev (x :: acc) rl
+
+  val main: unit -> int List.t
+  let main() = 
+    rev [] [1;2;3]
+end
