@@ -1,39 +1,5 @@
+(* Implementation of an Avl tree *)
 
-class Test{
-
-  x: int;
-  y: int;
-
-  let make() = {
-    x = 0;
-    y = 0;
-  }
-
-  val f: () -> ()
-  let f() = x
-
-  val f2: t * env -> t
-  let f2 x env = x
-
-  val getX() = this.x
-}
-
-class Test2 derives Test{
-
-}
-
-
-module User = struct
-
-  let main() =
-    x = new Test();
-
-    x = Test.f x;
-    x.f();
-
-    x.f2(2)
-
-end
 
 module Map = struct
 
@@ -44,9 +10,8 @@ module Map = struct
 
   type abstract ('a, 'b) t =
     | Empty
-    | Node of t * 'a * 'b * t * int
+    | Node of ('a, 'b) t * 'a * 'b * ('a, 'b) t * int
 
-  val f: unit -> t('a, 'b)
 
   type ('a, 'b) env = {
       cmp: (('a obs * 'a obs) -> int);
@@ -66,7 +31,7 @@ module Map = struct
       'b *
       ('a obs -> 'a) *
       ('b obs -> 'b)
-    -> env
+    -> ('a, 'b) env
   let init cmp kdef vdef kcpy vcpy =
     { cmp = cmp;
       kdefault = kdef;
@@ -79,56 +44,57 @@ module Map = struct
       error = [];
     }
 
-  val private kdef: env obs -> 'a
+  val private kdef: ('a, 'b) env obs -> 'a
   let kdef env =
     env.kcopy (env.kdefault)
 
-  val private vdef: env obs -> 'a
+  val private vdef: ('a, 'b) env obs -> 'a
   let vdef env =
     env.vcopy (env.vdefault)
 
-  val private error: env * error -> env
+  val private error: ('a, 'b) env * error -> ('a, 'b) env
   let error env err =
-(*    use env error; *)
+    let { env; ~error } = env in
     env.error <- err :: error;
     env
 
-  val private dnode: env * t -> env
+  val private dnode: ('a, 'b) env * ('a, 'b) t -> ('a, 'b) env
   let dnode env n =
-    use env ~fnode;
+    let { env; ~fnode } = env in
     env.fnode <- n :: fnode;
     env
 
-  val private dval: env * 'a -> env
+  val private dval: ('a, 'b) env * 'a -> ('a, 'b) env
   let dval env v =
-    use env ~fval;
+    let { env; ~fval} = env in
     env.fval <- v :: fval;
     env
 
-  val private dkey: env * 'a -> env
+  val private dkey: ('a, 'b) env * 'a -> ('a, 'b) env
   let dkey env k =
-    use env ~fkey;
+    let { env; ~fkey} = env in
     env.fkey <- k :: fkey;
     env
 
-  val private height: t obs -> int
+  val private height: ('a, 'b) t obs -> int
   let height t =
     match t with
     | Empty -> 0
     | Node _ _ _ _ h -> h
-    end
 
-  val private node: t * 'a * 'b * t -> t
+  val private node: ('a, 'b) t * 'a * 'b * ('a, 'b) t -> ('a, 'b) t
   let node l k v r =
-    hl = height(!l);
-    hr = height(!r);
-    Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1 fi))
+    hl := height(!l);
+    hr := height(!r);
+    Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
 
-  val private balance: env * t * 'a * 'b * t -> env * t
+  val private balance: 
+      ('a, 'b) env * ('a, 'b) t * 'a * 'b * ('a, 'b) t 
+    -> ('a, 'b) env * ('a, 'b) t
   let balance env l k v r =
-    hl = height(!l);
-    hr = height(!r);
-    d  = hl - hr;
+    hl := height(!l);
+    hr := height(!r);
+    d  := hl - hr;
     if d > 2
     then
       match l with
@@ -156,8 +122,6 @@ module Map = struct
                 env, Empty
             | Node(lrl, lrv, lrd, lrr, _)->
                 env, node (node ll lv ld lrl) lrv lrd (node lrr k v r)
-            end
-      end
     else if d < -2 then
       match r with
       | Empty ->
@@ -184,39 +148,37 @@ module Map = struct
                 env, Empty
             | Node(rll, rlv, rld, rlr, _) ->
                 env, node (node l k v rll) rlv rld (node rlr rv rd rr)
-           end
     else
       env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
 
-  val empty: unit -> t
+  val empty: unit -> ('a, 'b) t
   let empty() = Empty
 
-  val is_empty: t obs -> bool
+  val is_empty: ('a, 'b) t obs -> bool
   let is_empty x =
     match x with
     | Empty -> true
     | _ -> false
 
-  val add: env * 'a * 'b * t -> env * t
+  val add: ('a, 'b) env * 'a * 'b * ('a, 'b) t -> ('a, 'b) env * ('a, 'b) t
   let add env x data t =
     match t with
     | Empty ->
         env, Node(Empty, x, data, Empty, 1)
     | Node(l, v, d, r, h) ->
-        c = env.cmp !x !v;
+        c := env.cmp !x !v;
         if c = 0 then
-          env = dkey env v;
-          env = dval env d;
+          env := dkey env v;
+          env := dval env d;
           env, Node(l, x, data, r, h)
         else if c < 0 then
-          env, l = add env x data l;
+          let env, l = add env x data l in
           balance env l v d r
         else
-          env, r = add env x data r;
+          let env, r = add env x data r in
           balance env l v d r
-        fi
 
-  val find: env * 'a obs * t obs -> env * 'b
+  val find: ('a, 'b) env * 'a obs * ('a, 'b) t obs -> ('a, 'b) env * 'b
   let find env x t =
     match t with
     | Empty ->
@@ -230,15 +192,15 @@ module Map = struct
         then find env x r
         else env, env.vcopy d
 
-  val mem: env obs * 'a obs * t obs -> bool
+  val mem: ('a, 'b) env obs * 'a obs * ('a, 'b) t obs -> bool
   let rec mem env x t =
     match t with
     | Empty -> false
     | Node(l, v, d, r, _) ->
-        c = env.cmp x v;
-        c = 0 || mem(env, x, if c < 0 then l else r fi)
+        c := env.cmp x v;
+        c = 0 || mem(env, x, if c < 0 then l else r)
 
-  val min_binding: env * t obs -> env * 'a * 'b
+  val min_binding: ('a, 'b) env * ('a, 'b) t obs -> ('a, 'b) env * 'a * 'b
   let min_binding env t =
     match t with
     | Empty ->
@@ -248,11 +210,11 @@ module Map = struct
         env, env.kcopy x, env.vcopy d
     | Node(l, x, d, r, _) -> min_binding env l
 
-  val max_binding: env * t obs -> env * 'a * 'b
+  val max_binding: ('a, 'b) env * ('a, 'b) t obs -> ('a, 'b) env * 'a * 'b
   let max_binding env t =
     match t with
     | Empty ->
-        env = error env Not_found;
+        env := error env Not_found;
         (env, kdef(!env), vdef(!env))
     | Node(l, x, d, Empty, _) ->
         (env, env.kcopy(x), env.vcopy(d))
@@ -260,7 +222,7 @@ module Map = struct
         max_binding(env, r)
 
   val remove_min_binding:
-      env * t -> env * t
+      ('a, 'b) env * ('a, 'b) t -> ('a, 'b) env * ('a, 'b) t
   let rec remove_min_binding env t =
     match t with
     | Empty ->
@@ -274,18 +236,19 @@ module Map = struct
         let env, l = remove_min_binding env l in
         balance env l x d r
 
-  val merge: env * t * t -> env * t
+  val merge: ('a, 'b) env * ('a, 'b) t * ('a, 'b) t 
+    -> ('a, 'b) env * ('a, 'b) t
   let merge env t1 t2 =
     match (t1, t2) with
     | (Empty, t) -> env, t
     | (t, Empty) -> env, t
     | (t1, t2) ->
-        env, x, d = min_binding env !t2;
-        env, t2 = remove_min_binding env t2;
+        let env, x, d = min_binding env !t2 in
+        let env, t2 = remove_min_binding env t2 in
         balance env t1 x d t2
-    end
 
-  val remove: env * 'a obs * t -> env * t
+  val remove: ('a, 'b) env * 'a obs * ('a, 'b) t
+    -> ('a, 'b) env * ('a, 'b) t
   let remove env x t =
     match t with
     | Empty ->
@@ -294,23 +257,22 @@ module Map = struct
         let c = env.cmp x !v in
         if c < 0
         then
-          env, l = remove env x l;
+          let env, l = remove env x l in
           balance env l v d r
         else if c > 0
         then
-          env, r = remove env x r;
+          let env, r = remove env x r in
           balance env l v d r
         else
           env := dval env v;
           env := dval env d;
           merge env l r
-        fi
 
   val fold_left:
       ('acc * 'a obs -> 'acc) obs *
       ('acc * 'b obs -> 'acc) obs *
       'acc *
-      t obs
+      ('a, 'b) t obs
     -> 'acc
   let fold_left fk fv acc t =
     match t with
@@ -332,7 +294,7 @@ module Test = struct
   val cpy: int obs -> int
   let cpy x = x
 
-  val main: unit -> Map.env(int, int) * Map.t(int, int) * int
+  val main: unit -> (int, int)Map.env * (int, int)Map.t * int
   let main() =
     let env = Map.init cmp 0 0 cpy cpy in
     let t = Map.empty() in
