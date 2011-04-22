@@ -1,0 +1,345 @@
+
+class Test{
+
+  x: int;
+  y: int;
+
+  let make() = {
+    x = 0;
+    y = 0;
+  }
+
+  val f: () -> ()
+  let f() = x
+
+  val f2: t * env -> t
+  let f2 x env = x
+
+  val getX() = this.x
+}
+
+class Test2 derives Test{
+
+}
+
+
+module User = struct
+
+  let main() =
+    x = new Test();
+
+    x = Test.f x;
+    x.f();
+
+    x.f2(2)
+
+end
+
+module Map = struct
+
+  type error =
+    | Bal_invalid_arg
+    | Not_found
+    | Remove_min_elt
+
+  type abstract ('a, 'b) t =
+    | Empty
+    | Node of t * 'a * 'b * t * int
+
+  val f: unit -> t('a, 'b)
+
+  type ('a, 'b) env = {
+      cmp: (('a obs * 'a obs) -> int);
+      kdefault: 'a;
+      vdefault: 'b;
+      kcopy: ('a obs -> 'a);
+      vcopy: ('b obs -> 'b);
+      fnode: ('a, 'b) t List.t;
+      fkey: 'a List.t;
+      fval: 'b List.t;
+      error: error List.t;
+    }
+
+  val init:
+      (('a obs * 'a obs) -> int) *
+      'a *
+      'b *
+      ('a obs -> 'a) *
+      ('b obs -> 'b)
+    -> env
+  let init cmp kdef vdef kcpy vcpy =
+    { cmp = cmp;
+      kdefault = kdef;
+      vdefault = vdef;
+      kcopy = kcpy;
+      vcopy = vcpy;
+      fnode = [];
+      fkey = [];
+      fval = [];
+      error = [];
+    }
+
+  val private kdef: env obs -> 'a
+  let kdef env =
+    env.kcopy (env.kdefault)
+
+  val private vdef: env obs -> 'a
+  let vdef env =
+    env.vcopy (env.vdefault)
+
+  val private error: env * error -> env
+  let error env err =
+(*    use env error; *)
+    env.error <- err :: error;
+    env
+
+  val private dnode: env * t -> env
+  let dnode env n =
+    use env ~fnode;
+    env.fnode <- n :: fnode;
+    env
+
+  val private dval: env * 'a -> env
+  let dval env v =
+    use env ~fval;
+    env.fval <- v :: fval;
+    env
+
+  val private dkey: env * 'a -> env
+  let dkey env k =
+    use env ~fkey;
+    env.fkey <- k :: fkey;
+    env
+
+  val private height: t obs -> int
+  let height t =
+    match t with
+    | Empty -> 0
+    | Node _ _ _ _ h -> h
+    end
+
+  val private node: t * 'a * 'b * t -> t
+  let node l k v r =
+    hl = height(!l);
+    hr = height(!r);
+    Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1 fi))
+
+  val private balance: env * t * 'a * 'b * t -> env * t
+  let balance env l k v r =
+    hl = height(!l);
+    hr = height(!r);
+    d  = hl - hr;
+    if d > 2
+    then
+      match l with
+      | Empty ->
+          (* Should never happend *)
+          env := error env Bal_invalid_arg;
+          env := dkey env k;
+          env := dval env v;
+          env := dnode env r;
+          env, Empty
+      | Node(ll, lv, ld, lr, _) ->
+          if height !ll >= height !lr then
+            env, node ll lv ld (node lr k v r)
+          else
+            match lr with
+              Empty ->
+                (* Should never happend *)
+                env := error env Bal_invalid_arg;
+                env := dkey env k;
+                env := dval env v;
+                env := dnode env r;
+                env := dnode env ll;
+                env := dval env lv;
+                env := dkey env ld;
+                env, Empty
+            | Node(lrl, lrv, lrd, lrr, _)->
+                env, node (node ll lv ld lrl) lrv lrd (node lrr k v r)
+            end
+      end
+    else if d < -2 then
+      match r with
+      | Empty ->
+          (* Should never happend *)
+          env := error env Bal_invalid_arg;
+          env := dnode env l;
+          env := dkey env k;
+          env := dval env v;
+          env, Empty
+      | Node(rl, rv, rd, rr, _) ->
+          if height !rr >= height !rl then
+            env, node (node l k v rl) rv rd rr
+          else
+            match rl with
+            | Empty ->
+                (* Should never happend *)
+                env := error env Bal_invalid_arg;
+                env := dnode env l;
+                env := dnode env rr;
+                env := dkey env k;
+                env := dval env v;
+                env := dkey env rv;
+                env := dval env rd;
+                env, Empty
+            | Node(rll, rlv, rld, rlr, _) ->
+                env, node (node l k v rll) rlv rld (node rlr rv rd rr)
+           end
+    else
+      env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
+
+  val empty: unit -> t
+  let empty() = Empty
+
+  val is_empty: t obs -> bool
+  let is_empty x =
+    match x with
+    | Empty -> true
+    | _ -> false
+
+  val add: env * 'a * 'b * t -> env * t
+  let add env x data t =
+    match t with
+    | Empty ->
+        env, Node(Empty, x, data, Empty, 1)
+    | Node(l, v, d, r, h) ->
+        c = env.cmp !x !v;
+        if c = 0 then
+          env = dkey env v;
+          env = dval env d;
+          env, Node(l, x, data, r, h)
+        else if c < 0 then
+          env, l = add env x data l;
+          balance env l v d r
+        else
+          env, r = add env x data r;
+          balance env l v d r
+        fi
+
+  val find: env * 'a obs * t obs -> env * 'b
+  let find env x t =
+    match t with
+    | Empty ->
+        env := error env Not_found;
+        env, vdef !env
+    | Node(l, v, d, r, _) ->
+        let c = env.cmp x v in
+        if c < 0
+        then find env x l
+        else if c > 0
+        then find env x r
+        else env, env.vcopy d
+
+  val mem: env obs * 'a obs * t obs -> bool
+  let rec mem env x t =
+    match t with
+    | Empty -> false
+    | Node(l, v, d, r, _) ->
+        c = env.cmp x v;
+        c = 0 || mem(env, x, if c < 0 then l else r fi)
+
+  val min_binding: env * t obs -> env * 'a * 'b
+  let min_binding env t =
+    match t with
+    | Empty ->
+        env := error env Not_found;
+        env, kdef !env, vdef !env
+    | Node(Empty, x, d, r, _) ->
+        env, env.kcopy x, env.vcopy d
+    | Node(l, x, d, r, _) -> min_binding env l
+
+  val max_binding: env * t obs -> env * 'a * 'b
+  let max_binding env t =
+    match t with
+    | Empty ->
+        env = error env Not_found;
+        (env, kdef(!env), vdef(!env))
+    | Node(l, x, d, Empty, _) ->
+        (env, env.kcopy(x), env.vcopy(d))
+    | Node(l, x, d, r, _) ->
+        max_binding(env, r)
+
+  val remove_min_binding:
+      env * t -> env * t
+  let rec remove_min_binding env t =
+    match t with
+    | Empty ->
+        env := error env Remove_min_elt;
+        env, Empty
+    | Node(Empty, x, d, r, _) ->
+        env := dkey env x;
+        env := dval env d;
+        env, r
+    | Node(l, x, d, r, _) ->
+        let env, l = remove_min_binding env l in
+        balance env l x d r
+
+  val merge: env * t * t -> env * t
+  let merge env t1 t2 =
+    match (t1, t2) with
+    | (Empty, t) -> env, t
+    | (t, Empty) -> env, t
+    | (t1, t2) ->
+        env, x, d = min_binding env !t2;
+        env, t2 = remove_min_binding env t2;
+        balance env t1 x d t2
+    end
+
+  val remove: env * 'a obs * t -> env * t
+  let remove env x t =
+    match t with
+    | Empty ->
+        env, Empty
+    | Node(l, v, d, r, h) ->
+        let c = env.cmp x !v in
+        if c < 0
+        then
+          env, l = remove env x l;
+          balance env l v d r
+        else if c > 0
+        then
+          env, r = remove env x r;
+          balance env l v d r
+        else
+          env := dval env v;
+          env := dval env d;
+          merge env l r
+        fi
+
+  val fold_left:
+      ('acc * 'a obs -> 'acc) obs *
+      ('acc * 'b obs -> 'acc) obs *
+      'acc *
+      t obs
+    -> 'acc
+  let fold_left fk fv acc t =
+    match t with
+    | Empty -> acc
+    | Node(l, k, v, r, _) ->
+        acc := fold_left fk fv acc l;
+        acc := fk acc k;
+        acc := fv acc v;
+        acc := fold_left fk fv acc r;
+        acc
+
+end
+
+module Test = struct
+
+  val cmp: int obs * int obs -> int
+  let cmp x y = x - y
+
+  val cpy: int obs -> int
+  let cpy x = x
+
+  val main: unit -> Map.env(int, int) * Map.t(int, int) * int
+  let main() =
+    let env = Map.init cmp 0 0 cpy cpy in
+    let t = Map.empty() in
+    let env, t = Map.add env 1 2 t in
+    let env, t = Map.add env 2 2 t in
+    let env, t = Map.add env 3 2 t in
+    let env, t = Map.add env 4 34 t in
+    let env, v = Map.find env 4 !t in
+    env, t, v
+end
