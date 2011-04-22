@@ -350,8 +350,7 @@ and def env (fid, p, e) =
       let tyl = ExpandType.type_expr_list !env tyl in
       let rty = ExpandType.type_expr_list !env rty in
       let fty' = fp, Tfun (k, tyl, rty) in
-      (* TODO error messages are bad *)
-(*       SubType.type_expr fty fty'; *)
+      SubType.type_expr fty fty';
       k, fid, p, (rty, e)
   | _ -> assert false
 
