@@ -177,7 +177,7 @@ and expr = function
   | Ebinop (bop, id1, id2) -> binop bop ; o " " ; tid id1 ; o " " ; tid id2 
   | Euop (uop, x) -> unop uop ; o " " ; tid x
   | Etuple (x, l) -> o "{ " ; maybe ty_id x ; o " | " ; 
-      print_list o (fun _ (n, x) -> o "[" ; o (soi n) ; o "]=" ; tid x) ", " l ; o " }"
+      print_list o (fun _ (n, x) -> o "[" ; o (soi n) ; o "]=" ; ty_id x) ", " l ; o " }"
   | Efield (x, y) -> tid x ; o "." ; o (soi y)
   | Eapply (fk, b, x, l) -> 
       if b then o "tail " else () ; 

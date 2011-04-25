@@ -1,5 +1,5 @@
 (* Implementation of an Avl tree *)
-
+(* To run this: ../../compiler/limlc -eval -root Test map.lml *)
 
 module Map = struct
 
@@ -12,13 +12,14 @@ module Map = struct
     | Empty
     | Node of ('a, 'b) t * 'a * 'b * ('a, 'b) t * int
 
-
   type ('a, 'b) env = {
       cmp: (('a obs * 'a obs) -> int);
       kdefault: 'a;
       vdefault: 'b;
       kcopy: ('a obs -> 'a);
       vcopy: ('b obs -> 'b);
+      kfree: ('a -> unit);
+      vfree: ('b -> unit);
       fnode: ('a, 'b) t List.t;
       fkey: 'a List.t;
       fval: 'b List.t;
@@ -30,20 +31,64 @@ module Map = struct
       'a *
       'b *
       ('a obs -> 'a) *
-      ('b obs -> 'b)
+      ('b obs -> 'b) *
+      ('a -> unit) *
+      ('b -> unit)
     -> ('a, 'b) env
-  let init cmp kdef vdef kcpy vcpy =
+  let init cmp kdef vdef kcpy vcpy fk fv =
     { cmp = cmp;
       kdefault = kdef;
       vdefault = vdef;
       kcopy = kcpy;
       vcopy = vcpy;
+      kfree = fk;
+      vfree = fv;
       fnode = [];
       fkey = [];
       fval = [];
       error = [];
     }
 
+  val free_t: ('a -> unit) obs * ('b -> unit) obs * ('a, 'b) t -> unit
+  let free_t fk fv t = 
+    match t with
+    | Empty -> ()
+    | Node (l, k, v, r, _) ->
+	free_t fk fv l;
+	fk k;
+	fv v;
+	free_t fk fv r
+
+  val free_tlist: ('a -> unit) obs * ('b -> unit) obs * ('a, 'b) t List.t -> unit
+  let free_tlist fk fv l = 
+    match l with
+    | [] -> ()
+    | x :: rl -> free_t fk fv x; free_tlist fk fv rl
+
+  val free_list: ('a -> unit) obs * 'a List.t -> unit
+  let free_list f l =
+    match l with
+    | [] -> ()
+    | x :: rl -> f x; free_list f rl
+
+  val free_env: ('a, 'b) env -> error List.t
+  let free_env env =
+    let { env;
+	  ~kdefault;
+	  ~vdefault;
+	  ~fnode;
+	  ~fkey;
+	  ~fval;
+	  ~error;
+	} = env in
+    env.kfree kdefault;
+    env.vfree vdefault;
+    free_tlist env.kfree env.vfree fnode;
+    free_list env.kfree fkey;
+    free_list env.vfree fval;
+    free env;
+    error
+	
   val private kdef: ('a, 'b) env obs -> 'a
   let kdef env =
     env.kcopy (env.kdefault)
@@ -269,10 +314,10 @@ module Map = struct
           merge env l r
 
   val fold_left:
-      ('acc * 'a obs -> 'acc) obs *
-      ('acc * 'b obs -> 'acc) obs *
-      'acc *
-      ('a, 'b) t obs
+       ('acc * 'a obs -> 'acc) obs *
+       ('acc * 'b obs -> 'acc) obs *
+       'acc *
+       ('a, 'b) t obs
     -> 'acc
   let fold_left fk fv acc t =
     match t with
@@ -284,6 +329,28 @@ module Map = struct
         acc := fold_left fk fv acc r;
         acc
 
+  val map: ('b -> 'c) obs * ('a, 'b) t -> ('a, 'c) t
+  let map f t = 
+    match t with
+    | Empty -> Empty
+    | Node(l, v, d, r, h) ->
+        let l = map f l in
+        let d = f d in
+        let r = map f r in
+        Node(l, v, d, r, h)
+
+  val map_acc: 
+      ('acc * 'b -> 'acc * 'c) obs * 'acc * ('a, 'b) t 
+    -> 'acc * ('a, 'c) t
+  let map_acc f acc t = 
+    match t with
+    | Empty -> acc, Empty
+    | Node(l, v, d, r, h) ->
+        let acc, l = map_acc f acc l in
+        let acc, d = f acc d in
+        let acc, r = map_acc f acc r in
+        acc, Node(l, v, d, r, h)
+
 end
 
 module Test = struct
@@ -294,14 +361,23 @@ module Test = struct
   val cpy: int obs -> int
   let cpy x = x
 
-  val main: unit -> (int, int)Map.env * (int, int)Map.t * int
+  val make: 
+       (int, int) Map.env * (int, int) Map.t * int
+    -> (int, int) Map.env * (int, int) Map.t
+  let make env acc i = 
+    if i < 0
+    then env, acc
+    else 
+      let env, acc = Map.add env i i acc in
+      make env acc (i-1)
+
+  val fint: int -> unit
+  let fint _ = ()
+
+  val main: unit -> Map.error List.t
   let main() =
-    let env = Map.init cmp 0 0 cpy cpy in
-    let t = Map.empty() in
-    let env, t = Map.add env 1 2 t in
-    let env, t = Map.add env 2 2 t in
-    let env, t = Map.add env 3 2 t in
-    let env, t = Map.add env 4 34 t in
-    let env, v = Map.find env 4 !t in
-    env, t, v
+    let env = Map.init cmp 0 0 cpy cpy fint fint in
+    let env, t = make env (Map.empty()) 1000000 in
+    Map.free_t !fint !fint t;
+    Map.free_env env
 end

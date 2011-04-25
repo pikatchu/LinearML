@@ -183,10 +183,10 @@ let _ =
   if !dump_ist then
     IstPp.program ist;
   let est = EstOfIst.program ist in
-  if !dump_est then
-    EstPp.program est ;
   let est = EstCompile.program est in
   let est = EstNormalizePatterns.program est in 
+  if !dump_est then
+    EstPp.program est ;
   let llst = LlstOfEst.program est in
   let llst = LlstOptim.inline llst in 
   let llst = LlstFree.program llst in  

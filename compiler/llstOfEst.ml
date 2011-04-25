@@ -362,6 +362,8 @@ and block t bl acc =
 
 and ret bls t = function
   | Lreturn _ -> assert false
+  | Return (true, l) -> 
+      [], bls, Llst.Return (true, ty_idl l)
   | Return (b, l) -> 
       let xl = List.map (fun (ty, x) -> ftype_expr ty, Ident.tmp()) l in
       let vl = ty_idl l in

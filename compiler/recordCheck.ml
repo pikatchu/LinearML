@@ -139,9 +139,9 @@ and check_field pos x (a, ty) =
 let rec type_expr_list (_, tyl) = List.map type_expr tyl
 and type_expr (_, ty) = type_expr_ ty
 and type_expr_ = function
-  | Tprim _ -> P
+  | Tprim _ | Tfun _ -> P
   | Tany
-  | Tvar _ | Tfun _ -> A
+  | Tvar _  -> A
   | Tapply ((_, x), (_, [ty])) when x = Naming.tobs -> A
   | Tid (_, x)
   | Tapply ((_, x), _) -> Rid x
@@ -151,7 +151,7 @@ let read_only pos = function
   | Write _ -> Error.field_no_val pos
 
 let free_field t pos v (x, ty) =
-  if ty = [P]
+  if not (is_pointer ty)
   then ()
   else match x with
   | Read -> Error.cannot_free_field pos v
@@ -205,7 +205,6 @@ and def t (_, x, ((tyl, _) as p), e) =
 and pat t (_, ptl) tl = List.fold_left (pat_tuple tl) t ptl
 and pat_tuple tl t (_, pel) = List.fold_left2 pat_el t pel tl
 and pat_el t (_, p) ty =
-
   pat_ t p ty
 
 and pat_ t p ty =

@@ -430,10 +430,16 @@ and pat_el t (ty, p) v =
 and pat_ t ty p v =
   match p with
   | Pany ->
-      let v = match ty with _, Tprim _ -> Type.Safe | _ -> v in
+      let v = match ty with 
+      | _, Tfun _ (* turning closures off for now *)
+      | _, Tprim _ -> Type.Safe 
+      | _ -> v in
       Env.bind (Type.make_pany (fst ty)) v t
   | Pid id ->
-      let v = match ty with _, Tprim _ -> Type.Safe | _ -> v in
+      let v = match ty with 
+      | _, Tfun _ (* turning closures off for now *)
+      | _, Tprim _ -> Type.Safe 
+      | _ -> v in
       Env.bind id v t
   | Pvalue _ -> t
   | Pvariant (_, p) -> pat t p (make_value v p)
@@ -519,6 +525,8 @@ and expr t (ty, e) = expr_ t [ty] e
 and expr_ t ty = function
   | Eid x ->
       (match ty with
+      (* turning closures off for now *)
+      | [_, Tfun _]
       | [_, Tprim _] ->
 	  Env.bind x Type.Safe t, [Type.Safe]
       | _ -> Env.use x t)
@@ -541,7 +549,16 @@ and expr_ t ty = function
       let t = List.fold_left field t fdl in
       let t, _ = expr t e in
       t, Type.fresh ty
-  | Efield (e, _) -> proj t e
+  | Efield (e, _) -> 
+      (match ty with
+      (* turning closures off for now *)
+      | [_, Tfun _]
+      | [_, Tprim _] -> t, [Type.Safe]
+      | [_, Tapply (x, (_, [_, Tfun _]))] when snd x = Naming.tobs -> 
+	  t, [Type.Safe]
+      | [_, Tapply (x, (_, [_, Tprim _]))] when snd x = Naming.tobs -> 
+	  t, [Type.Safe]
+      | _ -> proj t e)
   | Ematch (e, al) ->
       let t, vl = tuple t e in
       let t' = Env.push t in
@@ -564,7 +581,8 @@ and expr_ t ty = function
       let t = Env.merge t [pos1, t1; pos2, t2] in
       t, Type.unify vl1 vl2
   | Eapply (_, _, x, e) ->
-      let t, _ = Env.use x t in
+(*       let t, _ = Env.use x t in *)
+(* turning this off for now *)
       let t, vl = tuple t e in
       apply ty t e vl
   | Eseq (e1, e2) ->
@@ -578,7 +596,7 @@ and expr_ t ty = function
       let t, _ = expr t f in
       let t, vl = tuple t e in
       let t, vl = Env.partial t vl in
-      t, vl
+      t, vl 
   | Efun (_, obs, p, e) as e_ ->
       let vset = FreeObsVars.expr_ obs t ISet.empty e_ in
       let t = Env.push t in
@@ -600,7 +618,7 @@ and action t vl (p, a) =
   let t, vl = tuple t a in
   (pos, t), vl
 
-and proj t (_, e) =
+and proj t (ty, e) =
   match e with
   | Eid x -> Env.obs x (Env.get (snd x) t) t
   | Efield (e, _) -> proj t e

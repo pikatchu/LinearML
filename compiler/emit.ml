@@ -153,8 +153,8 @@ module Type = struct
 
   and type_fun mds t ctx ty1 ty2 =
     let ty1, ty2 = 
-      if List.length ty2 > Global.max_reg_return
-      then Tptr (Tstruct ty2) :: ty1, [Tprim Tunit]
+      if List.length ty2 > 1
+      then Tptr (Tstruct ty2) :: ty1, []
       else ty1, ty2 in
     let ty1 = type_args mds t ctx ty1 in
     let rty = type_list mds t ctx ty2 in
@@ -202,7 +202,7 @@ module Type = struct
   and type_list mds t ctx l = 
     let tyl = List.map (type_ mds t ctx) l in
     match tyl with
-    | [] -> assert false
+    | [] -> void_type ctx
     | [x] -> x 
     | _ -> struct_type ctx (Array.of_list tyl)
 
@@ -240,6 +240,7 @@ module Pervasives = struct
     SMap.add name fdec interns
 *)
 
+(*
   let enot md ctx = 
     let builder = builder ctx in
     let int = Type.type_prim ctx Llst.Tint in
@@ -256,6 +257,7 @@ module Pervasives = struct
     let v = build_intcast v int "" builder in
     let _ = build_ret v builder in
     fdec
+*)
   
   let mk_trampoline = Ident.make "trampoline"
 
@@ -276,7 +278,7 @@ module Pervasives = struct
     let prims = IMap.add Naming.malloc malloc prims in
     let prims = IMap.add Naming.ifree free prims in
     let prims = IMap.add mk_trampoline trampoline prims in
-    let prims = IMap.add Naming.bnot (enot md ctx) prims in
+(*    let prims = IMap.add Naming.bnot (enot md ctx) prims in *)
     prims
 
 end
@@ -330,6 +332,10 @@ let dump_module md_file md pm =
 
 let optims pm = 
   ()
+    ;  add_memory_to_register_demotion pm
+    ;  add_tail_call_elimination pm
+(*    ;  add_instruction_combination pm  
+    ;  add_memory_to_register_promotion pm
     ;  add_constant_propagation pm
     ;  add_sccp pm
     ;  add_dead_store_elimination pm
@@ -341,7 +347,7 @@ let optims pm =
     ;  add_loop_unswitch pm
     ;  add_loop_unroll pm
     ;  add_loop_rotation pm
-    ;  add_memory_to_register_promotion pm 
+
     ;  add_reassociation pm
     ;  add_jump_threading pm
     ;  add_cfg_simplification pm
@@ -359,7 +365,7 @@ let optims pm =
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm  
     ; add_instruction_combination pm 
-
+*)
 
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
@@ -419,7 +425,7 @@ and function_ env df =
   let params = Array.to_list params in
   let ret, params = 
     match params with
-    | ret :: params when List.length df.df_ret > Global.max_reg_return ->
+    | ret :: params when List.length df.df_ret > 1 ->
       Some ret, params 
     | _ -> None, params in
   env.ret := ret ;
@@ -506,7 +512,7 @@ and instructions bb env acc ret l =
   | [] -> return env acc ret ; acc
   | [vl1, Eapply (fk, _, f, l) as instr] ->
       (match ret with 
-      | Return (tail, vl2) when tail && fk = Ast.Lfun -> 
+      | Return (tail, vl2) when tail && fk = Ast.Lfun ->
 	  let t = build_args acc l in
 	  let f = find_function env acc (fst f) (snd f) in
 	  let v = build_call f (Array.of_list t) "" env.builder in
@@ -534,7 +540,7 @@ and instruction bb env acc (idl, e) =
   | [(_, x)], Efree (_, v) ->
       let f = IMap.find Naming.ifree env.prims in
       let v = IMap.find v acc in
-      let v = build_bitcast v (pointer_type (i8_type env.ctx)) "" env.builder in
+      let v = cast env (pointer_type (i8_type env.ctx)) v in
       let v = build_call f [|v|] "" env.builder in
       let cconv = Llvm.CallConv.c in
       set_instruction_call_conv cconv v ;
@@ -578,7 +584,7 @@ and apply env acc xl fk (fty, f) argl =
   let argl = build_args acc argl in
   let ret, argl = 
     match fty with
-    | Tfun (_, _, tyl) when List.length tyl > Global.max_reg_return ->
+    | Tfun (_, _, tyl) when List.length tyl > 1 ->
 	let int = Type.type_prim env.ctx Llst.Tint in
 	let tty = List.map (fun _ -> int) tyl in
 	let ty = struct_type env.ctx (Array.of_list tty) in
@@ -615,16 +621,16 @@ and extract_values env acc xl v =
     IMap.add x nv acc
  ) acc xl
 
-and cast env xs ty1 ty2 y = 
-  let ty1 = Type.type_ env.mds env.types env.ctx ty1 in
-  let ty2 = Type.type_ env.mds env.types env.ctx ty2 in
+and cast env ty v = 
+  let ty1 = ty in
+  let ty2 = type_of v in
   match classify_type ty1, classify_type ty2 with
-  | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast y ty1 xs env.builder
-  | TypeKind.Pointer, _ -> build_inttoptr y ty1 "" env.builder
-  | _, TypeKind.Pointer -> build_ptrtoint y ty1 "" env.builder
+  | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast v ty1 "" env.builder
+  | TypeKind.Pointer, _ -> build_inttoptr v ty1 "" env.builder
+  | _, TypeKind.Pointer -> build_ptrtoint v ty1 "" env.builder
   | TypeKind.Integer, TypeKind.Integer ->
-      build_intcast y ty1 xs env.builder
-  | _, _ -> build_bitcast y ty1 xs env.builder
+      build_intcast v ty1 "" env.builder
+  | _, _ -> build_bitcast v ty1 "" env.builder
 
 and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
@@ -633,7 +639,8 @@ and expr bb env acc (ty, x) e =
   | Efree _ -> assert false
   | Eid (yty, y) -> 
       let y = try IMap.find y acc with Not_found -> find_function env acc ty y in
-      let v = cast env xs ty yty y in
+      let ty = Type.type_ env.mds env.types env.ctx ty in
+      let v = cast env ty y in
       IMap.add x v acc
   | Evalue v ->
       let ty = Type.type_ env.mds env.types env.ctx ty in
@@ -655,7 +662,7 @@ and expr bb env acc (ty, x) e =
       let v = bop x1 x2 xs env.builder in
       IMap.add x v acc
   | Eapply _ -> assert false
-  | Eis_null (_, v) -> 
+  | Eis_null (_, v) ->
       let v = IMap.find v acc in
       let v = build_is_null v xs env.builder in
       IMap.add x v acc
@@ -685,11 +692,23 @@ and expr bb env acc (ty, x) e =
       | Some (_, v) -> IMap.find v acc in
       let int = Type.type_prim env.ctx Llst.Tint in
       let z = const_int int 0 in
+      let tyl = 
+	match ty with 
+	| Tid x -> 
+	    (match IMap.find x env.orig_types with
+	    | Tstruct tyl -> tyl | _ -> assert false)
+	| _ -> assert false in
+      let n = ref 0 in
+      let types = Hashtbl.create 23 in
+      List.iter (fun ty -> Hashtbl.add types !n ty; incr n) tyl;
       List.iter (
       fun (n, (_, v)) -> 
+	let ty = Hashtbl.find types n in
 	let int = i32_type env.ctx in
 	let n = const_int int n in
 	let v = IMap.find v acc in
+	let ty = Type.type_ env.mds env.types env.ctx ty in
+	let v = cast env ty v in
 	let ptr = build_gep bl [|z;n|] "" env.builder in
 	ignore (build_store v ptr env.builder)
      ) fdl ;

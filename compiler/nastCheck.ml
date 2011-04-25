@@ -220,8 +220,46 @@ module CheckRestrict = struct
   let rec program mdl = 
     List.iter module_ mdl
 
-  and module_ md = 
+  and module_ md =
+    List.iter decl md.md_decls;
     List.iter def md.md_defs
+
+  and decl = function
+    | Dtype l -> List.iter (fun (_, ty) -> type_expr ty) l
+    | Dval _ -> ()
+
+  and type_expr (_, ty) = type_expr_ ty
+  and type_expr_ = function
+    | Tany
+    | Tprim _
+    | Tvar _
+    | Tid _
+    | Tpath _ -> ()
+    | Tapply (ty, tyl) -> type_expr ty; List.iter type_expr tyl
+    | Ttuple tyl -> List.iter type_expr tyl
+    | Tfun (_, ty1, ty2) ->
+	type_expr ty1;
+	type_expr ty2
+    | Talgebric m -> 
+	IMap.iter (
+	fun _ (_, ty) -> 
+	  match ty with 
+	  | None -> () 
+	  | Some ty -> type_expr ty
+       ) m
+    | Trecord m -> IMap.iter check_tfield m
+    | Tabbrev ty 
+    | Tabs (_, ty) -> type_expr ty
+    | Tabstract -> ()
+
+  and check_tfield _ (_, ty) =
+    match ty with
+    | p, Ttuple [ty] -> type_expr ty
+    | p, Ttuple _ ->
+	Error.pos p;
+	Printf.fprintf stderr "tuple in fields disabled\n";
+	exit 2
+    | ty -> type_expr ty
 
   and def (_, p, e) = 
     List.iter pat p ;

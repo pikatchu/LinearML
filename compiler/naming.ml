@@ -651,16 +651,26 @@ and expr_ genv env p e =
       Nast.Elet (p, k e1, e2)
   | Eif (e1, e2, e3) -> Nast.Eif (k e1, k e2, k e3)
   | Efun (fk, obs, idl, e) ->
-      let env, idl = tpat_list genv env idl in
-      let e = expr genv env e in
-      Nast.Efun (fk, obs, idl, e)
+(*      let env, idl = tpat_list genv env idl in
+      let e = expr genv env e in 
+      Nast.Efun (fk, obs, idl, e) *)
+      begin
+	Error.pos p;
+	Printf.printf "Closures disabled\n";
+	exit 2
+      end
   | Eapply ((_, Eid (_, "free")), e) ->
       (match e with
       | [_, Eid y] -> Nast.Efree (Env.value env y)
       | (p, _) :: _ -> Error.free_expects_id p
       | _ -> assert false)
   | Eapply ((_, Eid (_, "partial")), el) ->
-      Nast.Epartial (List.map k el)
+(*      Nast.Epartial (List.map k el) *)
+      begin
+	Error.pos p;
+	Printf.printf "Closures disabled\n";
+	exit 2
+      end
   | Eapply (e, el) -> Nast.Eapply (k e, List.map k el)
   | Erecord fdl -> Nast.Erecord (List.map (field genv env) fdl)
   | Efield (e, v) -> Nast.Efield (k e, Env.field env v)

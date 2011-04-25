@@ -1,9 +1,10 @@
 
 module Test = struct
 
-  val main: 'a -> unit
-  let main y = 
-    let l = [1 ; 2 ; 3] in
-    let l = List.map (fun (x: 'a) -> x+1) l in
-    List.release Print.int l
+  val main: unit -> (int -> 'a List.t)
+  let main () = 
+    let n = [] in
+    fun (x: int) -> n
 end
+
+
