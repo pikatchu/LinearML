@@ -38,7 +38,6 @@ OBJECTS_ML = \
 	ist.ml\
 	istPp.ml\
 	istOfStast.ml\
-	istTail.ml\
 	extractFuns.ml\
 	est.ml\
 	estSubst.ml\
