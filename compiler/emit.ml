@@ -153,7 +153,7 @@ module Type = struct
 
   and type_fun mds t ctx ty1 ty2 =
     let ty1, ty2 = 
-      if List.length ty2 > Global.max_reg_return
+      if List.length ty2 > 1
       then Tptr (Tstruct ty2) :: ty1, []
       else ty1, ty2 in
     let ty1 = type_args mds t ctx ty1 in
@@ -299,7 +299,7 @@ module MakeRoot = struct
     let fdec = declare_function name ftype md in
     let bb = append_block ctx "" fdec in
     position_at_end bb builder ;  
-    let v = build_call f [|Llvm.const_null (pointer_type (i8_type ctx))|] "" builder in
+    let v = build_call f [|z|] "" builder in
     set_instruction_call_conv ccfast v ; (* TODO check signature etc ... *)
     let _ = build_ret z builder in 
     ()
@@ -333,7 +333,8 @@ let dump_module md_file md pm =
 let optims pm = 
   ()
     ;  add_memory_to_register_demotion pm
-    ;  add_instruction_combination pm  
+    ;  add_tail_call_elimination pm
+(*    ;  add_instruction_combination pm  
     ;  add_memory_to_register_promotion pm
     ;  add_constant_propagation pm
     ;  add_sccp pm
@@ -353,6 +354,7 @@ let optims pm =
     ;  add_gvn pm
     ;  add_memcpy_opt pm
     ;  add_loop_deletion pm
+    ;  add_tail_call_elimination pm
     ;  add_lib_call_simplification pm
     ;  add_ind_var_simplification pm
     ;  add_instruction_combination pm  
@@ -362,9 +364,8 @@ let optims pm =
     ;  add_aggressive_dce pm
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm  
-    ;  add_instruction_combination pm 
-    ;  add_tail_call_elimination pm
-
+    ; add_instruction_combination pm 
+*)
 
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
@@ -424,7 +425,7 @@ and function_ env df =
   let params = Array.to_list params in
   let ret, params = 
     match params with
-    | ret :: params when List.length df.df_ret > Global.max_reg_return ->
+    | ret :: params when List.length df.df_ret > 1 ->
       Some ret, params 
     | _ -> None, params in
   env.ret := ret ;
@@ -583,7 +584,7 @@ and apply env acc xl fk (fty, f) argl =
   let argl = build_args acc argl in
   let ret, argl = 
     match fty with
-    | Tfun (_, _, tyl) when List.length tyl > Global.max_reg_return ->
+    | Tfun (_, _, tyl) when List.length tyl > 1 ->
 	let int = Type.type_prim env.ctx Llst.Tint in
 	let tty = List.map (fun _ -> int) tyl in
 	let ty = struct_type env.ctx (Array.of_list tty) in

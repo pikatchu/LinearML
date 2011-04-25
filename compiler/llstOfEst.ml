@@ -321,12 +321,9 @@ and type_expr = function
       Llst.Tfun (k, tyl1, tyl2)
 
 and ftype_expr = function
-  | Tany 
-  | Tprim _
-  | Tvar _ -> Llst.Tany
-  | Tid x
-  | Tapply (x, _) ->  Llst.Tid x
-  | Tfun _ as ft -> type_expr ft
+  | Tany | Tprim _
+  | Tvar _ | Tid _
+  | Tapply _ | Tfun _ -> Llst.Tprim Llst.Tint
 
 and ftype_expr_list l = List.map ftype_expr l
 
