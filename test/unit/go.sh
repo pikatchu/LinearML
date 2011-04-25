@@ -2,5 +2,5 @@
 
 for i in test*.lml ; do 
     echo "RUNNING:     $i" ;
-    ../../liml $i -main Test ; 
+    ../../limlc $i -root Test ; 
 done

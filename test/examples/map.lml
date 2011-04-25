@@ -353,6 +353,52 @@ module Map = struct
 
 end
 
+module Loop = struct
+  
+  type env = {
+      menv: (int, int) Map.env;
+      macc: (int, int) Map.t;
+    }
+
+  val fint: int -> unit
+  let fint _ = ()
+
+  val free_env: env -> Map.error List.t
+  let free_env env =
+    let { env; ~menv; ~macc } = env in
+    Map.free_t !fint !fint macc;
+    let errl = Map.free_env menv in
+    free env;
+    errl
+
+  val private f: env * int -> env
+  let f env i = 
+    if i < 0
+    then env
+    else 
+      let {env; ~menv; ~macc} = env in
+      let menv, macc = Map.add menv i i macc in
+      let env = { env with ~menv; ~macc } in
+      f env (i-1)
+
+  val private f2: env * int * int -> env
+  let f2 env acc i = 
+    if i < 0
+    then env
+    else
+      let { env; ~menv } = env in
+      let menv, x = Map.find menv i env.macc in
+      let env = { env with ~menv } in
+      f2 env (acc + x) (i-1)
+
+  val make: (int, int) Map.env * int -> env
+  let make menv n =
+    let env = { menv = menv; macc = Map.empty() } in
+    let env = f env n in
+    let env = f2 env 0 n in
+    env
+end
+
 module Test = struct
 
   val cmp: int obs * int obs -> int
@@ -361,23 +407,9 @@ module Test = struct
   val cpy: int obs -> int
   let cpy x = x
 
-  val make: 
-       (int, int) Map.env * (int, int) Map.t * int
-    -> (int, int) Map.env * (int, int) Map.t
-  let make env acc i = 
-    if i < 0
-    then env, acc
-    else 
-      let env, acc = Map.add env i i acc in
-      make env acc (i-1)
-
-  val fint: int -> unit
-  let fint _ = ()
-
-  val main: unit -> Map.error List.t
+  val main: unit -> Loop.env
   let main() =
-    let env = Map.init cmp 0 0 cpy cpy fint fint in
-    let env, t = make env (Map.empty()) 1000000 in
-    Map.free_t !fint !fint t;
-    Map.free_env env
+    let env = Map.init cmp 0 0 cpy cpy Loop.fint Loop.fint in
+    let env = Loop.make env 1000000 in
+    env
 end
