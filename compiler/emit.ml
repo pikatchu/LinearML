@@ -334,7 +334,7 @@ let optims pm =
   ()
     ;  add_memory_to_register_demotion pm
     ;  add_tail_call_elimination pm
-(*    ;  add_instruction_combination pm  
+    ;  add_instruction_combination pm  
     ;  add_memory_to_register_promotion pm
     ;  add_constant_propagation pm
     ;  add_sccp pm
@@ -365,7 +365,7 @@ let optims pm =
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm  
     ; add_instruction_combination pm 
-*)
+
 
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
@@ -415,6 +415,22 @@ and module_ no_opt dump_as mds ctx t orig_types md =
 (*  dump_module dump_as (Ident.to_string md_id^".bc") md pm ;
 *)
   md
+
+and cast env ty v = 
+  let ty1 = ty in
+  let ty2 = type_of v in
+  match classify_type ty1, classify_type ty2 with
+  | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast v ty1 "" env.builder
+  | TypeKind.Pointer, _ -> build_inttoptr v ty1 "" env.builder
+  | _, TypeKind.Pointer -> build_ptrtoint v ty1 "" env.builder
+  | TypeKind.Integer, TypeKind.Integer ->
+      build_intcast v ty1 "" env.builder
+  | _, _ -> build_bitcast v ty1 "" env.builder
+
+and find env (ty, v) acc =
+  let ty = Type.type_ env.mds env.types env.ctx ty in
+  let v = IMap.find v acc in
+  cast env ty v
 
 and def env df = 
   function_ env df
@@ -620,17 +636,6 @@ and extract_values env acc xl v =
     incr n ;
     IMap.add x nv acc
  ) acc xl
-
-and cast env ty v = 
-  let ty1 = ty in
-  let ty2 = type_of v in
-  match classify_type ty1, classify_type ty2 with
-  | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast v ty1 "" env.builder
-  | TypeKind.Pointer, _ -> build_inttoptr v ty1 "" env.builder
-  | _, TypeKind.Pointer -> build_ptrtoint v ty1 "" env.builder
-  | TypeKind.Integer, TypeKind.Integer ->
-      build_intcast v ty1 "" env.builder
-  | _, _ -> build_bitcast v ty1 "" env.builder
 
 and expr bb env acc (ty, x) e =
   let xs = Ident.to_string x in
