@@ -32,18 +32,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 open Lexing 
 
 let run s = 
-(*   Printf.printf "Running: %s\n" s ; flush stdout ; *)
+(*  Printf.printf "Running: %s\n" s ; flush stdout ; *)
   let code = Sys.command s in
   if code <> 0
   then (Printf.fprintf stderr "Error (%d): couldn't run %s\n" code s ;
 	exit 2)
   else ()
 
-let remove fnl = 
+let remove fnl =
   List.iter (
   fun s ->
     ignore (run ("rm "^s))
- ) fnl
+ ) fnl 
+
+let opt x bc =
+  run ("cp "^bc^" "^bc^"_in");
+  run (Global.opt ^" "^x^" "^bc^"_in > "^bc);
+  run ("rm "^bc^"_in");
+  bc
 
 let check_suffix fn =
   if Filename.check_suffix fn ".lml" ||
@@ -178,6 +184,7 @@ let _ =
   flush stderr ;
   let ist = IstOfStast.program benv stast in
   let ist = ExtractFuns.program ist in
+  let ist = IstTail.program ist in
   if !eval
   then (Eval.program root_id ist; exit 0);
   if !dump_ist then
@@ -194,6 +201,18 @@ let _ =
   if !dump_llst then
     LlstPp.program llst ;   
   let bc = Emit.program base !root !no_opt !dump_as llst in
+  let bc = opt "-internalize" bc in
+  let bc = opt "-mem2reg" bc in
+  let bc = opt "-tailduplicate" bc in
+  let bc = opt "-inline" bc in
+  let bc = opt "-always-inline" bc in
+  let bc = opt "-break-crit-edges" bc in
+  let bc = opt "-live-values" bc in
+  let bc = opt "-lda" bc in
+  let bc = opt "-ipsccp" bc in
+  let bc = opt "-ipconstprop" bc in
+  let bc = opt "-tailcallelim" bc in 
+  let bc = opt "-O3" bc in   
   let cmd = Global.llc ^ Global.llc_opts in
   let cmd = cmd ^ bc in
   run cmd ;
@@ -215,6 +234,7 @@ let _ =
       if !no_stdlib then cmd else
       cmd ^ " -L"^Global.stdlibdir ^ " -lliml" in
     let cmd = List.fold_left add_link cmd !module_l in
+    let cmd = cmd^" -lm" in
     run cmd
   end ;
   remove [bc ; asm ; obj]

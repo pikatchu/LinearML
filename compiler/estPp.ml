@@ -164,7 +164,7 @@ and expr = function
   | Efield (x, y) -> tid x ; o "." ; id y
   | Ematch (xl, al) -> 
       o "match " ; idl xl ; push() ; nl() ;List.iter action al ; pop()
-  | Eapply (fk, x, l) -> 
+  | Eapply (_, fk, x, l) -> 
       o "call[" ; 
       o (match fk with Ast.Cfun -> "C] " | Ast.Lfun -> "L] ") ;
       tid x ; o " " ; idl l
@@ -211,6 +211,7 @@ and binop = function
   | Ast.Ediv -> o "div"
   | Ast.Eand -> o "and"
   | Ast.Eor -> o "or"
+  | Ast.Eband -> o "&"
 
 and unop = function
   | Ast.Euminus -> o "uminus"

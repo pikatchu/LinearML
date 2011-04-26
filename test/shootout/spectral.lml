@@ -3,10 +3,8 @@ module Main = struct
 
   module FA = Array
 
-  val float_of_int: int #-> float = "float_of_int"
-
   val private eval_A: int * int -> float
-  let eval_A i j = 1.0 / float_of_int ((i+j)*(i+j+1)/2+i+1)
+  let eval_A i j = 1.0 / Math.float_of_int ((i+j)*(i+j+1)/2+i+1)
 
   val private eval_A_times_u: int * float array obs * float array -> float array
   let eval_A_times_u n u v =
@@ -81,16 +79,15 @@ module Main = struct
       let vBv = vBv + FA.get u i * vi in
       main_loop2 u v n (i+1) vv vBv
 
-  val main: unit #-> unit
+  val main: unit -> unit
   let main () =
     let n = 2000 in
     let u = FA.fmake n 1.0 in
     let v = FA.fmake n 0.0 in
     let u, v = main_loop1 n u v 0 in
     let vv, vBv = main_loop2 !u !v n 0 0.0 0.0 in
-    FA.frelease u ; 
+    FA.frelease u ;  
     FA.frelease v ;
     Print.float (Math.sqrt (vBv / vv)) ;
     Print.newline()
-     
 end

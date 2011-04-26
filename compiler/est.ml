@@ -96,7 +96,7 @@ and expr =
   | Efield of ty_id * id 
   | Ematch of ty_idl * (pat * expr) list
   | Ecall of label
-  | Eapply of Ast.fun_kind * ty_id * ty_idl
+  | Eapply of bool * Ast.fun_kind * ty_id * ty_idl
   | Eseq of ty_id * ty_idl
   | Eif of ty_id * label * label
   | Eis_null of ty_id

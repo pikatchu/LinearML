@@ -18,6 +18,7 @@ LML_SOURCES =\
 	array.lml \
 	print.lml \
 	string.lml \
+	math.lml \
 	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	

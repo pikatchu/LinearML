@@ -361,7 +361,7 @@ module Test = struct
   val cpy: int obs -> int
   let cpy x = x
 
-  val make: 
+  val private make: 
        (int, int) Map.env * (int, int) Map.t * int
     -> (int, int) Map.env * (int, int) Map.t
   let make env acc i = 

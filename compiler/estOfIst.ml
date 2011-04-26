@@ -438,11 +438,11 @@ and expr_ t tyl = function
       let ridl = make_idl tyl in
       let t = equation t ridl (Est.Eif (id1, bl1.Est.bl_id, bl2.Est.bl_id)) in
       t, ridl
-  | Eapply (fk, ty, x, e) -> 
+  | Eapply (b, fk, ty, x, e) -> 
       let t, x = expr t ([ty], Ist.Eid x) in
       let t, idl1 = tuple t e in
       let idl2 = make_idl tyl in
-      let t = equation t idl2 (Est.Eapply (fk, x, idl1)) in
+      let t = equation t idl2 (Est.Eapply (b, fk, x, idl1)) in
       t, idl2
   | Eseq (e1, e2) -> 
       let t, _ = expr t e1 in
@@ -500,7 +500,7 @@ and simpl_expr_ t ty = function
       let t, idl = tuple t e in
       t, Est.Epartial (f, idl)
   | Efun _ -> assert false
-  | (Eseq (_, _)|Eapply (_, _, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)
+  | (Eseq (_, _)|Eapply (_, _, _, _, _)|Eif (_, _, _)|Elet (_, _, _)|Ematch (_, _)
   | Efield (_, _)|Eid _) | Eswap _ -> assert false
 
 and field t (x, e) = 

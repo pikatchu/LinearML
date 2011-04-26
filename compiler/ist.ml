@@ -104,7 +104,7 @@ and expr_ =
   | Ematch of tuple * (pat * tuple) list
   | Elet of pat * tuple * tuple
   | Eif of expr * tuple * tuple
-  | Eapply of Ast.fun_kind * type_expr * id * tuple
+  | Eapply of bool * Ast.fun_kind * type_expr * id * tuple
   | Eseq of expr * tuple
   | Efree of type_expr * id
   | Eset of expr * expr * expr

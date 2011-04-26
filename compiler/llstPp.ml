@@ -179,7 +179,7 @@ and expr = function
   | Etuple (x, l) -> o "{ " ; maybe ty_id x ; o " | " ; 
       print_list o (fun _ (n, x) -> o "[" ; o (soi n) ; o "]=" ; ty_id x) ", " l ; o " }"
   | Efield (x, y) -> tid x ; o "." ; o (soi y)
-  | Eapply (fk, b, x, l) -> 
+  | Eapply (_, fk, b, x, l) -> 
       if b then o "tail " else () ; 
       o "call[" ; 
       (match fk with Ast.Cfun -> o "C] " | Ast.Lfun -> o "L] ") ;
@@ -231,6 +231,7 @@ and binop = function
   | Ast.Ediv -> o "div"
   | Ast.Eor -> o "or"
   | Ast.Eand -> o "and"
+  | Ast.Eband -> o "&"
 
 and unop = function
   | Ast.Euminus -> o "uminus"

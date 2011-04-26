@@ -94,7 +94,7 @@ module FreeVars = struct
 	let fv = tuple fv t1 in
 	let fv = tuple fv t2 in
 	fv
-    | Eapply (_, _, _, t) ->
+    | Eapply (_, _, _, _, t) ->
 	let fv = tuple fv t in
 	fv
     | Eseq (e, t) ->
@@ -188,9 +188,9 @@ and expr_ funs ty = function
       let funs, t1 = tuple funs t1 in
       let funs, t2 = tuple funs t2 in
       funs, Eif (e, t1, t2)
-  | Eapply (k, ty, x, t) ->
+  | Eapply (b, k, ty, x, t) ->
       let funs, t = tuple funs t in
-      funs, Eapply (k, ty, x, t)
+      funs, Eapply (b, k, ty, x, t)
   | Eseq (e, t) ->
       let funs, e = expr funs e in
       let funs, t = tuple funs t in

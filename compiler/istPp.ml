@@ -45,7 +45,7 @@ let nl() = o "\n"; spaces()
 
 let rec list f sep l = 
   match l with
-  | [] -> assert false
+  | [] -> ()
   | [x] -> f x
   | x :: rl -> f x; o sep; list f sep rl
 
@@ -232,7 +232,8 @@ and expr_ = function
       o "else begin"; push(); nl(); tuple e3; nl(); o "end"; pop(); nl();
       pop();
       nl()
-  | Eapply (_, _, x, e) -> 
+  | Eapply (tail, _, _, x, e) -> 
+      if tail then o "tail ";
       id x; o " "; tuple e
   | Eseq (e1, e2) -> 
       expr e1; o ";"; nl();

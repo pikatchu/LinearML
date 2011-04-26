@@ -323,7 +323,7 @@ and type_expr = function
 and ftype_expr = function
   | Tany | Tprim _
   | Tvar _ | Tid _
-  | Tapply _ | Tfun _ -> Llst.Tprim Llst.Tint
+  | Tapply _ | Tfun _ -> Llst.Tany
 
 and ftype_expr_list l = List.map ftype_expr l
 
@@ -485,7 +485,7 @@ and equation t is_last ret (idl, e) acc =
 	let acc = ([tyv], v) :: acc in
 	let acc = add_casts xl vl acc in
 	acc
-  | Eapply (fk, (ty, x), vl) ->
+  | Eapply (b, fk, (ty, x), vl) ->
       let argl = List.map (fun (ty, x) -> ftype_expr ty, Ident.tmp()) vl in 
       let argl' = ty_idl vl in
       let rty = get_rty ty in
@@ -500,7 +500,7 @@ and equation t is_last ret (idl, e) acc =
 	      acc, xl
 	in
 	let fid = type_expr ty, x in
-	let acc = (xl, Llst.Eapply (fk, false, fid, argl)) :: acc in
+	let acc = (xl, Llst.Eapply (b, fk, false, fid, argl)) :: acc in
 	acc
       in
       let acc = add_casts argl argl' acc in

@@ -40,6 +40,7 @@ ocamllex=""
 ocamlyacc=""
 llc=""
 llbindings=""
+opt=""
 
 llvm_cma=""
 llvm_analysis_cma=""
@@ -89,6 +90,8 @@ do
 	  llc=$2	; shift ;;
     --llbindings)
 	  llbindings=$2 ; shift ;;
+    --opt)
+	  opt=$2        ; shift ;;
 
     *) echo "Unkown option: \"$1\"" 2>&1 ; exit 2 ;;
   esac;
@@ -186,6 +189,18 @@ if test -z "$llc"; then
 	fi
     fi
     echo -e "Found llc\t: $llc"
+fi
+
+if test -z "$opt"; then
+    opt=`which opt-2.8`;
+    if test -z "$opt"; then
+	opt=`which opt`;
+	if test -z "$opt"; then
+	    echo "Couldn't find a opt (llvm compiler) please use --opt";
+	    exit 2
+	fi
+    fi
+    echo -e "Found opt\t: $opt"
 fi
 
 if [ $os = "Darwin" ]; then
@@ -314,6 +329,14 @@ else
     exit 2
 fi
 
+opt_version=`$opt -version | grep version` ;
+if [[ "$opt_version" =~ .*version.2.[8|9].* ]]; then
+    echo -e "Checking opt     \t: OK$opt_version"
+else
+    echo "Bad version of opt (expected version 2.8): $version" 2>&1;
+    exit 2
+fi
+
 ocamlc_version=`$ocamlc -version` ;
 if [[ "$ocamlc_version" =~ 3.1[^0].* ]]; then
     echo -e "Checking ocamlc  \t: OK $ocamlc_version"
@@ -419,6 +442,7 @@ echo "let tramp_align = $stack_align" >> "$config_ml"
 echo "let max_reg_return = $max_reg_ret" >> "$config_ml"
 echo "let data_layout = \"$data_layout\"" >> "$config_ml"
 echo "let llc = \"$llc\"" >> "$config_ml"
+echo "let opt = \"$opt\"" >> "$config_ml"
 echo "let stdlibdir = \"$libdir\"" >> "$config_ml"
 echo "let cc = \"$cc\"" >> "$config_ml"
 echo "let ar = \"$ar\"" >> "$config_ml"

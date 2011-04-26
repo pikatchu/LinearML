@@ -118,7 +118,7 @@ and expr_ bds p = function
       then aswap bds p e
       else if fid = Naming.alength
       then snd (alength e)
-      else Ist.Eapply (fk, type_expr fty, id x, e)
+      else Ist.Eapply (false, fk, type_expr fty, id x, e)
   | Eseq (e1, e2) -> Ist.Eseq (expr bds e1, (tuple bds e2))
   | Eobs x -> Ist.Eid (id x)
   | Efree (ty, x) -> Ist.Efree (type_expr ty, id x)

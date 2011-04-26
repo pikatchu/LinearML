@@ -1,9 +1,9 @@
 
-module NBodies = struct
+module Planet = struct
 
-  type planet = { x: float;  y: float;  z: float;
-                  vx: float;  vy: float;  vz: float;
-                  mass: float }
+  type t = { x: float;  y: float;  z: float;
+             vx: float;  vy: float;  vz: float;
+             mass: float }
 
   type env = {
       pi: float ;
@@ -11,22 +11,16 @@ module NBodies = struct
       days_per_year: float ;
     }
 
-  val free_planet: planet #-> unit
-  let free_planet p = free p
+  val free_t: t #-> unit
+  let free_t p = free p
 
-  val free_planet_opt: planet option -> unit
-  let free_planet_opt x = 
-    match x with
-    | None -> ()
-    | Some x -> free x
-
-  val set_planet: planet Array.t * int * planet -> planet Array.t
-  let set_planet t i x = 
-    let t, dummy = Array.swap t i (Some x) in
-    free_planet_opt dummy ;
+  val set_t: t Array.t * int * t -> t Array.t
+  let set_t t i x = 
+    let t, dummy = Array.swap t i x in
+    free_t dummy ;
     t
 
-  val advance_loop2: float * planet Array.t * planet * int * int -> planet Array.t * planet
+  val advance_loop2: float * t Array.t * t * int * int -> t Array.t * t
   let advance_loop2 dt bodies b j jend =
   if j >= jend
   then bodies, b
@@ -48,10 +42,10 @@ module NBodies = struct
 		   vx = b2.vx + dx * b.mass * mag;
 		   vy = b2.vy + dy * b.mass * mag;
 		   vz = b2.vz + dz * b.mass * mag } in
-	let bodies = set_planet bodies j b2 in
+	let bodies = set_t bodies j b2 in
 	advance_loop2 dt bodies b (j+1) jend
 
-  val advance_loop1: float * planet Array.t * int * int -> planet Array.t
+  val advance_loop1: float * t Array.t * int * int -> t Array.t
   let rec advance_loop1 dt bodies i iend = 
     if i >= iend
     then bodies
@@ -62,11 +56,11 @@ module NBodies = struct
       | Some b ->
 	  let size = Array.length !bodies in
 	  let bodies, b = advance_loop2 dt bodies b (i+1) size in
-	  let bodies = set_planet bodies i b in
+	  let bodies = set_t bodies i b in
 	  advance_loop1 dt bodies (i+1) iend
 
 
-  val advance_loop3: float * planet Array.t * int * int -> planet Array.t
+  val advance_loop3: float * t Array.t * int * int -> t Array.t
   let rec advance_loop3 dt bodies i iend =
     if i >= iend
     then bodies
@@ -79,10 +73,10 @@ module NBodies = struct
 		    x = b.x + dt * b.vx;
 		    y = b.y + dt * b.vy;
 		    z = b.z + dt * b.vz } in
-	  let bodies = set_planet bodies i b in
+	  let bodies = set_t bodies i b in
 	  advance_loop3 dt bodies (i+1) iend
 	    
-  val advance: planet Array.t * float -> planet Array.t
+  val advance: t Array.t * float -> t Array.t
   let advance bodies dt =
     let size = Array.length !bodies in
     let bodies = advance_loop1 dt bodies 0 size in
@@ -90,7 +84,7 @@ module NBodies = struct
     bodies
 
 
-  val energy_loop1: planet Array.t obs * planet obs * float * int * int -> float
+  val energy_loop1: t Array.t obs * t obs * float * int * int -> float
   let rec energy_loop1 bodies b e j jend = 
     if j >= jend
     then e
@@ -106,7 +100,7 @@ module NBodies = struct
 	  energy_loop1 bodies b e (j+1) jend
 
 
-  val energy_loop2: planet Array.t obs * float * int * int -> float
+  val energy_loop2: t Array.t obs * float * int * int -> float
   let energy_loop2 bodies e i iend =
   if i >= iend
   then e
@@ -119,13 +113,13 @@ module NBodies = struct
 	energy_loop2 bodies e (i+1) iend
 
 
-  val energy: planet Array.t obs -> float
+  val energy: t Array.t obs -> float
   let energy bodies =
     let e = 0.0 in
     let size = Array.length bodies in
     energy_loop2 bodies e 0 size 
 
-  val offset_loop: planet Array.t obs * float * float * float * int * int 
+  val offset_loop: t Array.t obs * float * float * float * int * int 
       -> float * float * float
   let rec offset_loop bodies px py pz i iend = 
     if i >= iend
@@ -139,7 +133,7 @@ module NBodies = struct
 	  let pz = pz + bi.vz * bi.mass in
 	  offset_loop bodies px py pz (i+1) iend
 
-  val offset_momentum: env obs * planet Array.t -> planet Array.t 
+  val offset_momentum: env obs * t Array.t -> t Array.t 
   let offset_momentum env bodies =
     let px = 0.0 in
     let py = 0.0 in
@@ -154,15 +148,19 @@ module NBodies = struct
 		   vx = 0.0 - px / env.solar_mass;
 		   vy = 0.0 - py / env.solar_mass;
 		   vz = 0.0 - pz / env.solar_mass } in
-	let bodies = set_planet bodies 0 b0 in
+	let bodies = set_t bodies 0 b0 in
 	bodies
 
-  val main_loop: planet Array.t * int * int -> planet Array.t
+end
+
+module Main = struct
+
+  val main_loop: Planet.t Array.t * int * int -> Planet.t Array.t
   let rec main_loop bodies i n = 
     if i > n 
     then bodies
     else begin
-      bodies := advance bodies 0.01 ;
+      bodies := Planet.advance bodies 0.01 ;
       main_loop bodies (i+1) n
     end
 
@@ -170,56 +168,62 @@ module NBodies = struct
   let main() =
     let pi = 3.141592653589793 in
     let env = {
-      ~pi ;
-      solar_mass = 4.0 * pi * pi ;
-      days_per_year = 365.24 ;
+      Planet.pi = pi ;
+      Planet.solar_mass = 4.0 * pi * pi ;
+      Planet.days_per_year = 365.24 ;
     } in
     let n = 2000 in
-    let jupiter = { x = 4.84143144246472090;
-                    y = 0.0 -1.16032004402742839;
-                    z = 0.0 - 0.103622044471123109;
-                    vx = 0.00166007664274403694 * env.days_per_year;
-                    vy = 0.00769901118419740425 * env.days_per_year;
-                    vz = 0.0000690460016972063023 * env.days_per_year;
-                    mass = 0.000954791938424326609 * env.solar_mass;    } in
+    let jupiter = { Planet.x = 4.84143144246472090;
+                    Planet.y = 0.0 -1.16032004402742839;
+                    Planet.z = 0.0 - 0.103622044471123109;
+                    Planet.vx = 0.00166007664274403694 * env.Planet.days_per_year;
+                    Planet.vy = 0.00769901118419740425 * env.Planet.days_per_year;
+                    Planet.vz = 0.0000690460016972063023 * env.Planet.days_per_year;
+                    Planet.mass = 0.000954791938424326609 * env.Planet.solar_mass;    } in
 
-    let saturn = { x = 8.34336671824457987;
-		   y = 4.12479856412430479;
-		   z = 0.403523417114321381;
-		   vx = 0.0 - 0.00276742510726862411 * env.days_per_year;
-		   vy = 0.00499852801234917238 * env.days_per_year;
-		   vz = 0.0000230417297573763929 * env.days_per_year;
-		   mass = 0.000285885980666130812 * env.solar_mass;     } in
+    let saturn = { Planet.x = 8.34336671824457987;
+		   Planet.y = 4.12479856412430479;
+		   Planet.z = 0.403523417114321381;
+		   Planet.vx = 0.0 - 0.00276742510726862411 * env.Planet.days_per_year;
+		   Planet.vy = 0.00499852801234917238 * env.Planet.days_per_year;
+		   Planet.vz = 0.0000230417297573763929 * env.Planet.days_per_year;
+		   Planet.mass = 0.000285885980666130812 * env.Planet.solar_mass;     } in
 
-    let uranus = { x = 12.8943695621391310;
-		   y = 0.0 - 15.1111514016986312;
-		   z = 0.0 - 0.223307578892655734;
-		   vx = 2.96460137564761618 * env.days_per_year;
-		   vy = 2.37847173959480950 * env.days_per_year;
-		   vz = 0.0 -2.96589568540237556 * env.days_per_year;
-		   mass = 4.36624404335156298 * env.solar_mass;     } in
+    let uranus = { Planet.x = 12.8943695621391310;
+		   Planet.y = 0.0 - 15.1111514016986312;
+		   Planet.z = 0.0 - 0.223307578892655734;
+		   Planet.vx = 2.96460137564761618 * env.Planet.days_per_year;
+		   Planet.vy = 2.37847173959480950 * env.Planet.days_per_year;
+		   Planet.vz = 0.0 -2.96589568540237556 * env.Planet.days_per_year;
+		   Planet.mass = 4.36624404335156298 * env.Planet.solar_mass;     } in
 
-    let neptune = { x = 1.53796971148509165;
-                    y = 0.0 -2.59193146099879641;
-                    z = 1.79258772950371181;
-                    vx = 2.68067772490389322 * env.days_per_year;
-                    vy = 1.62824170038242295 * env.days_per_year;
-                    vz = 0.0 -9.51592254519715870 * env.days_per_year;
-                    mass = 5.15138902046611451 * env.solar_mass;   } in
+    let neptune = { 
+      Planet.x = 1.53796971148509165;
+      Planet.y = 0.0 -2.59193146099879641;
+      Planet.z = 1.79258772950371181;
+      Planet.vx = 2.68067772490389322 * env.Planet.days_per_year;
+      Planet.vy = 1.62824170038242295 * env.Planet.days_per_year;
+      Planet.vz = 0.0 -9.51592254519715870 * env.Planet.days_per_year;
+      Planet.mass = 5.15138902046611451 * env.Planet.solar_mass;   } in
 
-    let sun = { x = 0.0;  y = 0.0;  z = 0.0;  vx = 0.0;  vy = 0.0; vz = 0.0;
-		mass = env.solar_mass; } in
-    let bodies = Array.make 5 in
-    bodies := set_planet bodies 0 sun ;
-    bodies := set_planet bodies 1 jupiter ;
-    bodies := set_planet bodies 2 saturn ;
-    bodies := set_planet bodies 3 uranus ;
-    bodies := set_planet bodies 4 neptune ;
-    bodies := offset_momentum !env bodies;
-    Print.float (energy !bodies);
+    let sun = { Planet.x = 0.0;  
+		Planet.y = 0.0;  
+		Planet.z = 0.0;  
+		Planet.vx = 0.0;  
+		Planet.vy = 0.0; 
+		Planet.vz = 0.0;
+		Planet.mass = env.Planet.solar_mass; } in
+    let bodies = Array.fmake 5 in
+    bodies := Planet.set_t bodies 0 sun ;
+    bodies := Planet.set_t bodies 1 jupiter ;
+    bodies := Planet.set_t bodies 2 saturn ;
+    bodies := Planet.set_t bodies 3 uranus ;
+    bodies := Planet.set_t bodies 4 neptune ;
+    bodies := Planet.offset_momentum !env bodies;
+    Print.float (Planet.energy !bodies);
     bodies := main_loop bodies 1 n;
-    Print.float (energy !bodies) ;
-    Array.release bodies free_planet ;
+    Print.float (Planet.energy !bodies) ;
+    Array.release bodies Planet.free_t ;
     free env
 
 end

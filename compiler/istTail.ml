@@ -29,10 +29,30 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *)
+open Utils
+open Ist
 
-include GenGlobals
-let suffix = ".lml"
-let llc_opts = " -O3 -tailcallopt "
-let (@@) x l = (stdlibdir ^ x ^ suffix) :: l
-let stdlib = Filename.concat stdlibdir "libliml.lmli"
-let max_reg_return = 1
+let rec program mdl =
+  List.map module_ mdl
+
+and module_ md = 
+  { md with md_defs = List.map def md.md_defs }
+
+and def (k, x, p, t) =
+  (k, x, p, tuple t)
+
+and tuple el = 
+  match el with
+  | [e] -> [expr e]
+  | l -> l
+
+and expr (tyl, e) = tyl, expr_ e
+
+and expr_ = function
+  | Ematch (e, al) -> Ematch (e, List.map action al)
+  | Elet (p, e1, e2) -> Elet (p, e1, tuple e2)
+  | Eif (c, e1, e2) -> Eif (c, tuple e1, tuple e2)
+  | Eapply (_, k, ty, x, e) -> Eapply (true, k, ty, x, e)
+  | e -> e
+
+and action (p, e) = p, tuple e

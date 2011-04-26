@@ -153,7 +153,7 @@ module Type = struct
 
   and type_fun mds t ctx ty1 ty2 =
     let ty1, ty2 = 
-      if List.length ty2 > 1
+      if List.length ty2 > Global.max_reg_return
       then Tptr (Tstruct ty2) :: ty1, []
       else ty1, ty2 in
     let ty1 = type_args mds t ctx ty1 in
@@ -293,15 +293,14 @@ module MakeRoot = struct
       | Some f -> f in
     let builder = builder ctx in
     let name = "main" in
-    let int = Type.type_prim ctx Llst.Tint in
-    let z = const_int int 0 in
-    let ftype = function_type int [|int|] in 
+    let voids = pointer_type (i8_type ctx) in
+    let ftype = function_type voids [|voids|] in 
     let fdec = declare_function name ftype md in
     let bb = append_block ctx "" fdec in
     position_at_end bb builder ;  
-    let v = build_call f [|z|] "" builder in
+    let v = build_call f [|const_null voids|] "" builder in
     set_instruction_call_conv ccfast v ; (* TODO check signature etc ... *)
-    let _ = build_ret z builder in 
+    let _ = build_ret (const_null voids) builder in 
     ()
 
 end
@@ -333,6 +332,16 @@ let dump_module md_file md pm =
 let optims pm = 
   ()
     ;  add_memory_to_register_demotion pm
+    ;  add_constant_propagation pm
+    ;  add_sccp pm
+    ;  add_dead_store_elimination pm
+    ;  add_aggressive_dce pm
+    ;  add_scalar_repl_aggregation pm
+    ;  add_ind_var_simplification pm
+    ;  add_instruction_combination pm  
+
+
+(*    ;  add_memory_to_register_demotion pm
     ;  add_tail_call_elimination pm
     ;  add_instruction_combination pm  
     ;  add_memory_to_register_promotion pm
@@ -365,7 +374,7 @@ let optims pm =
     ;  add_scalar_repl_aggregation pm
     ;  add_ind_var_simplification pm  
     ; add_instruction_combination pm 
-
+*)
 
 let rec program base root no_opt dump_as mdl = 
   let ctx = global_context() in
@@ -421,6 +430,14 @@ and cast env ty v =
   let ty2 = type_of v in
   match classify_type ty1, classify_type ty2 with
   | TypeKind.Pointer, TypeKind.Pointer -> build_bitcast v ty1 "" env.builder
+  | TypeKind.Pointer, TypeKind.Float
+  | TypeKind.Float, TypeKind.Pointer
+  | TypeKind.Pointer, TypeKind.Double
+  | TypeKind.Double, TypeKind.Pointer -> 
+      let st = build_alloca ty2 "" env.builder in
+      let _ = build_store v st env.builder in
+      let ptr = build_bitcast st (pointer_type ty1) "" env.builder in
+      build_load ptr "" env.builder
   | TypeKind.Pointer, _ -> build_inttoptr v ty1 "" env.builder
   | _, TypeKind.Pointer -> build_ptrtoint v ty1 "" env.builder
   | TypeKind.Integer, TypeKind.Integer ->
@@ -441,7 +458,7 @@ and function_ env df =
   let params = Array.to_list params in
   let ret, params = 
     match params with
-    | ret :: params when List.length df.df_ret > 1 ->
+    | ret :: params when List.length df.df_ret > Global.max_reg_return ->
       Some ret, params 
     | _ -> None, params in
   env.ret := ret ;
@@ -526,27 +543,6 @@ and build_args acc l =
 and instructions bb env acc ret l = 
   match l with
   | [] -> return env acc ret ; acc
-  | [vl1, Eapply (fk, _, f, l) as instr] ->
-      (match ret with 
-      | Return (tail, vl2) when tail && fk = Ast.Lfun ->
-	  let t = build_args acc l in
-	  let f = find_function env acc (fst f) (snd f) in
-	  let v = build_call f (Array.of_list t) "" env.builder in
-	  set_tail_call true v ;
-	  set_instruction_call_conv ccfast v ;
-	  if vl2 = []
-	  then ignore (build_ret_void env.builder)
-	  else ignore (build_ret v env.builder) ;
-	  acc
-      | Return (_, vl2) ->
-	  let acc = instruction bb env acc instr in
-	  return env acc ret ;
-	  acc
-      | _ -> 
-	  let acc = instruction bb env acc instr in
-	  return env acc ret ;
-	  acc
-      )
   | instr :: rl -> 
       let acc = instruction bb env acc instr in
       instructions bb env acc ret rl
@@ -576,8 +572,8 @@ and instruction bb env acc (idl, e) =
       let acc = IMap.add x1 t acc in
       let acc = IMap.add x2 res acc in
       acc
-  | (xl, Eapply (fk, _, f, l)) -> 
-      apply env acc xl fk f l
+  | (xl, Eapply (tail, fk, _, f, l)) -> 
+      apply env acc xl tail fk f l
   | [x], e -> expr bb env acc x e
   | _ -> assert false
 
@@ -595,13 +591,18 @@ and find_function env acc fty f =
     set_function_call_conv cconv fdec ;
     fdec
   
-and apply env acc xl fk (fty, f) argl = 
+and apply env acc xl tail fk (fty, f) argl = 
+  let fid = f in
   let f = find_function env acc fty f in
   let argl = build_args acc argl in
   let ret, argl = 
+    match !(env.ret) with
+    | Some r when tail ->
+	Some r, r :: argl
+    | _  ->
     match fty with
-    | Tfun (_, _, tyl) when List.length tyl > 1 ->
-	let int = Type.type_prim env.ctx Llst.Tint in
+    | Tfun (_, _, tyl) when List.length tyl > Global.max_reg_return ->
+	let int = pointer_type (i8_type env.ctx) in
 	let tty = List.map (fun _ -> int) tyl in
 	let ty = struct_type env.ctx (Array.of_list tty) in
 	let st = build_alloca ty "" env.builder in
@@ -610,12 +611,14 @@ and apply env acc xl fk (fty, f) argl =
   let v = build_call f (Array.of_list argl) "" env.builder in
   let cconv = make_cconv fk in
   set_instruction_call_conv cconv v ;
+  if tail then set_tail_call true v;
   match xl with
   | [] -> acc
   | [_, x] -> IMap.add x v acc
   | _ -> 
       match ret with
-      | None -> extract_values env acc xl v
+      | None -> 
+	  extract_values env acc xl v
       | Some v -> extract_struct env acc xl v
 
 and extract_struct env acc xl st =

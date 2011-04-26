@@ -4,7 +4,8 @@
 
 #ifdef ARCH_32
 
-typedef int   lvalue ;
+typedef lint   lvalue ;
+#define lfloat float;
 
 #define V2F(x)   (*((float*)&(x)))
 #define F2V(x)   ((lvalue)(*((int*)&(x))))
@@ -15,9 +16,9 @@ typedef int   lvalue ;
 
 typedef long   lvalue ;
 #define lint   long
-#define lfloat lvalue
+#define lfloat double
 
 #define V2F(x)   (*((double*)&(x)))
-#define F2V(x)   (*((int*)&(x)))
+#define F2V(x)   (*((long*)&(x)))
 
 #endif

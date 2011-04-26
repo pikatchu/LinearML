@@ -237,7 +237,7 @@ and expr_ env = function
       | [Bool true] -> tuple env e1
       | [Bool false] -> tuple env e2
       | _ -> assert false)
-  | Eapply (_, _, f, e) ->
+  | Eapply (_, _, _, f, e) ->
       (match IMap.find f env with
       | Fun (p, b) ->
 	  let env = pat env p (tuple env e) in

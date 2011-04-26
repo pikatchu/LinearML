@@ -2,4 +2,5 @@
 module Math = struct
   val sqrt: float #-> float = "liml_sqrt"
   val sin: float #-> float = "liml_sin"
+  val float_of_int: int #-> float = "liml_float_of_int"
 end

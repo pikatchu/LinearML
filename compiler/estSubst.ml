@@ -76,7 +76,7 @@ and expr t = function
   | Efield (x, y) -> Efield (ty_id t x, y) 
   | Ematch (l, al) -> Ematch (ty_idl t l, actions t al) 
   | Ecall _ as e -> e
-  | Eapply (fk, x, l) -> Eapply (fk, ty_id t x, ty_idl t l)
+  | Eapply (b, fk, x, l) -> Eapply (b, fk, ty_id t x, ty_idl t l)
   | Eseq (x, xl) -> Eseq (ty_id t x, ty_idl t xl)
   | Eif (x1, l1, l2) -> Eif (ty_id t x1, l1, l2)
   | Eis_null x -> Eis_null (ty_id t x)
