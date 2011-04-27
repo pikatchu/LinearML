@@ -16,10 +16,17 @@ module TestParsort = struct
     match l1, l2 with
     | Empty, l -> rev_append l acc
     | l, Empty -> rev_append l acc
+	(* Arghh the as pattern is buggy in linear check ... *)
+(*
     | (Cons x1 rl1 as l1), (Cons x2 rl2 as l2) ->
 	if x1 > x2
 	then merge (Cons x1 acc) rl1 l2
-	else merge (Cons x2 acc) l1 rl2
+	else merge (Cons x2 acc) l1 rl2 
+*)
+    | Cons x1 rl1, Cons x2 rl2 ->
+	if x1 > x2
+	then merge (Cons x1 acc) rl1 (Cons x2 rl2)
+	else merge (Cons x2 acc) (Cons x1 rl1) rl2
 
   val split: int * t * t * t -> int * t * t
   let split n l1 l2 l = 
@@ -35,7 +42,7 @@ module TestParsort = struct
     | Cons _ Empty as l -> l
     | Cons x rl as l -> 
 	let length1, l1, l2 = split 0 Empty Empty l in
-	if length1 > 10000
+	if length1 > 100000
 	then 
 	  let l1 = Future.make c_sort l1 in
 	  let l2 = Future.make c_sort l2 in
@@ -63,7 +70,7 @@ module TestParsort = struct
     then acc
     else loop (n-1) (acc + sum 0 (sort (make Empty 2000000)))
 
-  val main: unit #-> unit
+  val main: unit -> unit
   let main _ = 
     Print.int (loop 1 0)
 

@@ -1,0 +1,129 @@
+module Triplet = struct
+  type ('a, 'b, 'c) t = T of 'a * 'b * 'c
+end
+
+module Pair = struct
+  type ('a, 'b) t = P of 'a * 'b
+end
+
+module Tree = struct
+
+  type t =
+    | Empty
+    | Node of t * int * t
+
+  val make: int * int -> t
+  let make i depth =
+    if depth = 0
+    then
+      Node Empty i Empty
+    else
+      let i2 = 2 * i in
+      let depth = depth - 1 in
+      let left  = make (i2 - 1) depth in
+      let right = make i2 depth in
+      Node left i right
+
+  val check: t -> int
+  let check t =
+    match t with
+    | Empty -> 0
+    | Node l i r -> i + check l - check r
+
+end
+
+module CheckMake = struct
+
+  type private env = {
+      depth : int;
+      last  : int;
+      acc   : int;
+    }
+
+  val private loop: env * int -> int
+  let loop env i =
+    if i > env.last
+    then
+      let res = env.acc in
+      free env;
+      res
+    else
+      let fst  = Tree.check (Tree.make i env.depth) in
+      let snd  = Tree.check (Tree.make (0-i) env.depth) in
+      let env  = { env with acc = env.acc + fst + snd } in
+      loop env (i+1)
+
+  val go: (int, int) Pair.t #-> int
+  let go x =
+    match x with
+    | Pair.P d niter ->
+	let env = { depth = d; last = niter; acc = 0 } in
+	loop env 1
+
+end
+
+module Main = struct
+
+(* This should be replaced by << soon *)
+  val lsl: int * int -> int
+  let lsl x y =
+    if y <= 0 then x else 2*lsl x (y-1)
+
+  type acc = (int, int, int Future.t) Triplet.t List.t
+
+  val private loop1: int * int * int * int * int * int * acc
+    -> acc
+  let loop1 min_depth max_depth d threads i iend acc =
+    if i > iend
+    then acc
+    else begin
+      let dv = d + (i * 2) in
+      let niter = lsl 1 (max_depth - dv + min_depth) in
+      let c = Future.make CheckMake.go (Pair.P d niter) in
+      let acc = Triplet.T (dv, niter, c) :: acc in
+      loop1 min_depth max_depth d threads (i+1) iend acc
+    end
+
+  val private loop_depths: int * int * int -> acc
+    let loop_depths min_depth max_depth d =
+    let last = ((max_depth - d) / 2 + 1) - 1 in
+    let threads = 2 in
+    loop1 min_depth max_depth d threads 0 last List.Empty
+
+  val debug: 'a obs #-> unit = "liml_debug"
+
+  val private print_results: acc -> unit
+  let print_results l =
+    match l with
+    | List.Empty -> ()
+    | List.Cons (Triplet.T (d, niter, c)) rl ->
+        Print.int (2 * niter);
+	Print.string "\t trees of depth ";
+	Print.int d;
+	Print.string "\t check: ";
+	Print.int (Future.wait c);
+	Print.newline();
+	print_results rl
+
+  val main: unit -> unit
+  let main() =
+    let min_depth = 4 in
+    let max_depth = 20 in
+    let stretch_depth = max_depth + 1 in
+    let c = Tree.check (Tree.make 0 stretch_depth) in
+    Print.string "stretch tree of depth ";
+    Print.int stretch_depth;
+    Print.string "\t check: ";
+    Print.int c;
+    Print.newline();
+    let long_lived_tree = Tree.make 0 max_depth in
+    let res_list = loop_depths min_depth max_depth min_depth in
+    let res_list = List.rev res_list in
+    print_results res_list;
+    Print.string "long lived tree of depth ";
+    Print.int max_depth;
+    Print.string "\t check: ";
+    Print.int (Tree.check long_lived_tree);
+    Print.newline()
+
+end

@@ -2,7 +2,7 @@
 LIMLC = ../../compiler/limlc
 
 
-default: fankuch.run bintree.run spectral.run nbody.run
+default: fankuch.run bintree.run spectral.run
 
 %.run: %.lml
 	$(LIMLC) $< -root Main -o $@

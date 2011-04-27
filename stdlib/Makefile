@@ -7,6 +7,7 @@ default: libliml.a
 .PHONY: libliml.a
 
 SOURCES =\
+	thread.c\
 	array.c\
 	print.c\
 	math.c\
@@ -19,6 +20,7 @@ LML_SOURCES =\
 	print.lml \
 	string.lml \
 	math.lml \
+	thread.lml\
 	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	

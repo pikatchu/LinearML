@@ -234,7 +234,7 @@ let _ =
       if !no_stdlib then cmd else
       cmd ^ " -L"^Global.stdlibdir ^ " -lliml" in
     let cmd = List.fold_left add_link cmd !module_l in
-    let cmd = cmd^" -lm" in
+    let cmd = cmd^" -lm -lpthread" in
     run cmd
   end ;
   remove [bc ; asm ; obj]
