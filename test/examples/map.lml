@@ -8,7 +8,7 @@ module Map = struct
     | Not_found
     | Remove_min_elt
 
-  type abstract ('a, 'b) t =
+  type ('a, 'b) t =
     | Empty
     | Node of ('a, 'b) t * 'a * 'b * ('a, 'b) t * int
 
@@ -127,11 +127,25 @@ module Map = struct
     | Empty -> 0
     | Node _ _ _ _ h -> h
 
-  val private node: ('a, 'b) t * 'a * 'b * ('a, 'b) t -> ('a, 'b) t
-  let node l k v r =
+  val private node: ('a, 'b) env * ('a, 'b) t * 'a * 'b * ('a, 'b) t -> ('a, 'b) env * ('a, 'b) t
+  let node env l k v r =
+    let { env; ~fnode } = env in
     hl := height(!l);
     hr := height(!r);
-    Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
+    match fnode with
+    | [] -> 
+	let env = { env with fnode = [] } in
+	env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
+    | Empty :: fnode ->
+	let env = { env with fnode = fnode } in
+	env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
+    | (Node (l2, k2, v2, r2, _)) :: fnode ->
+	let env = { env with fnode = fnode } in
+	let env = dkey env k2 in
+	let env = dval env v2 in
+	let env = dnode env l2 in
+	let env = dnode env r2 in
+	env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
 
   val private balance: 
       ('a, 'b) env * ('a, 'b) t * 'a * 'b * ('a, 'b) t 
@@ -152,7 +166,8 @@ module Map = struct
           env, Empty
       | Node(ll, lv, ld, lr, _) ->
           if height !ll >= height !lr then
-            env, node ll lv ld (node lr k v r)
+	    let env, lr = node env lr k v r in
+            node env ll lv ld lr
           else
             match lr with
               Empty ->
@@ -166,7 +181,9 @@ module Map = struct
                 env := dkey env ld;
                 env, Empty
             | Node(lrl, lrv, lrd, lrr, _)->
-                env, node (node ll lv ld lrl) lrv lrd (node lrr k v r)
+		let env, lrl = node env ll lv ld lrl in
+		let env, lrr = node env lrr k v r in
+                node env lrl lrv lrd lrr
     else if d < -2 then
       match r with
       | Empty ->
@@ -178,7 +195,8 @@ module Map = struct
           env, Empty
       | Node(rl, rv, rd, rr, _) ->
           if height !rr >= height !rl then
-            env, node (node l k v rl) rv rd rr
+	    let env, rl = node env l k v rl in
+            node env rl rv rd rr
           else
             match rl with
             | Empty ->
@@ -192,7 +210,9 @@ module Map = struct
                 env := dval env rd;
                 env, Empty
             | Node(rll, rlv, rld, rlr, _) ->
-                env, node (node l k v rll) rlv rld (node rlr rv rd rr)
+		let env, rll = node env l k v rll in
+		let env, rlr = node env rlr rv rd rr in
+                node env rll rlv rld rlr
     else
       env, Node(l, k, v, r, (if hl >= hr then hl + 1 else hr + 1))
 
@@ -353,6 +373,68 @@ module Map = struct
 
 end
 
+module ShareMap = struct
+
+  type error =
+    | Bal_invalid_arg
+    | Not_found
+    | Remove_min_elt
+
+  type abstract ('a, 'b) t =
+    | Empty
+    | Node of 
+	('a, 'b) t Share.t
+	  * 'a Share.t
+	  * 'b Share.t
+	  * ('a, 'b) t Share.t 
+	  * int
+
+  val make: ('a, 'b) Map.t -> ('a, 'b) t
+  let make t = 
+    match t with
+    | Map.Empty -> Empty
+    | Map.Node (l, k, v, r, h) -> 
+	let l = Share.make (make l) in
+	let k = Share.make k in
+	let v = Share.make v in
+	let r = Share.make (make r) in
+	Node (l, k, v, r, h)
+
+end
+
+module Sum = struct
+
+  type env = {
+      menv: (int, int) Map.env;
+      mt: (int, int) Map.t Share.t;
+      n: int;
+      acc: int;
+      iter: int;
+    }
+
+  val private sum: 
+       (int, int) Map.env * (int, int) Map.t obs * int * int
+    -> (int, int) Map.env * int
+  let sum env t acc i = 
+    if i < 0
+    then env, acc
+    else 
+      let env, x = Map.find env i t in
+      let acc = acc + x in
+      sum env t acc (i-1)
+
+  val loop: env #-> env
+  let loop env = 
+    if env.iter < 0
+    then env
+    else 
+      let { env; ~acc; ~menv } = env in
+      let menv, acc = sum menv (Share.visit env.mt) acc env.n in
+      let env = { env with ~acc; ~menv ; iter = env.iter - 1} in
+      loop env
+end
+
+
 module Test = struct
 
   val cmp: int obs * int obs -> int
@@ -371,13 +453,62 @@ module Test = struct
       let env, acc = Map.add env i i acc in
       make env acc (i-1)
 
+  val private rmake: 
+       (int, int) Map.env * (int, int) Map.t * int
+    -> (int, int) Map.env * (int, int) Map.t
+  let rmake env acc i = 
+    if i < 0
+    then env, acc
+    else 
+      let env, acc = Map.remove env i acc in
+      make env acc (i-1)
+
   val fint: int -> unit
   let fint _ = ()
 
-  val main: unit -> Map.error List.t
+  val both: (int, int) Map.env * (int, int) Map.t * int * int
+      -> (int, int) Map.env * (int, int) Map.t
+  let both env t n i = 
+    if i < 0
+    then env, t
+    else
+      let env, t = make env t n in
+      both env t n (i-1)
+
+
+  val free_error: Map.error List.t -> unit
+  let free_error l = 
+    match l with
+    | [] -> ()
+    | x :: rl -> 
+	(match x with
+	| Map.Bal_invalid_arg -> 	free_error rl
+	| Map.Not_found -> 	free_error rl
+	| Map.Remove_min_elt -> 	free_error rl
+	)
+
+
+  val main: unit -> _
   let main() =
-    let env = Map.init cmp 0 0 cpy cpy fint fint in
-    let env, t = make env (Map.empty()) 1000000 in
-    Map.free_t !fint !fint t;
-    Map.free_env env
+    let menv = Map.init cmp 0 0 cpy cpy fint fint in
+    let menv, t = make menv (Map.empty()) 1000 in
+    let t = Share.make t in
+    let lenv1 = { Sum.menv = menv ;
+		  Sum.mt = Share.clone !t;
+		  Sum.n = 1000;
+		  Sum.acc = 0;
+		  Sum.iter = 100000; 
+	       } in
+    let lenv1 = Future.make Sum.loop lenv1 in
+    let menv = Map.init cmp 0 0 cpy cpy fint fint in
+    let lenv2 = { Sum.menv = menv ;
+		  Sum.mt = t;
+		  Sum.n = 1000;
+		  Sum.acc = 0;
+		  Sum.iter = 100000; 
+	       } in
+    let lenv2 = Future.make Sum.loop lenv2 in    
+    let lenv1 = Future.wait lenv1 in
+    let lenv2 = Future.wait lenv2 in
+    [lenv1; lenv2]
 end

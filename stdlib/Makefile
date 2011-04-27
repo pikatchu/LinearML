@@ -12,6 +12,7 @@ SOURCES =\
 	print.c\
 	math.c\
 	string.c\
+	share.c\
 	debug.c
 
 LML_SOURCES =\
@@ -21,6 +22,7 @@ LML_SOURCES =\
 	string.lml \
 	math.lml \
 	thread.lml\
+	share.lml\
 	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	
