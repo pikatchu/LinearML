@@ -98,7 +98,7 @@ module VEnv = struct
   let empty = {
     pointers = Pointer.empty;
     is_tagged = ISet.empty;
-    is_null = ISet.singleton Naming.none;
+    is_null = ISet.empty;
     values = IMap.empty;
     types = IMap.empty ;
     is_rec = ISet.empty ;
@@ -294,7 +294,7 @@ and make_variant t tag (_, tyl) (types, acc) =
     let types = IMap.add tag ty types in
     let acc = Llst.Dtype (tag, ty) :: acc in
     types, acc
-  else if tag = Naming.some
+  else if false (* tag = Naming.some *)
   then (match tyl with 
     [x] -> 
       let types = IMap.add tag x types in
@@ -466,11 +466,11 @@ and equation t is_last ret (idl, e) acc =
 	let acc = ([tag], tag_value) :: acc in
 	let acc = add_casts xl vl acc in
 	acc
-      else if x = Naming.some
+      else (* if x = Naming.some
       then 
 	let v = ty_id (List.hd vl) in
 	(idl, Llst.Eid (Llst.Tid Naming.toption, snd v)) :: acc
-      else 
+      else *)
 	let vl = ty_idl vl in
 	let xl = match IMap.find x t.types with 
 	| Llst.Tptr (Llst.Tstruct tyl) -> 

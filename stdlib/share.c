@@ -18,11 +18,11 @@ share_t* share_clone(share_t* x){
   return x ;
 }
 
-void* share_release(share_t* x){
+void** share_release(share_t* x){
   __sync_fetch_and_sub(&x->counter, 1) ;
   if (x->counter == 1){
-    void* res = x-> value ;
-    free(x) ;
+    void** res = malloc(sizeof(lvalue));
+    *res = x->value ;
     return res ;
   }
   return NULL ;

@@ -212,6 +212,8 @@ module SubType = struct
 
   let rec type_expr (p1, ty1) (p2, ty2) = 
     match ty1, ty2 with
+    | Tvar _, Tany 
+    | Tany, Tvar _ -> ()
     | Tvar _, Tvar _ -> ()
     | Tvar _, _ -> Error.too_general p1 p2
     | Tapply (_, tyl1), Tapply (_, tyl2) ->

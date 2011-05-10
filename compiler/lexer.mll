@@ -220,7 +220,7 @@ and interface o c pp = parse
 			 interface o c pp lexbuf }
   | "(**"              { o (Lexing.lexeme lexbuf) ; 
 			 interface o (c+1) true lexbuf }
-  | tprivate           { interface o c false lexbuf }
+(*  | tprivate           { interface o c false lexbuf }  *)
   | vprivate           { interface o c false lexbuf }
   | "(*"               { interface o (c+1) false lexbuf }
   | '('                { if pp then o (Lexing.lexeme lexbuf) ; 

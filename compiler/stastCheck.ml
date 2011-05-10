@@ -350,8 +350,6 @@ module Env = struct
 
   let rec make mdl =
     let t = List.fold_left module_ IMap.empty mdl in
-    let option = [Naming.none, 0 ; Naming.some, 1] in
-    let t = IMap.add Naming.toption option t in
     t
 
   and module_ t md = 

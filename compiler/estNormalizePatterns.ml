@@ -124,6 +124,7 @@ module Normalize = struct
 
 end
 
+(*
 module RemoveOption = struct
 
   let is_option al = 
@@ -188,6 +189,7 @@ module RemoveOption = struct
 
   
 end
+*)
 
 module RemoveUnderscore = struct
 
@@ -234,7 +236,7 @@ and module_ t md =
 and def t df = 
   let body = List.map (block t) df.df_body in
   let df = { df with df_body = body } in
-  let df = RemoveOption.def df in
+(*  let df = RemoveOption.def df in *)
   df
 
 and block t bl = 

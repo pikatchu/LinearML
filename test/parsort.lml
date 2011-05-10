@@ -5,6 +5,35 @@ module TestParsort = struct
     | Empty
     | Cons of int * t
 
+  val length: t obs * int -> int
+  let length t acc = 
+    match t with
+    | Empty -> acc
+    | Cons n t -> length t (acc+1)
+
+  val copy: t obs -> t
+  let copy t = 
+    match t with
+    | Empty -> Empty
+    | Cons n t -> Cons n (copy t)
+
+  val ff: t -> unit
+  let ff t = 
+    match t with
+    | Empty -> ()
+    | Cons _ t -> ff t
+
+  val to_array: int Array.t * t * int -> int Array.t
+  let to_array t l i =
+    match l with
+    | Empty -> t
+    | Cons n l -> t.(i) <- n ; to_array t l (i+1)
+
+  val from_array: int Array.t obs * t * int -> t
+  let from_array t acc i = 
+    if i < 0 then acc
+    else from_array t (Cons t.(i) acc) (i-1)
+
   val rev_append: t * t -> t
   let rev_append l1 l2 = 
     match l1 with
@@ -35,22 +64,29 @@ module TestParsort = struct
     | Cons x Empty -> n, l1, l2
     | Cons x (Cons y rl) -> split (n+1) (Cons x l1) (Cons y l2) rl
 
-  val sort: t -> t
-  let sort l = 
+  val c_sort: t #-> t
+  let c_sort l = 
+    let res = msort l in
+    res
+
+  val msort: t -> t
+  let msort l = 
     match l with
     | Empty -> Empty
     | Cons _ Empty as l -> l
     | Cons x rl as l -> 
 	let length1, l1, l2 = split 0 Empty Empty l in
-	if length1 > 100000
-	then 
-	  let l1 = Future.make c_sort l1 in
-	  let l2 = Future.make c_sort l2 in
-	  merge Empty (Future.wait l1) (Future.wait l2)
-	else merge Empty (sort l1) (sort l2)
+	merge Empty (msort l1) (msort l2)
 
-  val c_sort: t #-> t
-  let c_sort l = sort l
+  val sort: t -> t
+  let sort l = 
+    let length1, l1, l2 = split 0 Empty Empty l in
+    if false
+    then 
+      let l1 = Future.make c_sort l1 in
+      let l2 = msort l2 in
+      merge Empty (Future.wait l1) l2
+    else merge Empty (msort l1) (msort l2)
 
   val make: t * int -> t
   let make acc n = 
@@ -68,10 +104,10 @@ module TestParsort = struct
   let loop n acc = 
     if n <= 0
     then acc
-    else loop (n-1) (acc + sum 0 (sort (make Empty 2000000)))
+    else loop (n-1) (acc + sum 0 (sort (make Empty 100000)))
 
   val main: unit -> unit
   let main _ = 
-    Print.int (loop 1 0)
+    Print.int (loop 1 0) 
 
 end

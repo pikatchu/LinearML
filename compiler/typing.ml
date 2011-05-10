@@ -269,18 +269,11 @@ module Env = struct
 
   let tassert = tfun [tprim Tbool] [tprim Tunit]
 
-  let tsome =
-    let tmp = Ident.tmp() in
-    tfun [tvar tmp] [tapply Naming.toption [tvar tmp]]
-
-  let tnone = tapply Naming.toption [tany]
   let tnot = tfun [tprim Tbool] [tprim Tbool]
   let tabs = tfun [tprim Tint] [tprim Tint]
 
   let rec make mdl =
     let env = IMap.empty in
-    let env = IMap.add Naming.some tsome env in
-    let env = IMap.add Naming.none tnone env in
     let env = IMap.add Naming.vassert tassert env in
     let env = IMap.add Naming.bnot tnot env in
     let env = List.fold_left module_ env mdl in

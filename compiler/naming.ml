@@ -61,14 +61,12 @@ let bool	= prim_type "bool"
 let float	= prim_type "float"
 let string      = prim_type "string"
 let tobs        = prim_type "obs"
-let toption     = prim_type "option"
 let array       = prim_type "array"
 
 let malloc      = prim_value "malloc"
 let ifree       = prim_value "free"
 let vassert     = prim_value "assert"
 let eunit       = prim_value "()"
-let call        = prim_value "call"
 let bnot        = prim_value "not"
 
 let alength     = prim_array "length"
@@ -78,9 +76,6 @@ let fmake       = prim_array "fmake"
 let aget        = prim_array "get"
 let aset        = prim_array "set"
 let aswap       = prim_array "swap"
-
-let some        = prim_cstr "Some"
-let none        = prim_cstr "None"
 
 let prim_types  = !prim_types
 let prim_values = !prim_values

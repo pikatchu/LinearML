@@ -46,7 +46,6 @@ end = struct
 
   let predef = [
     Naming.tobs, 1;
-    Naming.toption, 1;
   ]
 
   let add_predef acc (x, y) =

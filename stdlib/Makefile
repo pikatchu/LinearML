@@ -16,6 +16,7 @@ SOURCES =\
 	debug.c
 
 LML_SOURCES =\
+	option.lml\
 	pervasives.lml\
 	array.lml \
 	print.lml \
@@ -23,6 +24,7 @@ LML_SOURCES =\
 	math.lml \
 	thread.lml\
 	share.lml\
+	closure.lml\
 	list.lml
 
 OBJECTS = $(SOURCES:.c=.o)	

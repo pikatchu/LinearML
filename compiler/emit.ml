@@ -592,7 +592,6 @@ and find_function env acc fty f =
     fdec
   
 and apply env acc xl tail fk (fty, f) argl = 
-  let fid = f in
   let f = find_function env acc fty f in
   let argl = build_args acc argl in
   let ret, argl = 
@@ -765,7 +764,11 @@ and expr bb env acc (ty, x) e =
       let v = IMap.find y acc in
       let v = 
 	match uop with
-	| Euminus -> build_neg v "" env.builder
+	| Euminus -> 
+	    (match ty with
+	    | Tprim Tint -> build_neg v "" env.builder
+	    | Tprim Tfloat -> build_fneg v "" env.builder
+	    | _ -> assert false)
       in
       IMap.add x v acc
   | Epartial ((Tfun (k, tyl1, [rty]), f), el) -> (* TODO return list *)

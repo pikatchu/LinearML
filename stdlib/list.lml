@@ -54,7 +54,7 @@ module List = struct
     | [] -> acc
     | x :: rl -> fold_right f rl (f x acc)
 
-  val release: ('a -> unit) obs * 'a t -> unit
+  val release: ('a -> unit) * 'a t -> unit
   let release f l = 
     match l with
     | [] -> ()

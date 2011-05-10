@@ -167,8 +167,6 @@ let _ =
     List.iter (output_interface o) !module_l ; exit 0
   else () ;
   let base = if !lib = "" then !oname else make_libname !lib in
-  if !lib = "" && !root = ""
-  then (Printf.fprintf stderr "Root node missing !\n" ; exit 2) ;
   let ast = List.fold_left parse [] !module_l in
   let ast = if !no_stdlib then ast else parse ast Global.stdlib in
   let root_id, nast = Naming.program !root ast in
@@ -185,6 +183,8 @@ let _ =
   let ist = IstOfStast.program benv stast in
   let ist = ExtractFuns.program ist in
   let ist = IstTail.program ist in
+  if !lib = "" && !root = ""
+  then (Printf.fprintf stderr "Root node missing !\n" ; exit 2) ;
   if !eval
   then (Eval.program root_id ist; exit 0);
   if !dump_ist then

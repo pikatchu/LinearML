@@ -5,7 +5,7 @@ module Share = struct
 
   val c_make: 'a #-> 'a t = "share_make"
   val c_clone: 'a t obs #-> 'a t = "share_clone"
-  val c_release: 'a t #-> 'a option = "share_release"
+  val c_release: 'a t #-> 'a Option.t = "share_release"
   val visit: 'a t obs #-> 'a obs = "share_visit"
 
   val make: 'a -> 'a t
@@ -14,7 +14,7 @@ module Share = struct
   val clone: 'a t obs -> 'a t 
   let clone x = c_clone x
 
-  val release: 'a t -> 'a option 
+  val release: 'a t -> 'a Option.t 
   let release x = c_release x
 
 end
