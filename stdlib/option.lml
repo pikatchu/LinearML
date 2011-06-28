@@ -1,0 +1,6 @@
+module Option = struct
+
+  type 'a t = 
+    | None
+    | Some of 'a
+end

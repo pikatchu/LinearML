@@ -1,0 +1,25 @@
+
+module Closure = struct
+
+  type ('a, 'b) t =
+      { env: _;
+	f: _ * 'a -> _ * 'b ;
+	g: _ -> unit;
+     }
+
+  val make: ('a * 'b -> 'a * 'c) * 'a * ('a -> unit) -> ('b, 'c) t
+  let make f env g = { ~env; ~f; ~g }
+
+  val call: ('a, 'b) t * 'a -> ('a, 'b) t * 'b
+  let call f x = 
+    let { f; ~env } = f in
+    let env, res = f.f env x in
+    { f with ~env }, res
+
+  val release: ('a, 'b) t -> unit
+  let release t = 
+    let {t; ~env} = t in
+    t.g env;
+    free t
+
+end
