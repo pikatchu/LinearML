@@ -1,5 +1,8 @@
 #include "liml.h"
-#include<malloc.h>
+
+#if !defined(__APPLE__)
+#include <malloc.h>
+#endif
 
 typedef struct{
   lvalue counter ;
