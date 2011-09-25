@@ -1,5 +1,6 @@
 #include "liml.h"
-#include<malloc.h>
+
+#include <stdlib.h>
 
 typedef struct{
   lvalue counter ;
