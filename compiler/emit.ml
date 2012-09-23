@@ -99,9 +99,8 @@ module Type = struct
 
   and opaques md_id md ctx t = function
     | Dtype (x, _) -> 
-	let ty = opaque_type ctx in
 	let name = public_name md_id x in
-	assert (define_type_name name ty md) ;
+	let ty = named_struct_type ctx name in
 	IMap.add x ty t
     | _ -> t
 
@@ -127,8 +126,14 @@ module Type = struct
 
   and refine t t' = function
     | Dtype (x, _) -> 
-	let ty = IMap.find x t' in
-	refine_type (IMap.find x t) ty
+	let ty = IMap.find x t in
+	let ty' = IMap.find x t' in
+	let element_types = 
+		if classify_type ty' = TypeKind.Struct
+		then struct_element_types ty' 
+		else [| ty' |]
+	in
+	struct_set_body ty element_types false
     | _ -> ()
 
   and function_ is_lib md_name mds t md ctx lkinds df = 
