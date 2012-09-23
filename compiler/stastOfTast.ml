@@ -71,6 +71,7 @@ let check_binop op ((p, _) as ty) =
   | Ast.Eminus, (Stast.Tint | Stast.Tfloat) -> ()
   | Ast.Estar, (Stast.Tint | Stast.Tfloat) -> ()
   | Ast.Ediv, (Stast.Tint | Stast.Tfloat) -> ()
+  | Ast.Emod, (Stast.Tint) -> ()
   | Ast.Eor, (Stast.Tbool) -> ()
   | Ast.Eand, (Stast.Tbool) -> ()
   | _ -> Error.expected_numeric p
