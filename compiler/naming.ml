@@ -604,6 +604,14 @@ and pat_field_ genv env = function
   | PField (id, p) ->
       let env, p = pat genv env p in
       env, Nast.PField (Env.field env id, p)
+  | PQualField (md_id, id, p) ->
+      let md_id = Genv.module_id genv md_id in
+      (*let _ = print_endline ("md_id - " ^ Ident.debug (snd md_id)) in*)
+      let sig_md = Genv.sig_ genv md_id in
+      let id = Env.field sig_md id in
+      (*let _ = print_endline ("id    - " ^ Ident.debug (snd id)) in*)
+      let env, p = pat genv env p in
+      env, Nast.PField (id, p)
 
 and tpat_list genv env idl =
   let env = Env.fresh_tvars env in

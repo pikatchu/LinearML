@@ -1,0 +1,28 @@
+module Roo = struct
+
+    type leap = { height : float; length : float }
+
+    val main : unit -> unit
+    let main () =
+        let l = { height = 3.0; length = 6.0 } in
+        let { l; height = height } = l in
+        let { l; ~length } = l in
+        free l;
+        Print.float height; Print.newline ();
+        Print.float length; Print.newline ()
+
+end
+
+
+module Christopher = struct
+
+    val main : unit -> unit
+    let main () = 
+        let l = { Roo.height = 3.0; Roo.length = 6.0 } in
+        let { l; Roo.height = height } = l in
+        let { l; ~Roo.length } = l in
+        free l;
+        Print.float height; Print.newline ();
+        Print.float length; Print.newline ()
+
+end

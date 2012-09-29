@@ -103,6 +103,7 @@ and pat_field_ =
   | PFany
   | PFid of id 
   | PField of id * pat
+  | PQualField of id * id * pat
 
 and expr = Pos.t * expr_
 and expr_ = 
