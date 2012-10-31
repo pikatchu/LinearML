@@ -22,17 +22,18 @@ lvalue share_clone(lvalue v_){
 
 lvalue share_release(lvalue v_){
   share_t *x = (share_t *)v_ ;
-  __sync_fetch_and_sub(&x->counter, 1) ;
   if (x->counter == 1){
     lvalue *res = malloc(sizeof(lvalue));
     *res = x->value ;
     free(x) ;
-    return res ;
+    
+    return (lvalue)res ;
   }
-  // Option.None machine representation is 1
-  return (lvalue) 1 ;
+  
+  __sync_fetch_and_sub(&x->counter, 1) ;
+  return (lvalue) NONE ;
 }
 
-void* share_visit(share_t* x){
-  return x->value ;
+lvalue share_visit(share_t* x){
+  return (lvalue) x->value ;
 }
