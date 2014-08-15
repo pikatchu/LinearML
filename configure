@@ -238,7 +238,7 @@ if test "$llbindings"; then
     if ! test -e $llvm_target_cma; then
         echo "Couldn't find: $llvm_target_cma"; exit 2;
     fi
-else $llbindings=$(ocamlc -where)
+else llbindings=$(ocamlc -where)
 fi
 
 if test -z "$llbindings"; then
