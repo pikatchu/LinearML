@@ -238,7 +238,7 @@ if test "$llbindings"; then
     if ! test -e $llvm_target_cma; then
         echo "Couldn't find: $llvm_target_cma"; exit 2;
     fi
-else $llbindings=$(ocamlc -where)
+else llbindings=$(ocamlc -where)
 fi
 
 if test -z "$llbindings"; then
@@ -322,7 +322,7 @@ fi
 echo ""
 
 llc_version=`$llc -version | grep version` ;
-if [[ "$llc_version" =~ .*version.3.[0|1].* ]]; then
+if [[ "$llc_version" =~ .*version.3.*.* ]]; then
     echo -e "Checking llc     \t: OK$llc_version"
 else
     echo "Bad version of llc (expected version 2.8): $version" 2>&1;
@@ -330,7 +330,7 @@ else
 fi
 
 opt_version=`$opt -version | grep version` ;
-if [[ "$opt_version" =~ .*version.3.[0|1].* ]]; then
+if [[ "$opt_version" =~ .*version.3.*.* ]]; then
     echo -e "Checking opt     \t: OK$opt_version"
 else
     echo "Bad version of opt (expected version 3.0): $version" 2>&1;
@@ -338,7 +338,7 @@ else
 fi
 
 ocamlc_version=`$ocamlc -version` ;
-if [[ "$ocamlc_version" =~ 4.00.* ]]; then
+if [[ "$ocamlc_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlc  \t: OK $ocamlc_version"
 else
     echo "Bad version of ocamlc (< 3.11): $version" 2>&1;
@@ -346,7 +346,7 @@ else
 fi
 
 ocamlopt_version=`$ocamlopt -version` ;
-if [[ "$ocamlopt_version" =~ 4.00.* ]]; then
+if [[ "$ocamlopt_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlopt\t: OK $ocamlopt_version"
 else
     echo "Bad version of ocamlopt (< 3.11): $version" 2>&1;
@@ -354,7 +354,7 @@ else
 fi
 
 ocamllex_version=`$ocamllex -version` ;
-if [[ "$ocamllex_version" =~ 4.00.* ]]; then
+if [[ "$ocamllex_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamllex\t: OK $ocamllex_version"
 else
     echo "Bad version of ocamllex (< 4.00): $version" 2>&1;
@@ -362,7 +362,7 @@ else
 fi
 
 ocamlyacc_version=`$ocamlyacc -version` ;
-if [[ "$ocamlyacc_version" =~ 4.00.* ]]; then
+if [[ "$ocamlyacc_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlyacc\t: OK $ocamlyacc_version"
 else
     echo "Bad version of ocamlyacc (< 3.11): $version" 2>&1;
@@ -370,7 +370,7 @@ else
 fi
 
 ocamldep_version=`$ocamldep -version` ;
-if [[ "$ocamldep_version" =~ 4.00.* ]]; then
+if [[ "$ocamldep_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamldep\t: OK $ocamldep_version"
 else
     echo "Bad version of ocamldep (< 3.11): $version" 2>&1;
