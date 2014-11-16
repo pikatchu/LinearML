@@ -2,8 +2,16 @@
 #include<stdio.h>
 
 lvalue print_int(lvalue n__){
-  int n = (int) n__ ;
+  lint n = (lint) n__ ;
+
+#ifdef ARCH_32
   printf("%d", n) ;
+#endif
+
+#ifdef ARCH_64
+  printf("%ld", n) ;
+#endif
+
   return 0 ;
 }
 
@@ -13,7 +21,7 @@ lvalue print_newline(){
 }
 
 lvalue print_float(lvalue x__){
-  float x = V2F(x__) ;
+  lfloat x = V2F(x__) ;
   printf("%f", x) ;
   return 0 ;
 }

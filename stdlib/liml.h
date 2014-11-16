@@ -2,6 +2,9 @@
 
 #include <stdlib.h>
 
+// Option.None - machine representation
+#define NONE 1
+
 #ifdef ARCH_32
 
 typedef lint   lvalue ;

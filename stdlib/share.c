@@ -4,31 +4,36 @@
 
 typedef struct{
   lvalue counter ;
-  void* value ;
+  lvalue value ;
 } share_t ;
 
-share_t* share_make(void* value){
+lvalue share_make(lvalue value){
   share_t *res = malloc(sizeof(share_t)) ;
   res->counter = 1 ;
   res->value = value ;
-  return res ;
+  return (lvalue) res ;
 }
 
-share_t* share_clone(share_t* x){
+lvalue share_clone(lvalue v_){
+  share_t *x = (share_t *)v_ ;
   __sync_fetch_and_add(&x->counter, 1) ;
-  return x ;
+  return (lvalue) x ;
 }
 
-void** share_release(share_t* x){
-  __sync_fetch_and_sub(&x->counter, 1) ;
+lvalue share_release(lvalue v_){
+  share_t *x = (share_t *)v_ ;
   if (x->counter == 1){
-    void** res = malloc(sizeof(lvalue));
+    lvalue *res = malloc(sizeof(lvalue));
     *res = x->value ;
-    return res ;
+    free(x) ;
+    
+    return (lvalue)res ;
   }
-  return NULL ;
+  
+  __sync_fetch_and_sub(&x->counter, 1) ;
+  return (lvalue) NONE ;
 }
 
-void* share_visit(share_t* x){
-  return x->value ;
+lvalue share_visit(share_t* x){
+  return (lvalue) x->value ;
 }

@@ -313,8 +313,10 @@ field_type:
 
 pat_field:
 | ID { fst $1, PFid $1 }
-| ID EQ pat { btw $1 $3, PField ($1, $3) } 
+| ID EQ pat { btw $1 $3, PField ($1, $3) }
+| CSTR DOT ID EQ pat { btw $1 $5, PQualField ($1, $3, $5) }
 | TILD ID { Pos.btw $1 (fst $2), PField ($2, (fst $2, Pid $2)) }
+| TILD CSTR DOT ID { btw $2 $4, PQualField ($2, $4, (fst $4, Pid $4)) }
 | UNDERSCORE { ($1, PFany) }
 
 pat_field_l:
