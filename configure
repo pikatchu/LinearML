@@ -216,6 +216,10 @@ if [ $os = "Darwin" ]; then
    llvm_target_cma_base="target"
 fi
 
+if  test -d "$(opam config var lib)/llvm/"; then
+    llbindings="$(opam config var lib)/llvm/"
+fi
+
 if test "$llbindings"; then
     llvm_cma="$llbindings/llvm.cma";
     llvm_analysis_cma="$llbindings/llvm_analysis.cma"
