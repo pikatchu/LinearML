@@ -325,7 +325,7 @@ llc_version=`$llc -version | grep version` ;
 if [[ "$llc_version" =~ .*version.3.*.* ]]; then
     echo -e "Checking llc     \t: OK$llc_version"
 else
-    echo "Bad version of llc (expected version 2.8): $version" 2>&1;
+    echo "Bad version of llc (expected version 2.8): $llc_version" 2>&1;
     exit 2
 fi
 
@@ -333,7 +333,7 @@ opt_version=`$opt -version | grep version` ;
 if [[ "$opt_version" =~ .*version.3.*.* ]]; then
     echo -e "Checking opt     \t: OK$opt_version"
 else
-    echo "Bad version of opt (expected version 3.0): $version" 2>&1;
+    echo "Bad version of opt (expected version 3.0): $opt_version" 2>&1;
     exit 2
 fi
 
@@ -341,7 +341,7 @@ ocamlc_version=`$ocamlc -version` ;
 if [[ "$ocamlc_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlc  \t: OK $ocamlc_version"
 else
-    echo "Bad version of ocamlc (< 3.11): $version" 2>&1;
+    echo "Bad version of ocamlc (< 3.11): $ocamlc_version" 2>&1;
     exit 2
 fi
 
@@ -349,7 +349,7 @@ ocamlopt_version=`$ocamlopt -version` ;
 if [[ "$ocamlopt_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlopt\t: OK $ocamlopt_version"
 else
-    echo "Bad version of ocamlopt (< 3.11): $version" 2>&1;
+    echo "Bad version of ocamlopt (< 3.11): $ocamlopt_version" 2>&1;
     exit 2
 fi
 
@@ -357,7 +357,7 @@ ocamllex_version=`$ocamllex -version` ;
 if [[ "$ocamllex_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamllex\t: OK $ocamllex_version"
 else
-    echo "Bad version of ocamllex (< 4.00): $version" 2>&1;
+    echo "Bad version of ocamllex (< 4.00): $ocamllex_version" 2>&1;
     exit 2
 fi
 
@@ -365,7 +365,7 @@ ocamlyacc_version=`$ocamlyacc -version` ;
 if [[ "$ocamlyacc_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamlyacc\t: OK $ocamlyacc_version"
 else
-    echo "Bad version of ocamlyacc (< 3.11): $version" 2>&1;
+    echo "Bad version of ocamlyacc (< 3.11): $ocamlyacc_version" 2>&1;
     exit 2
 fi
 
@@ -373,7 +373,7 @@ ocamldep_version=`$ocamldep -version` ;
 if [[ "$ocamldep_version" =~ 4.0[0|1].* ]]; then
     echo -e "Checking ocamldep\t: OK $ocamldep_version"
 else
-    echo "Bad version of ocamldep (< 3.11): $version" 2>&1;
+    echo "Bad version of ocamldep (< 3.11): $ocamldep_version" 2>&1;
     exit 2
 fi
 
